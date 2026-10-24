@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ColumnInfo, TableInfoDetail } from '@shared/types'
 import { unwrap } from './api'
 import { useLocale } from './i18n'
+import { formatCellValue } from '@shared/cellValue'
 import { IconRefresh } from './Icons'
 
 export interface DetailSelection {
@@ -46,6 +47,8 @@ function formatNumber(value: number | null | undefined): string | null {
 // back into a query.
 function renderValue(value: unknown): string {
   if (value === null || value === undefined) return 'NULL'
+  // A Date would otherwise print "Sat Oct 24 2026 19:29:44 GMT+0700 (...)".
+  if (value instanceof Date) return formatCellValue(value)
   if (typeof value === 'object') {
     if (value instanceof Uint8Array) return `<biner ${value.length} byte>`
     const asBinary = value as { kind?: string; size?: number }

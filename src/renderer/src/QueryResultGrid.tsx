@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { QueryResultSet } from '@shared/types'
 import { formatBytes, isBinaryCell, type BinaryCell } from '@shared/binary'
+import { formatCellValue } from '@shared/cellValue'
 import { parseSingleTableSelect } from '@shared/sqlSource'
 import { unwrap } from './api'
 import { ContextMenu, type MenuItem } from './ContextMenu'
@@ -246,14 +247,14 @@ export function QueryResultGrid({
           setEdit({
             rowIndex: cell.rowIndex,
             column: cell.column,
-            value: isNull ? '' : String(raw)
+            value: isNull ? '' : formatCellValue(raw)
           })
       },
       {
         label: tr('grid.copyValue'),
         disabled: isNull,
         separatorBefore: true,
-        onSelect: () => void window.dbApi.clipboardWrite(isNull ? '' : String(raw))
+        onSelect: () => void window.dbApi.clipboardWrite(formatCellValue(raw))
       },
       {
         label: tr('grid.copyRow'),
@@ -369,7 +370,7 @@ export function QueryResultGrid({
                           setEdit({
                             rowIndex,
                             column: c.name,
-                            value: raw === null || raw === undefined ? '' : String(raw)
+                            value: formatCellValue(raw)
                           })
                         }}
                         onContextMenu={(e) => {
@@ -418,7 +419,7 @@ export function QueryResultGrid({
                             </span>
                           </button>
                         ) : (
-                          String(raw)
+                          formatCellValue(raw)
                         )}
                       </td>
                     )

@@ -7,6 +7,7 @@ import {
   toInputValue
 } from '@shared/columnType'
 import { formatBytes, isBinaryCell } from '@shared/binary'
+import { formatCellValue } from '@shared/cellValue'
 import { unwrap } from './api'
 import { useLocale } from './i18n'
 import { confirmDestructive } from './confirm'
@@ -306,7 +307,9 @@ export function FormView({ selection }: Props): JSX.Element {
                         <span className="blob-badge__size">{formatBytes(raw.size)}</span>
                       </span>
                     ) : (
-                      <span className="formview__text">{String(raw)}</span>
+                      <span className="formview__text">
+                        {formatCellValue(raw, c.dataType)}
+                      </span>
                     )}
                     {!editing && canEdit && !isBinaryCell(raw) && (
                       <button

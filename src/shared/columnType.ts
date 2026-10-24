@@ -37,11 +37,28 @@ export function toInputValue(kind: ColumnInputKind, value: unknown): string {
   if (value === null || value === undefined) return ''
   if (kind === 'boolean')
     return value === true || value === 1 || value === '1' ? 'true' : 'false'
-  const str = typeof value === 'object' ? JSON.stringify(value) : String(value)
+  // A driver may hand back a Date for a date column. JSON.stringify would turn it
+  // into a quoted ISO string, which no date input accepts.
+  const str =
+    value instanceof Date
+      ? formatLocalDateTime(value)
+      : typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value)
   if (kind === 'datetime') return str.replace(' ', 'T').slice(0, 16)
   if (kind === 'date') return str.slice(0, 10)
   if (kind === 'time') return str.slice(0, 8)
   return str
+}
+
+// Local wall-clock text, matching what the database reported instead of shifting
+// the value into UTC the way toISOString() does.
+function formatLocalDateTime(value: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return (
+    `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} ` +
+    `${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`
+  )
 }
 
 // Converts a typed input string into the value to send to the database.

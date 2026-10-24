@@ -767,6 +767,7 @@ export const en: Record<MessageKey, string> = {
   'tab.definition': 'Definition',
 
   'grid.filter': 'Filter',
+  'grid.advancedFilterShort': 'Advanced filter',
   'grid.noFilter': '(no filter)',
   'grid.value': 'Value',
   'grid.searchPlaceholder': 'search...',

@@ -799,6 +799,7 @@ export const id = {
 
   // Data grid filters and pager
   'grid.filter': 'Filter',
+  'grid.advancedFilterShort': 'Filter lanjutan',
   'grid.noFilter': '(tanpa filter)',
   'grid.value': 'Nilai',
   'grid.searchPlaceholder': 'cari...',
