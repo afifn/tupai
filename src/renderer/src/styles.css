@@ -1,0 +1,7271 @@
+@import './theme/themes/light.css';
+@import './theme/themes/dark.css';
+@import './theme/themes/presets.css';
+@import './theme/themes/previews.css';
+
+/* Thin, theme-aware scrollbars. The default 17px Windows bar is heavy and
+   clashes with the compact tree; the transparent track keeps panels calm. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+}
+
+.layout {
+  display: flex;
+  height: 100%;
+}
+
+/* App shell: toolbar on top, workspace in the middle, status bar at the bottom */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 26px;
+  flex-shrink: 0;
+  padding: 0 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.statusbar__item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusbar__item--active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.statusbar__spacer {
+  flex: 1;
+}
+
+/* Top toolbar: grouped actions with dividers, icon-only for secondary items */
+.menubar {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+  min-width: 0;
+}
+
+/* Only the menu groups scroll. The dock and theme buttons stay pinned on the
+   right so they never disappear on a narrow window. */
+.menubar__scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.menubar__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.menubar__group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.menubar__divider {
+  width: 1px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.menubar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menubar__item--icon {
+  padding: 0 7px;
+}
+
+.menubar__item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.menubar__item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.menubar__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.menubar__spacer {
+  flex: 1;
+}
+
+.sidebar {
+  width: 272px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 8px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Sidebar section header. It carries the only two list-level actions left, so
+   the tree starts at the top of the panel instead of below a brand row. */
+.objtree__section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 2px 2px 6px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.objtree__section-label {
+  min-width: 0;
+}
+
+.objtree__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+}
+
+.objtree__section-actions .icon-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.objtree__section-actions .icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.crash {
+  max-width: 640px;
+  margin: 64px auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* Object tree */
+/* Sidebar filter. One field for every open connection, opened with Cmd/Ctrl+F:
+   a per-connection search box multiplied the work when several servers were
+   open, and it hid the fact that the tree itself can be filtered. */
+.sidebar__filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 8px 6px;
+  padding: 0 6px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.sidebar__filter:focus-within {
+  border-color: var(--accent);
+}
+
+.sidebar__filter-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.sidebar__filter-input::placeholder {
+  color: var(--text-muted);
+}
+
+.sidebar__filter-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sidebar__filter-close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sidebar__filter-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sidebar__filter-empty {
+  margin: 4px 10px 8px;
+  font-size: 12px;
+}
+
+/* A connection with no matching object keeps its tree mounted (it is what
+   reports the match) but takes no space, so the sidebar reads as the result. */
+.objtree__conn.is-filtered-out {
+  display: none;
+}
+
+.objtree {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Colour swatches in the connection form */
+.ssl-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  padding: 12px;
+}
+
+.field__hint {
+  font-size: 11.5px;
+  margin: 0;
+}
+
+.swatches {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background: var(--surface-muted);
+}
+
+.swatch--none {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  border-color: var(--border);
+}
+
+.swatch--slate {
+  background: var(--conn-slate);
+}
+.swatch--red {
+  background: var(--conn-red);
+}
+.swatch--amber {
+  background: var(--conn-amber);
+}
+.swatch--green {
+  background: var(--conn-green);
+}
+.swatch--teal {
+  background: var(--conn-teal);
+}
+.swatch--blue {
+  background: var(--conn-blue);
+}
+.swatch--violet {
+  background: var(--conn-violet);
+}
+.swatch--pink {
+  background: var(--conn-pink);
+}
+
+.swatch.is-on {
+  border-color: var(--text);
+  outline: 2px solid var(--surface);
+  outline-offset: -4px;
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Connection group headers: folder-like rows, distinct from connections.
+   The 4px left padding lines the caret up with a top-level connection caret
+   and puts the folder icon/name on the same columns as a connection's icon
+   and name (the group's own 1px transparent border adds the rest). */
+.objtree__group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 2px 6px 2px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.objtree__group-head:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.objtree__group-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.objtree__group-head .objtree__caret {
+  color: var(--text-muted);
+}
+
+.objtree__group-count {
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: 9px;
+  padding: 0 6px;
+  line-height: 16px;
+}
+
+.objtree__group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.objtree__group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.objtree__group-head:hover .objtree__group-icon {
+  color: var(--accent);
+}
+
+.objtree__group-empty {
+  font-size: 12px;
+  margin: 0;
+  padding: 4px 6px 6px 26px;
+  color: var(--text-muted);
+}
+
+/* Connections inside a group are indented so the folder reads as a container. */
+.objtree__group > .objtree__conn {
+  margin-left: 14px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+
+/* Drag and drop onto groups */
+.objtree__group,
+.objtree__ungrouped {
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.objtree__group.is-drop-target,
+.objtree__ungrouped.is-drop-target {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.objtree__conn.is-dragging {
+  opacity: 0.45;
+}
+
+.objtree__ungrouped {
+  padding: 2px;
+  margin-top: 2px;
+}
+
+.objtree__row[draggable='true'] {
+  cursor: grab;
+}
+
+.objtree__row[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.objtree__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 6px;
+  font-size: 12.5px;
+}
+
+.objtree__empty p {
+  margin: 0;
+}
+
+.objtree__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.objtree__conn {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navicat-style connection tint: the colour fills the whole connection block
+   (row + its object tree), not just a dot. A soft wash keeps text contrast.
+   Vertical padding only: a shorthand would reset the group's left indent and
+   the row would sit left of its untinted siblings. */
+.objtree__conn.is-colored {
+  border-radius: 6px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  /* Only vertical margins, for the same reason. */
+  margin-top: 1px;
+  margin-bottom: 1px;
+}
+
+.objtree__conn.is-colored .objtree__tree {
+  border-left-color: currentColor;
+}
+
+.conn-tint--slate {
+  background: color-mix(in srgb, var(--conn-slate) 14%, transparent);
+  color: var(--conn-slate);
+}
+.conn-tint--red {
+  background: color-mix(in srgb, var(--conn-red) 14%, transparent);
+  color: var(--conn-red);
+}
+.conn-tint--amber {
+  background: color-mix(in srgb, var(--conn-amber) 16%, transparent);
+  color: var(--conn-amber);
+}
+.conn-tint--green {
+  background: color-mix(in srgb, var(--conn-green) 14%, transparent);
+  color: var(--conn-green);
+}
+.conn-tint--teal {
+  background: color-mix(in srgb, var(--conn-teal) 14%, transparent);
+  color: var(--conn-teal);
+}
+.conn-tint--blue {
+  background: color-mix(in srgb, var(--conn-blue) 14%, transparent);
+  color: var(--conn-blue);
+}
+.conn-tint--violet {
+  background: color-mix(in srgb, var(--conn-violet) 14%, transparent);
+  color: var(--conn-violet);
+}
+.conn-tint--pink {
+  background: color-mix(in srgb, var(--conn-pink) 14%, transparent);
+  color: var(--conn-pink);
+}
+
+.objtree__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 4px 2px 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12.5px;
+}
+
+.objtree__row:hover {
+  background: var(--surface-hover);
+}
+
+/* Connected is a status, not a selection: the dot and the engine mark already
+   say it. The focused connection keeps a filled engine badge instead of a row
+   wash, so the only fills in the tree are real locations. */
+.objtree__row.is-focused .objtree__name {
+  font-weight: 700;
+}
+
+.objtree__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Connection actions stay hidden until the row is hovered or focused, so the
+   list reads as names rather than a wall of icons. */
+.objtree__actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.objtree__row:hover .objtree__actions,
+.objtree__row:focus-within .objtree__actions,
+.objtree__row.is-connecting .objtree__actions {
+  opacity: 1;
+}
+
+/* The status dot only shows when no actions are visible. */
+.objtree__status {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.objtree__status.is-on {
+  background: var(--ok);
+}
+
+/* Connecting and failed states reuse the same dot so the row height never
+   changes while a connection attempt is in flight. */
+.objtree__status.is-busy {
+  background: var(--accent);
+  animation: objtree-pulse 1s ease-in-out infinite;
+}
+
+.objtree__status.is-failed {
+  background: var(--error);
+}
+
+@keyframes objtree-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.objtree__row.is-failed .objtree__name {
+  color: var(--error);
+}
+
+.objtree__busy {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Actions replace the dot on hover so the row never grows a second column. */
+.objtree__row:hover .objtree__status,
+.objtree__row:focus-within .objtree__status,
+.objtree__row.is-connecting .objtree__status {
+  display: none;
+}
+
+.objtree__caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+.objtree__caret:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.objtree__caret:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.objtree__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+/* Active connection: solid accent badge with a contrasting glyph. */
+.objtree__icon.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* On the solid badge the brand tint would disappear, so the mark inherits the
+   badge's contrasting text colour instead. */
+.objtree__icon.is-active .engine-icon,
+.objtree__icon.is-active .engine-icon.is-active {
+  color: var(--accent-text);
+  opacity: 1;
+  filter: none;
+}
+
+/* Engine brand tints: muted and desaturated until the connection is active. */
+.engine-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
+.engine-icon.is-active {
+  opacity: 1;
+  filter: none;
+}
+
+.engine-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  display: block;
+}
+
+.engine-icon--mysql.is-active {
+  color: var(--engine-mysql);
+}
+
+.engine-icon--mariadb.is-active {
+  color: var(--engine-mariadb);
+}
+
+.engine-icon--postgres.is-active {
+  color: var(--engine-postgres);
+}
+
+.engine-icon--sqlite.is-active {
+  color: var(--engine-sqlite);
+}
+
+.engine-icon--oracle.is-active {
+  color: var(--engine-oracle);
+}
+
+.engine-icon--mongodb.is-active {
+  color: var(--engine-mongodb);
+}
+
+[data-theme='dark'] .engine-icon--mysql.is-active {
+  color: var(--engine-mysql);
+}
+
+[data-theme='dark'] .engine-icon--mariadb.is-active {
+  color: var(--engine-mariadb);
+}
+
+[data-theme='dark'] .engine-icon--postgres.is-active {
+  color: var(--engine-postgres);
+}
+
+[data-theme='dark'] .engine-icon--sqlite.is-active {
+  color: var(--engine-sqlite);
+}
+
+[data-theme='dark'] .engine-icon--oracle.is-active {
+  color: var(--engine-oracle);
+}
+
+[data-theme='dark'] .engine-icon--mongodb.is-active {
+  color: var(--engine-mongodb);
+}
+
+.objtree__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.objtree__tree {
+  position: relative;
+  padding-left: 21px;
+  margin-top: 1px;
+  margin-bottom: 2px;
+}
+
+.objtree__tree::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Objects browser (Navicat-style table list with metadata) */
+.objects {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.objects__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.objects__path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.objects__conn {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.objects__crumb {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.objects__crumb:hover {
+  background: var(--surface-hover);
+}
+
+.objects__crumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.objects__counts {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.objects__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.objects__filter {
+  min-width: 180px;
+}
+
+.objects__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.objects__pad {
+  padding: 12px 2px;
+}
+
+.objects__th-name {
+  min-width: 220px;
+}
+
+.objects__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 4px;
+}
+
+.objects__name:hover {
+  color: var(--accent);
+}
+
+.objects__name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.objects__icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+/* Tab bar */
+.tabbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -12px 10px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  min-height: 38px;
+}
+
+.tabbar__tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  scrollbar-width: none;
+}
+
+.tabbar__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  max-width: 200px;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.tab:hover {
+  background: var(--surface-hover);
+}
+
+.tab.is-active {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 1px 0 var(--bg);
+}
+
+.tab.is-active::before {
+  content: '';
+  width: 2px;
+  align-self: stretch;
+  margin: 5px 0 5px 5px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.tab__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 5px 4px 5px 9px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tab.is-active .tab__label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab__icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.tab.is-active .tab__icon {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.tab__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.tab:hover .tab__close,
+.tab.is-active .tab__close {
+  opacity: 1;
+}
+
+.tab__close:hover {
+  background: var(--notice-error-bg);
+  color: var(--error);
+}
+
+.tab__close:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tabbar__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tabpanels {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-panel {
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.table-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.table-tab .viewtabs {
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.tree-pad {
+  padding: 5px 6px 5px 28px;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* Buttons */
+.btn {
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  padding: 8px 14px;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn--small {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.btn--tiny {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+/* Destructive action in a confirmation dialog. Text stays on --error and the
+   background is the soft error surface so contrast holds in both themes. */
+.btn--danger {
+  background: var(--notice-error-bg);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--error);
+  color: var(--surface);
+}
+
+.confirm__message {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.confirm__detail {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.modal--confirm {
+  max-width: 460px;
+}
+
+/* Notices */
+.notice {
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.notice--error {
+  background: var(--notice-error-bg);
+  color: var(--error);
+  border: 1px solid var(--notice-error-border);
+}
+
+.notice--ok {
+  background: var(--notice-ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--notice-ok-border);
+}
+
+.notice--info {
+  background: var(--notice-info-bg);
+  color: var(--info);
+  border: 1px solid var(--notice-info-border);
+}
+
+/* Tree */
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.tree__row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 23px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 1px 6px 1px 3px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.tree__row:hover {
+  background: var(--surface-hover);
+}
+
+.tree__row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tree__row.is-selected {
+  background: var(--selected-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tree__row.is-selected .tree__icon {
+  color: var(--accent);
+}
+
+.tree__row.is-selected .tree__count,
+.tree__row.is-selected .tree__tag {
+  color: var(--text-muted);
+}
+
+.tree__row.is-selected .tree__tag {
+  background: var(--surface-muted);
+}
+
+/* Database rows read as the top level: stronger weight. */
+.tree__row--db {
+  font-weight: 600;
+}
+
+/* The database holding the active tab. Expansion is only a caret state; the
+   accent marks where the user is actually working, and the text stays on the
+   normal colour so the selected table below keeps the only filled row. */
+.tree__row--db.is-active .tree__icon {
+  color: var(--accent);
+}
+
+.tree__row--schema {
+  color: var(--text-muted);
+}
+
+.tree__row--schema.is-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tree__row--schema.is-active .tree__icon {
+  color: var(--accent);
+}
+
+/* Section groups (Tables, Views, Queries...) are quiet labels for the rows
+   below, not entries of their own. */
+.tree__row--group {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-height: 22px;
+}
+
+.tree__row--group:hover {
+  color: var(--text);
+}
+
+.tree__row--group .tree__label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Leaf rows sit one step below their group label; the shared indent already
+   puts their icon where the group label starts. */
+.tree__count {
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One indent step per level, drawn with padding instead of a margin so the
+   rows keep the full panel width: hover and selection fills end on the same
+   right edge no matter how deep the node sits. The step is the caret (16px)
+   plus the row gap (5px), so a leaf's icon lands exactly on the label column
+   of the group that contains it. The guide sits on the parent caret's centre:
+   tree rows pad 3px, connection rows pad 2px, hence the 1px difference. */
+.tree__children {
+  position: relative;
+  padding-left: 21px;
+}
+
+.tree__children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 11px;
+  border-left: 1px solid var(--border);
+}
+
+.tree__caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tree__caret:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.icon-caret {
+  transition: transform 120ms ease;
+}
+
+.icon-caret.is-open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-caret {
+    transition: none;
+  }
+}
+
+.tree__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tree__row.is-selected .tree__icon {
+  color: var(--accent);
+}
+
+.tree__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree__tag {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 15px;
+  text-transform: lowercase;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal__head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Settings dialog. A sidebar keeps seven sections reachable without scrolling,
+   and the body scrolls on its own so the section list never moves. */
+.modal--settings {
+  max-width: 880px;
+  height: min(680px, 88vh);
+  padding: 0;
+  overflow: hidden;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.settings__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-muted);
+  overflow-y: auto;
+}
+
+.settings__title {
+  margin: 0 0 10px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
+.settings__nav-item {
+  padding: 6px 9px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings__nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.settings__nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings__nav-item.is-active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.settings__nav-foot {
+  margin-top: auto;
+  padding: 10px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.settings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings__head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.settings__group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings__group legend {
+  padding: 0;
+  margin-bottom: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings__hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.settings__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings__value {
+  min-width: 46px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.settings__choices {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.settings__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+/* Download progress for the update panel. A single accent bar on the muted
+   surface, no stripes or animation: the percentage next to it already moves. */
+.settings__progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.settings__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+.settings__hint.is-error {
+  color: var(--error);
+}
+
+.settings__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings__themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.settings__theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings__theme:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.settings__theme:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings__theme.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Two-tone chip: the swatch shows the theme's own background and accent without
+   needing a screenshot per theme. */
+.settings__swatch {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: linear-gradient(
+    135deg,
+    var(--swatch-bg, var(--surface)) 50%,
+    var(--swatch-accent, var(--accent)) 50%
+  );
+}
+
+.settings__core,
+.settings__token-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings__core-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px;
+}
+
+/* Picker and hex on one line, the token name above them. Side by side the name
+   was squeezed to a single letter once the hex field took its width. */
+.settings__color {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-areas:
+    'name name'
+    'picker hex';
+  align-items: center;
+  gap: 3px 6px;
+  font-size: 11.5px;
+}
+
+.settings__color input[type='color'] {
+  grid-area: picker;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings__color-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  color: var(--text-muted);
+}
+
+.settings__hex {
+  grid-area: hex;
+  width: 100%;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+}
+
+/* The contrast report is the gate that stops an unreadable palette, so it is a
+   bordered block rather than a muted line. */
+.settings__contrast {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  font-size: 11.5px;
+}
+
+.settings__contrast.is-ok {
+  border-color: var(--ok);
+}
+
+.settings__contrast.is-bad {
+  border-color: var(--error);
+}
+
+.settings__contrast p {
+  margin: 0;
+}
+
+.settings__contrast ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.settings__contrast li {
+  color: var(--error);
+}
+
+.settings__contrast li.settings__warning {
+  color: var(--text-muted);
+}
+
+.settings__prompt {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.settings__keymap {
+  width: 100%;
+  font-size: 12.5px;
+}
+
+.settings__keymap-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.settings__binding {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+}
+
+.settings__conflict {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--error);
+}
+
+.settings__about {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings__about-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.settings__about-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.settings__about-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.settings__info {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.settings__info dt {
+  color: var(--text-muted);
+}
+
+.settings__info dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.settings__path {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Navicat import preview. The table is the decision surface, so it gets the room
+   and the surrounding text stays to one short line. */
+.modal--ncx {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ncx__hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ncx__pad {
+  margin: 12px 0;
+}
+
+.ncx__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ncx__scroll {
+  max-height: 320px;
+  margin-top: 8px;
+}
+
+.ncx__table {
+  width: 100%;
+}
+
+.ncx__check {
+  width: 34px;
+}
+
+.ncx__row.is-disabled td {
+  color: var(--text-muted);
+}
+
+.ncx__name {
+  display: block;
+  font-weight: 600;
+}
+
+.ncx__note {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ncx__engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ncx__server {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+}
+
+.ncx__badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ncx__badge.is-new {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.ncx__badge.is-conflict {
+  color: var(--info);
+  border-color: var(--info);
+}
+
+.ncx__badge.is-unsupported {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.ncx__badge.is-password {
+  color: var(--text-muted);
+}
+
+/* Connection dialog. Wider than the default modal because the engine picker is a
+   row of six tiles, and the body scrolls instead of the whole dialog so the
+   footer buttons stay reachable on a short window. */
+.modal--conn {
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.conn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.conn__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Engine picker: one tile per engine, icon plus name. A dropdown hid which
+   engines exist and made the port default look unrelated to the choice. */
+.conn__engines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.conn__engine {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conn__engine:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.conn__engine:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.conn__engine.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.conn__tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conn__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.conn__tab:hover {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.conn__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.conn__tab.is-active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  margin-bottom: -1px;
+  padding-bottom: 6px;
+}
+
+/* A dot marks a tab that carries a value, so SSL or SSH is not forgotten just
+   because its tab is closed. */
+.conn__tab-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.conn__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 168px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.field--narrow {
+  flex: 0 0 110px;
+}
+
+.field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field__label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.file-picker {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.file-picker .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  min-height: 38px;
+  width: 100%;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Data grid */
+.grid-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.grid-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.grid-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.grid-title {
+  margin: 0;
+  font-size: 16px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.grid-filters {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.table-scroll {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  max-height: calc(100vh - 320px);
+}
+
+.grid-body > .table-scroll {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.data-table {
+  border-collapse: collapse;
+  /* Driven by the Data grid font size setting; 12.5px is the shipped default. */
+  font-size: var(--grid-font-size, 12.5px);
+  table-layout: fixed;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-muted);
+  padding: 0;
+  z-index: 1;
+}
+
+.th-col {
+  position: relative;
+}
+
+.th-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.th-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th-btn:hover {
+  background: var(--surface-hover);
+}
+
+.th-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.col-resizer:hover {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+body.is-col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.th-select {
+  padding: 0;
+  text-align: center;
+}
+
+.th-select input {
+  cursor: pointer;
+}
+
+.th-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th-sort {
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.th-actions {
+  padding: 0;
+}
+
+.cell {
+  padding: 2px 8px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell--select {
+  text-align: center;
+  padding: 2px 0;
+}
+
+.cell--select input {
+  cursor: pointer;
+}
+
+.cell--pk {
+  background: var(--pk-bg);
+}
+
+.cell--actions {
+  text-align: center;
+  white-space: nowrap;
+  padding: 1px 0;
+}
+
+.cell--actions .icon-btn + .icon-btn {
+  margin-left: 4px;
+}
+
+.data-table tbody tr.is-selected td {
+  background: var(--selected-bg);
+}
+
+.data-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+/* Empty table: keep the header row so columns and the add-row action stay
+   available, with a single spanning message row below. */
+.grid-empty:hover td,
+.data-table tbody tr.grid-empty:hover td {
+  background: transparent;
+}
+
+.grid-empty__cell {
+  padding: 18px 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Icon buttons */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-btn--xs {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.icon-btn--danger {
+  color: var(--error);
+}
+
+.icon-btn--ok {
+  color: var(--ok);
+}
+
+.icon-btn--ok:hover:not(:disabled) {
+  background: var(--notice-ok-bg);
+  border-color: var(--notice-ok-border);
+}
+
+.icon-btn--danger:hover:not(:disabled) {
+  background: var(--notice-error-bg);
+  border-color: var(--notice-error-border);
+}
+
+.icon-btn__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--error);
+  color: var(--error-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.context-menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.context-menu__item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.context-menu__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.context-menu__item:disabled {
+  color: var(--text-muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.context-menu__item.is-danger {
+  color: var(--error);
+}
+
+.context-menu__item.is-danger:hover:not(:disabled) {
+  background: var(--notice-error-bg);
+}
+
+.context-menu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.cell-null {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Binary (BLOB) cell preview */
+.blob-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.blob-badge:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.blob-badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.blob-badge__icon {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.blob-badge__thumb {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 3px;
+  display: block;
+}
+
+.blob-badge__size {
+  white-space: nowrap;
+}
+
+.modal--preview {
+  max-width: 720px;
+}
+
+.modal--prompt {
+  max-width: 420px;
+}
+
+.preview__meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.preview__image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.preview__image img {
+  max-width: 100%;
+  max-height: 56vh;
+  display: block;
+}
+
+.preview__text,
+.preview__hex {
+  max-height: 56vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview__hex {
+  white-space: pre;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.cell-input {
+  font: inherit;
+  width: 100%;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* Pager: icon-only navigation so the row stays compact in a narrow table tab.
+   The jump box shows the current page and accepts a typed page number. */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pager__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pager__btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.pager__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pager__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pager__jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pager__jump-input {
+  width: 54px;
+  min-width: 54px;
+  min-height: 28px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+/* The spinner arrows steal space in a 54px box and are not needed next to
+   dedicated chevrons. */
+.pager__jump-input::-webkit-outer-spin-button,
+.pager__jump-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pager__jump-total {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pager__size {
+  margin-left: auto;
+}
+
+.pager__size .input {
+  width: auto;
+  min-width: 72px;
+}
+
+.pager__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pager__info {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* View tabs */
+.viewtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.viewtab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.viewtab:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.viewtab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.viewtab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.viewtab:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Query editor */
+/* The tab is a fixed-height workspace, not a scrolling column. Editor and
+   results split the vertical space; the toolbar never moves, and opening the
+   assistant takes width from the side instead of pushing results off screen. */
+.query {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  /* The rail is a side split only while the tab is wide enough to keep the
+     editor usable. The query itself is the container: putting containment on
+     .query__work collapses its flex children, because a size-contained flex
+     container no longer grows from its contents. */
+  container-type: inline-size;
+  container-name: querywork;
+}
+
+.query__work {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.query__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+}
+
+/* Horizontal divider between editor and results. The 7px band is the grab
+   area; only the 3px grip is painted, so it stays quiet until hover. */
+.query__split {
+  flex: 0 0 auto;
+  height: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  border-radius: 3px;
+}
+
+.query__split-grip {
+  width: 46px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.query__split:hover .query__split-grip,
+.query__split:focus-visible .query__split-grip {
+  background: var(--accent);
+}
+
+.query__split:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+body.is-row-resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+/* 820px is where a 360px rail would leave the editor under 460px, which is
+   narrower than a SELECT line. Past it the rail docks at the bottom and the
+   editor keeps the full width. */
+/* Under 900px the tab is too narrow for a side rail (the editor would drop
+   below 460px, narrower than a SELECT line) and too short to stack one under
+   the grid without starving both panes. The rail becomes an overlay drawer on
+   the right edge instead, so the editor and the grid keep their full width.
+   The drawer has its own close control, so nothing is trapped behind it. */
+@container querywork (max-width: 900px) {
+  .query__work {
+    position: relative;
+  }
+
+  .query__rail {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 92%) !important;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 10px 12px;
+    border-left: 1px solid var(--border-strong);
+    background: var(--surface);
+    box-shadow: -10px 0 24px rgba(0, 0, 0, 0.12);
+    z-index: 5;
+  }
+
+  .query__rail-resizer {
+    display: none;
+  }
+}
+
+/* Auxiliary rail: history, assistant, plan, or actions, beside the editor. */
+.query__rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+  margin-left: 10px;
+}
+
+.query__rail-resizer {
+  flex: 0 0 auto;
+  width: 5px;
+  margin-left: 5px;
+  cursor: col-resize;
+  border-radius: 3px;
+}
+
+.query__rail-resizer:hover {
+  background: var(--accent);
+  opacity: 0.45;
+}
+
+/* The rail spans the full work height, so its panels fill it instead of
+   keeping the card heights they use when stacked inline. */
+.query__rail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  /* Panels never shrink below a usable height. With one open it fills the rail;
+     with three the stack scrolls, which is better than crushing the assistant
+     thread into a strip. */
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.query__panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.query__rail .ai,
+.query__rail .plan,
+.query__rail .aiact,
+.query__rail .query__history {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* The conversation is the part that grows: without this the composer sits in
+   the middle of the rail with empty space under it. */
+.query__rail .ai__thread {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Plan and actions are documents, not conversations: they scroll as a whole
+   so a long plan or a long reply never hides its own controls. */
+.query__rail .plan,
+.query__rail .aiact {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.query__context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+
+.query__ctx-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.query__ctx-field--wide {
+  flex: 1;
+  min-width: 200px;
+}
+
+.query__ctx-field--wide .input {
+  flex: 1;
+}
+
+.query__ctx-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.query__ctx-field .input {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 13px;
+  width: auto;
+  min-width: 120px;
+}
+
+.query__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.query__tab {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.query__tab.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.query__tab-label {
+  background: transparent;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 13px;
+}
+
+.query__tab-close {
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.query__tab-close:hover {
+  background: var(--surface-hover);
+  color: var(--error);
+}
+
+/* Unsaved marker: a dot instead of an asterisk so it does not shift the label
+   width when it appears and disappears. */
+.query__tab-dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 6px;
+  flex: 0 0 auto;
+}
+
+.query__tab-add {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.query__tab-add:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.query__editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  /* The height comes from the split fraction, not a fixed 220px, so the
+     editor and the grid share the tab instead of scrolling as one column.
+     110px is about four lines: below that the editor stops being an editor. */
+  min-height: 110px;
+}
+
+.query__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  /* The editor can shrink to a narrow pane, especially with the right dock open.
+     Wrapping keeps every action reachable instead of squeezing labels into
+     two or three lines inside a single button. */
+  flex-wrap: wrap;
+}
+
+.query__toolbar .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Two groups instead of one wrapping row: primary actions on the left, view
+   toggles on the right. Each group wraps internally, so a narrow pane breaks
+   the line at the group boundary instead of splitting a button from its
+   neighbours at random. */
+.query__toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.query__toolbar-group--run {
+  flex: 0 0 auto;
+}
+
+/* Tools are icon-only and sit together: they are secondary to Run, and grouping
+   them keeps the bar from turning into eight equally loud text buttons. */
+.query__toolbar-group--tools {
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
+.query__run {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.query__kbd {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+
+.query__toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.icon-btn.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The result summary is informational. It is pushed to the right edge so that
+   it reads as a status, whether it shares a row with the buttons or wraps onto
+   its own line in a narrow pane. */
+.query__toolbar .query__meta {
+  flex: 0 1 auto;
+  margin-left: auto;
+  align-self: center;
+}
+
+.query__meta {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.query__results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 90px;
+  /* The tabs and the notice stay put; only the pane below them scrolls, so a
+     long grid never pushes its own tab strip out of view. */
+  overflow: hidden;
+  padding-right: 4px;
+}
+
+.query__running {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.query__results-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+}
+
+.query__results-empty p {
+  margin: 0;
+}
+
+.query__results-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Result tabs: one per statement that returned rows, plus Messages and Plan.
+   Square-ish and quiet, like the tabs of a database client, so they read as
+   panes of the same result area instead of app navigation. */
+.qres-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.qres-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.qres-tab:hover {
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+.qres-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.qres-tab.is-active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  margin-bottom: -1px;
+  padding-bottom: 5px;
+}
+
+/* The row count reads as a separate token, not as part of the tab name: without
+   the chip "Hasil 1" plus "1" renders as "Hasil 11". */
+.qres-tab__count {
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  line-height: 15px;
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One result grid. The head line carries the row count and export actions; the
+   table below fills the remaining height and scrolls on its own. */
+.qres {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+}
+
+.qres__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.qres__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.qres__editable {
+  color: var(--ok);
+  font-size: 11px;
+}
+
+.qres__actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.qres__note {
+  margin: 0;
+  font-size: 12px;
+}
+
+.qres__empty {
+  margin: 0;
+}
+
+.qres .table-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+/* Message log. A table, not cards: the columns line up, so a batch of twenty
+   statements can be scanned by status and duration. */
+.qmsg {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.qmsg--empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qmsg--empty p {
+  margin: 0;
+}
+
+.qmsg__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  table-layout: fixed;
+}
+
+.qmsg__table th,
+.qmsg__table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.qmsg__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: none;
+}
+
+.qmsg__num {
+  width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.qmsg__sql {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+}
+
+.qmsg__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+}
+
+.qmsg__badge.is-ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.qmsg__badge.is-failed {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.qmsg__error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--error);
+  background: var(--surface-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.qmsg__sql-full {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The plan is a result of one execution, so it takes the result pane instead of
+   a rail slot. */
+.query__results-body .plan {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+/* Query history. Inside the rail it fills the column and scrolls on its own;
+   the max-height only applies when it is not in a rail (none today, kept so a
+   future inline use does not grow unbounded). */
+.query__history {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.query__rail .query__history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.query__rail .query__history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.query__history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.query__history-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.query__history-empty {
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.query__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.query__history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.query__history-sql {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.query__history-sql:hover {
+  border-color: var(--accent);
+}
+
+.query__history-sql:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.query__history-text {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.query__history-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.query__history-error {
+  font-size: 11.5px;
+  color: var(--error);
+  padding: 0 2px;
+}
+
+/* Error notice with an inline fix action. The message keeps its own block so
+   long driver errors wrap instead of pushing the button off screen. */
+.query__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.query__error-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.query__error .btn {
+  flex: 0 0 auto;
+}
+
+.btn.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.table-scroll--short {
+  max-height: 320px;
+}
+
+.th-plain {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* Structure panel */
+.struct {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.struct__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.struct__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  background: var(--surface-muted);
+}
+
+.struct__checks {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.struct__checks .checkbox {
+  margin-right: 4px;
+}
+
+.struct__preview {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.struct__preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.sql-preview {
+  margin: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.struct__cols {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.struct__col-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.checkbox--tight {
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.subtabs {
+  display: flex;
+  gap: 6px;
+}
+
+.subtab {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.subtab:hover {
+  background: var(--surface-hover);
+}
+
+.subtab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.subtab.is-active {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.map-head {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+/* Inline draft row (Navicat-style insert) */
+.draft-row td {
+  background: var(--accent-soft);
+}
+
+.draft-row .cell--edit {
+  padding: 2px 4px;
+}
+
+.draft-row .cell-input {
+  width: 100%;
+  min-width: 90px;
+}
+
+/* Sessions panel */
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sessions__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.sessions__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.session-id {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  white-space: nowrap;
+}
+
+.session-self {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ok);
+}
+
+.session-query {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+}
+
+/* Form view: one record at a time */
+.formview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.formview__pad {
+  padding: 12px 2px;
+}
+
+.formview__nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.formview__counter {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.formview__actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.formview__danger {
+  color: var(--error);
+}
+
+.formview__fields {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.formview__field {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) 1fr;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+
+.formview__field:last-child {
+  border-bottom: none;
+}
+
+.formview__field:nth-child(even) {
+  background: var(--surface-muted);
+}
+
+.formview__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.formview__name {
+  font-weight: 600;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.formview__type {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.formview__comment {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.formview__value {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.formview__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.formview__editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.formview__editor .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.formview__edit {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .formview__field {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* Table designer (create + edit structure) */
+.designer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.designer__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.designer__identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.designer__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.designer__meta {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.designer__meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.designer__path {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.designer__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.designer__pad {
+  padding: 12px 2px;
+}
+
+.designer__grid-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 12px;
+}
+
+.designer__grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.designer__grid th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.designer__col-name {
+  width: 26%;
+}
+.designer__col-type {
+  width: 20%;
+}
+.designer__col-flag {
+  width: 56px;
+  text-align: center;
+}
+.designer__col-default {
+  width: 20%;
+}
+.designer__col-comment {
+  width: 20%;
+}
+.designer__col-actions {
+  width: 132px;
+}
+
+.designer__row td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.designer__row:hover td {
+  background: var(--surface-hover);
+}
+
+.designer__cell-flag {
+  text-align: center;
+}
+
+.designer__cell-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.input--cell {
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+.input--tight {
+  padding: 4px 8px;
+  font-size: 13px;
+  width: auto;
+  min-width: 130px;
+}
+
+.designer__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.designer__chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.designer__chip.is-on {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.designer__chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.designer__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.designer__row--dropped td {
+  background: var(--notice-error-bg);
+}
+
+.designer__dropped {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.designer__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 2px;
+}
+
+.designer__pk-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.designer__pk-note strong {
+  color: var(--accent);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.designer__danger {
+  margin-left: auto;
+  color: var(--error);
+}
+
+.designer__tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.designer__tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.designer__tab:hover {
+  color: var(--text);
+}
+
+.designer__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.designer__tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.designer__pane {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 2px;
+}
+
+.designer__list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.designer__list th {
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.designer__list td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.designer__mono {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.designer__form-block {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.designer__block-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.designer__sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.designer__fk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .designer__fk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.designer__info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.designer__info dt {
+  color: var(--text-muted);
+}
+
+.designer__info dd {
+  margin: 0;
+}
+
+.designer__info-extra {
+  display: contents;
+}
+
+.designer__editor {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.designer__index-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.designer__index-cols {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.designer__comment-input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.designer__preview {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.designer__preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* AI assistant */
+.ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+  max-height: 520px;
+}
+
+.ai__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.ai__title h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.ai__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai__pad {
+  margin: 0;
+  padding: 4px 0;
+}
+
+.ai__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai__settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai__model-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.ai__model-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai__meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ai__badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid transparent;
+}
+
+.ai__badge--muted {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.ai__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 120px;
+  padding-right: 4px;
+}
+
+.ai__turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+}
+
+.ai__turn--user {
+  border-left-color: var(--accent);
+}
+
+.ai__turn.is-error .ai__content {
+  color: var(--error);
+}
+
+.ai__role {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ai__content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ai__sql-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Result preview under an answer. Scrolls sideways instead of shrinking columns
+   to unreadable widths, because a wide SELECT is common. */
+.ai__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+
+.ai__preview-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.ai__preview-table {
+  border-collapse: collapse;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.ai__preview-table th,
+.ai__preview-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: left;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai__preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ai__preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ai__preview-table th:last-child,
+.ai__preview-table td:last-child {
+  border-right: none;
+}
+
+.ai__preview-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.ai__preview-note--error {
+  color: var(--error);
+}
+
+.ai__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Tables attached with @, shown above the input so the user can see what the
+   next message will carry. */
+.ai__mentions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ai__mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 1px 2px 1px 7px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ai__mention > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai__mention-count {
+  margin-left: 4px;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.ai__mention-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ai__mention-remove:hover {
+  background: var(--surface-hover);
+}
+
+/* The popup is part of the composer flow instead of an absolute overlay, so it
+   never covers the attached-table chips or the input. */
+.ai__suggest {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.ai__suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai__suggest-item.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ai__suggest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai__suggest-kind {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.ai__suggest-note {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ai__suggest-note--error {
+  color: var(--error);
+}
+
+.ai__input {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  font-family: inherit;
+  min-height: 64px;
+}
+
+.ai__composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 16px;
+}
+
+.ai__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai__hint--busy {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.ai__para {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+
+.ai__para:last-child {
+  margin-bottom: 0;
+}
+
+.ai__code {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  /* The dock is narrow; wrapping keeps long SQL readable instead of forcing a
+     horizontal scroll inside a conversation. */
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ai__inline-code {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12.5px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-muted);
+}
+
+/* Query plan */
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.plan__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan__head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.plan__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.plan__meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.plan__pad {
+  margin: 0;
+  padding: 2px 0;
+}
+
+.plan__tree,
+.plan__children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plan__node {
+  margin: 0;
+}
+
+.plan__row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 3px 0;
+  font-size: 12.5px;
+}
+
+.plan__label {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-weight: 600;
+}
+
+.plan__detail {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plan__raw {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+}
+
+/* Advanced grid filters */
+.grid-advfilters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.grid-advfilter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+.grid-advfilter .input {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.grid-advfilter .input:first-child {
+  flex: 0 0 180px;
+}
+
+.grid-advfilter .input:nth-child(2) {
+  flex: 0 0 190px;
+}
+
+/* Backup & restore */
+.backup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.backup__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.backup__bar h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.backup__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.backup__card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.backup__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.backup__row .field {
+  flex: 0 1 260px;
+}
+
+.backup__checks {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.backup__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.backup__path {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* AI actions */
+.aiact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.aiact__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.aiact__head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.aiact__head-actions,
+.aiact__row,
+.aiact__form-actions,
+.aiact__apply {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.aiact__row .field--inline {
+  flex: 0 1 240px;
+}
+
+.aiact__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.aiact__instruction {
+  min-height: 70px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.aiact__custom-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.aiact__custom-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.aiact__result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Prose and SQL are separated so the statement reads as code, not as a wall of
+   text with stray backticks. Long statements wrap instead of scrolling sideways
+   because this panel is narrow. */
+.aiact__prose {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.aiact__prose:empty {
+  display: none;
+}
+
+.aiact__code {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.aiact__hint {
+  font-size: 11.5px;
+}
+
+/* Backup history table: content-sized columns instead of the fixed data-grid
+   layout, so headers never collapse into each other. */
+.backup__table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.backup__table th,
+.backup__table td {
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.backup__table td.backup__path {
+  max-width: 320px;
+}
+
+/* Query Builder */
+.qb {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.qb__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qb__bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qb__inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qb__inline .input {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 13px;
+  width: auto;
+  min-width: 150px;
+}
+
+.qb__limit {
+  min-width: 90px !important;
+}
+
+.qb__empty {
+  margin: 0;
+  padding: 12px 0;
+}
+
+.qb__canvas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.qb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 8px;
+  min-width: 0;
+}
+
+.qb-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.qb-card__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.qb-card__title strong {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qb-card__schema {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qb-card__alias {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qb-card__alias .input {
+  min-height: 26px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.qb-card__columns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.qb-col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 24px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.qb-col:hover {
+  background: var(--surface-hover);
+}
+
+.qb-col:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.qb-col.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.qb-col__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qb-col__pk {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.qb-col.is-active .qb-col__pk {
+  background: transparent;
+  color: inherit;
+}
+
+.qb-col__type {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.qb-col.is-active .qb-col__type {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.qb__suggestions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.qb-join {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+}
+
+.qb-join .input {
+  min-width: 110px;
+}
+
+.qb__joins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+}
+
+.qb__joins li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.qb__panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.qb-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.qb-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.qb-panel__head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.qb-panel__empty {
+  margin: 0;
+  font-size: 12px;
+}
+
+.qb-panel__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qb-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qb-row .input {
+  min-height: 26px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.qb-row__source {
+  flex: 1 1 130px;
+  min-width: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qb-row__agg {
+  flex: 0 0 130px;
+}
+
+.qb-row__alias {
+  flex: 0 0 100px;
+}
+
+.qb-row__logic {
+  flex: 0 0 72px;
+}
+
+.qb-row__col {
+  flex: 1 1 130px;
+  min-width: 0;
+}
+
+.qb-row__op {
+  flex: 0 0 140px;
+}
+
+.qb-row__value {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+
+.qb-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 8px 10px;
+}
+
+.qb-errors {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--error);
+  font-size: 12.5px;
+}
+
+.qb-preview__sql {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.qb-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qb-result__meta {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.qb-result__table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.qb-result__table th,
+.qb-result__table td {
+  padding: 4px 8px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* Data transfer */
+.transfer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.transfer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transfer__bar h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer__bar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.transfer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.transfer__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.transfer__card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer__checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.transfer__options {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.transfer__inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transfer__batch {
+  width: 90px;
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.transfer__warnings {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--info);
+  font-size: 12.5px;
+}
+
+.transfer__table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.transfer__table th,
+.transfer__table td {
+  padding: 5px 8px;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.transfer__target-input {
+  min-height: 26px;
+  padding: 2px 6px;
+  font-size: 12px;
+  min-width: 140px;
+}
+
+.transfer__progress {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.transfer__result {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+
+.transfer__warning {
+  color: var(--info);
+}
+
+.transfer__summary {
+  margin: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+}
+
+/* Sync: structure and data comparison in one panel. Uses the same compact
+   card rhythm as Data Transfer so the two tools read as siblings. */
+.sync {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sync__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sync__bar h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sync__bar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sync__heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sync__modes {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  padding: 2px;
+}
+
+.sync__mode {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sync__mode:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.sync__mode:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.sync__mode.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 2px var(--overlay);
+}
+
+.sync__mode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.sync__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.sync__card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sync__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 6px 18px;
+}
+
+/* Destructive toggles are separated by colour, not by a different control, so
+   the affordance stays a checkbox but the consequence is visible. */
+.sync__danger-option {
+  color: var(--error);
+}
+
+.sync__numbers {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sync__selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+
+.sync__table-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 2px 16px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  background: var(--surface-muted);
+}
+
+.sync__table-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 2px 0;
+  min-width: 0;
+}
+
+.sync__table-name {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync__table-tag {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.sync__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sync__summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.sync__scroll {
+  max-height: 360px;
+}
+
+.sync__table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.sync__table th,
+.sync__table td {
+  padding: 5px 8px;
+  font-size: 12.5px;
+  vertical-align: top;
+}
+
+.sync__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync__object {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+}
+
+.sync__sev {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sync__sev--info {
+  background: var(--notice-info-bg);
+  color: var(--info);
+  border: 1px solid var(--notice-info-border);
+}
+
+.sync__sev--warning {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
+
+.sync__sev--destructive {
+  background: var(--notice-error-bg);
+  color: var(--error);
+  border: 1px solid var(--notice-error-border);
+}
+
+.sync__sev--unsupported {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+
+.sync__warnings {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--info);
+  font-size: 12.5px;
+}
+
+.sync__script {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+
+.sync__script summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.sync__script pre {
+  margin: 8px 0 0;
+  max-height: 320px;
+  overflow: auto;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sync__progress {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.sync__result {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+
+.sync__error {
+  color: var(--error);
+}
+
+.sync__warning {
+  color: var(--info);
+}
+
+.sync__profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sync__profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  min-width: 0;
+}
+
+.sync__profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sync__profile-name {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.sync__profile-meta {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync__profile-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .sync__options {
+    grid-template-columns: 1fr;
+  }
+
+  .sync__table-list {
+    grid-template-columns: 1fr;
+  }
+
+  .sync__profile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* New-tab affordance sits at the end of the tab strip, like a browser. */
+.tabbar__new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  margin-left: 2px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tabbar__new:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.tabbar__new:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tabbar__new:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Object browser table: content-sized columns so headers and values never
+   collide (the fixed layout of the data grid is wrong here). */
+.objects__table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.objects__table th,
+.objects__table td {
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.objects__table th.objects__th-name {
+  min-width: 220px;
+}
+
+.objects__table td:nth-child(2),
+.objects__table td:nth-child(3),
+.objects__table th:nth-child(2),
+.objects__table th:nth-child(3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.objects__table th:nth-child(2),
+.objects__table th:nth-child(3) {
+  min-width: 84px;
+}
+
+/* System databases are never a useful default target: skip them when picking a
+   fallback database for a connection without one. */
+
+/* The shared data-grid header rule sets `padding: 0`; the object browser needs
+   its own padding back, so this selector is deliberately more specific. */
+.objects__table thead th.th-plain {
+  padding: 7px 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.objects__table tbody td {
+  padding: 6px 12px;
+}
+
+/* Right dock: assistant + detail, one panel with two tabs. */
+.rightpanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  /* The stored width is a preference, not a hard size: the clamp keeps the
+     editor usable on narrower windows instead of squeezing it to nothing. */
+  width: min(var(--panel-width, 300px), 620px);
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 0;
+}
+
+.rightpanel__resizer {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  background: transparent;
+}
+
+.rightpanel__resizer:hover,
+body.is-panel-resizing .rightpanel__resizer {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+body.is-panel-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.rightpanel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 38px;
+  flex-shrink: 0;
+  padding: 0 6px 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rightpanel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rightpanel__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rightpanel__tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.rightpanel__tab.is-active {
+  background: var(--accent-soft);
+  border-color: var(--border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rightpanel__tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rightpanel__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightpanel__pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The assistant fills the dock instead of being a fixed-height card. */
+.rightpanel .ai {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 10px 12px;
+  max-height: none;
+}
+
+.rightpanel .ai__thread {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Detail panel */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 14px;
+}
+
+.detail__empty {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.detail__path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
+.detail__db {
+  color: var(--text-muted);
+}
+
+.detail__schema {
+  color: var(--text-muted);
+}
+
+.detail__table {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.detail__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.detail__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.detail__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  min-width: 0;
+}
+
+.detail__stat dt {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.detail__stat dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail__comment {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.detail__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.detail__count {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.detail__columns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.detail__column {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail__column:last-child {
+  border-bottom: none;
+}
+
+.detail__column:nth-child(odd) {
+  background: color-mix(in srgb, var(--surface-muted) 60%, transparent);
+}
+
+.detail__col-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail__pk {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.detail__col-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail__flag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0 3px;
+  flex-shrink: 0;
+}
+
+.detail__ddl {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Active state for toolbar buttons that toggle a dock. */
+.menubar__item.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Responsive layout: the dock keeps a share of the window, then becomes an
+   overlay once the editor would be too narrow to use. */
+@media (max-width: 1240px) {
+  .rightpanel {
+    width: min(var(--panel-width, 300px), 38vw);
+  }
+}
+
+@media (max-width: 1080px) {
+  .rightpanel {
+    width: min(var(--panel-width, 300px), 42vw);
+  }
+}
+
+@media (max-width: 980px) {
+  .sidebar {
+    width: 224px;
+  }
+
+  .menubar__item span {
+    display: none;
+  }
+
+  .menubar__item {
+    padding: 0 7px;
+  }
+}
+
+@media (max-width: 860px) {
+  .rightpanel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(88vw, 380px);
+    z-index: 15;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .workspace {
+    position: relative;
+  }
+}
+
+@media (max-width: 780px) {
+  .sidebar {
+    width: 190px;
+  }
+
+  .tabbar__actions {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .sidebar {
+    width: 156px;
+  }
+
+  .content {
+    padding: 0 8px 8px;
+  }
+
+  .detail__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The data grid must stay usable when the right dock takes space: filter
+   controls and the pager wrap into full-width rows instead of being clipped. */
+@media (max-width: 1100px) {
+  .grid-filters {
+    gap: 8px;
+  }
+
+  .grid-filters .field {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .grid-filters .field .input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pager {
+    gap: 8px;
+  }
+
+  .pager__size {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-title {
+    font-size: 14px;
+    word-break: break-all;
+  }
+
+  .pager__actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* Toggle button for the right dock, matching the theme toggle beside it. */
+.icon-btn--toggle.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The row the detail pane is showing, distinct from the checkbox selection. */
+.data-table tbody tr.is-inspected > .cell {
+  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/* A row that was just written. The tint fades on its own and never moves the
+   row, so a save reads as an in-place update instead of a page refresh. */
+.data-table tbody tr.is-saved > .cell {
+  animation: row-saved 1.8s ease-out;
+}
+
+@keyframes row-saved {
+  0%,
+  55% {
+    background: color-mix(in srgb, var(--ok) 16%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-table tbody tr.is-saved > .cell {
+    animation: none;
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+  }
+}
+
+.data-table tbody tr {
+  cursor: pointer;
+}
+
+/* Record values in the detail pane: a label column and a value column, so long
+   JSON or text stays readable instead of stretching a single row. */
+.detail__record {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.detail__field {
+  display: grid;
+  grid-template-columns: minmax(84px, 34%) 1fr;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail__field:last-child {
+  border-bottom: none;
+}
+
+.detail__field:nth-child(odd) {
+  background: color-mix(in srgb, var(--surface-muted) 60%, transparent);
+}
+
+.detail__field dt {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail__field dd {
+  margin: 0;
+  min-width: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  overflow-wrap: anywhere;
+}
+
+.detail__field dd.is-null {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Toast stack: bottom right, above the status bar, never blocking the tree.
+   Errors stay until dismissed because they usually need a follow-up action. */
+/* Notification tray. Desktop trays stack rows inside one bordered surface with
+   hairline dividers; separate floating cards with a large shadow read as web
+   toasts. The surface is opaque so the grid behind it never bleeds through, and
+   the shadow is one hairline elevation, not a glow. */
+.toasts {
+  position: fixed;
+  right: 12px;
+  /* Clears the 26px status bar. */
+  bottom: 38px;
+  z-index: 60;
+  width: min(340px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.toast-stack {
+  pointer-events: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 6px 16px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast-stack {
+    animation: toast-in 90ms ease-out;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 6px 8px 10px;
+  background: var(--surface);
+}
+
+.toast + .toast {
+  border-top: 1px solid var(--border);
+}
+
+/* The hover wash marks which row the pointer is on, and with it which countdown
+   is paused. It is state, not decoration. */
+.toast:hover {
+  background: var(--surface-muted);
+}
+
+/* Colour lives on the glyph only. A tinted row background is the web-toast
+   tell, and it also drops the text contrast the theme was tuned for. */
+.toast__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding-top: 1px;
+  color: var(--text-muted);
+}
+
+.toast--error .toast__icon {
+  color: var(--error);
+}
+
+.toast--ok .toast__icon {
+  color: var(--ok);
+}
+
+.toast--info .toast__icon {
+  color: var(--info);
+}
+
+.toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.toast__text {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.toast__detail {
+  margin: 4px 0 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  /* Two lines is enough to identify the cause; the full text stays available
+     through the title tooltip and by selecting it. */
+  max-height: 32px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.toast__action {
+  margin-top: 6px;
+}
+
+.toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  /* Hidden until the row is hovered, the way desktop trays behave, so a stack
+     of messages is not a column of x buttons. Focus still reveals it, so the
+     control stays reachable from the keyboard. */
+  opacity: 0;
+}
+
+.toast:hover .toast__close,
+.toast__close:focus-visible {
+  opacity: 1;
+}
+
+.toast__close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.toast__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (max-width: 620px) {
+  .toasts {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+}
+
+/* Read-only object definition tab. The code block scrolls in both directions
+   because CREATE statements keep their original formatting and line length. */
+.defview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+}
+
+.defview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.defview__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.defview__title h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defview__kind {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.defview__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.defview__notice {
+  margin: 0;
+}
+
+.defview__pad {
+  padding: 4px 2px;
+}
+
+.defview__hint {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.defview__code {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* Diagram: cards are absolutely positioned on a scrollable stage, with an SVG
+   layer behind them for the relationship curves. */
+.diagram {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+.diagram__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.diagram__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diagram__title h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagram__count {
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.diagram__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.diagram__pad {
+  padding: 8px 2px;
+}
+
+.diagram__canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle, var(--border) 1px, transparent 1px) 0 0 / 18px 18px,
+    var(--surface-muted);
+}
+
+.diagram__stage {
+  position: relative;
+}
+
+.diagram__edges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Right-angle wiring: crisp corners, solid stroke, no dash, so a relationship
+   reads as a connection instead of a loose thread. */
+.diagram__edge path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.75;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+  opacity: 0.9;
+  shape-rendering: geometricPrecision;
+}
+
+.diagram__arrow {
+  fill: var(--accent);
+  stroke: none;
+}
+
+.diagram__card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.diagram__card.is-selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 4px 14px rgba(0, 0, 0, 0.24);
+}
+
+body.is-diagram-dragging .diagram__card {
+  cursor: grabbing;
+}
+
+.diagram__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0 6px 0 8px;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.diagram__card-name {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagram__card-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.diagram__card-edit:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.diagram__columns {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0;
+  overflow: hidden;
+}
+
+.diagram__column {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11.5px;
+}
+
+.diagram__column-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagram__column-type {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 10.5px;
+}
+
+.diagram__pk {
+  flex-shrink: 0;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.diagram__column--more {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.diagram__palette {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: flex;
+  gap: 3px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.diagram__swatch {
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.diagram__swatch.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.diagram__swatch--none {
+  background: var(--surface);
+}
+.diagram__swatch--slate {
+  background: var(--diagram-slate);
+}
+.diagram__swatch--blue {
+  background: var(--diagram-blue);
+}
+.diagram__swatch--teal {
+  background: var(--diagram-teal);
+}
+.diagram__swatch--green {
+  background: var(--diagram-green);
+}
+.diagram__swatch--amber {
+  background: var(--diagram-amber);
+}
+.diagram__swatch--orange {
+  background: var(--diagram-orange);
+}
+.diagram__swatch--rose {
+  background: var(--diagram-rose);
+}
+.diagram__swatch--violet {
+  background: var(--diagram-violet);
+}
+
+.diagram__card--slate .diagram__card-head {
+  background: var(--diagram-slate);
+  color: var(--diagram-slate-text);
+}
+.diagram__card--blue .diagram__card-head {
+  background: var(--diagram-blue);
+  color: var(--diagram-blue-text);
+}
+.diagram__card--teal .diagram__card-head {
+  background: var(--diagram-teal);
+  color: var(--diagram-teal-text);
+}
+.diagram__card--green .diagram__card-head {
+  background: var(--diagram-green);
+  color: var(--diagram-green-text);
+}
+.diagram__card--amber .diagram__card-head {
+  background: var(--diagram-amber);
+  color: var(--diagram-amber-text);
+}
+.diagram__card--orange .diagram__card-head {
+  background: var(--diagram-orange);
+  color: var(--diagram-orange-text);
+}
+.diagram__card--rose .diagram__card-head {
+  background: var(--diagram-rose);
+  color: var(--diagram-rose-text);
+}
+.diagram__card--violet .diagram__card-head {
+  background: var(--diagram-violet);
+  color: var(--diagram-violet-text);
+}
+
+/* Table editor opened from a diagram card, shaped like the Navicat dialog:
+   name and colour on top, Structure/Index switch, editable grid, footer. */
+.modal--tableedit {
+  max-width: 820px;
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.tableedit__head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.tableedit__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tableedit__head .tableedit__field {
+  flex: 1;
+}
+
+.tableedit__label {
+  flex-shrink: 0;
+  width: 46px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tableedit__name {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+}
+
+.tableedit__close {
+  flex-shrink: 0;
+}
+
+.tableedit__colors {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.tableedit__color {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.tableedit__color.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tableedit__color--none {
+  background: var(--surface);
+}
+.tableedit__color--slate {
+  background: var(--diagram-slate);
+}
+.tableedit__color--blue {
+  background: var(--diagram-blue);
+}
+.tableedit__color--teal {
+  background: var(--diagram-teal);
+}
+.tableedit__color--green {
+  background: var(--diagram-green);
+}
+.tableedit__color--amber {
+  background: var(--diagram-amber);
+}
+.tableedit__color--orange {
+  background: var(--diagram-orange);
+}
+.tableedit__color--rose {
+  background: var(--diagram-rose);
+}
+.tableedit__color--violet {
+  background: var(--diagram-violet);
+}
+
+.tableedit__tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tableedit__tab {
+  min-height: 28px;
+  padding: 3px 14px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tableedit__tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.tableedit__tab.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.tableedit__grid-wrap {
+  flex: 1;
+  min-height: 140px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.tableedit__grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.tableedit__grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 8px;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border);
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tableedit__col-name {
+  width: 26%;
+}
+.tableedit__col-type {
+  width: 24%;
+}
+.tableedit__col-default {
+  width: 22%;
+}
+.tableedit__col-flag {
+  width: 9.3%;
+  text-align: center;
+}
+
+.tableedit__row td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tableedit__row:hover td {
+  background: var(--surface-hover);
+}
+
+.tableedit__row.is-selected td {
+  background: var(--accent-soft);
+}
+
+.tableedit__row.is-dropped td {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.tableedit__cell {
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+}
+
+.tableedit__readonly {
+  padding: 5px 8px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableedit__cell-flag {
+  text-align: center;
+}
+
+.tableedit__toggle {
+  min-width: 38px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tableedit__toggle.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tableedit__pad {
+  padding: 10px;
+}
+
+.tableedit__hint {
+  margin: 8px 10px;
+  font-size: 11.5px;
+}
+
+.tableedit__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tableedit__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tableedit__icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.tableedit__icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tableedit__minus {
+  width: 12px;
+  height: 2px;
+  background: currentColor;
+}
+
+.tableedit__spacer {
+  flex: 1;
+}
+
+.tableedit__delete {
+  color: var(--error);
+}
+
+@media (max-width: 720px) {
+  .tableedit__label {
+    width: 40px;
+  }
+
+  .tableedit__grid {
+    table-layout: auto;
+  }
+
+  .tableedit__col-flag {
+    width: auto;
+  }
+}
+
+/* Divider between the connected tables and the tables with no relationship. */
+.diagram__zone-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--border-strong);
+  pointer-events: none;
+}
+
+.diagram__zone-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Tables with no relationship keep a muted tint so they read as a separate
+   group even before the user assigns a colour. */
+.diagram__card--isolated {
+  border-style: dashed;
+  opacity: 0.92;
+}
+
+.diagram__card--isolated .diagram__card-head {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+/* Zoom controls sit with the other diagram actions; the value button doubles as
+   a reset so a stuck zoom level is one click away from 100%. */
+.diagram__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+.diagram__zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.diagram__zoom-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.diagram__zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.diagram__zoom-minus {
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+}
+
+.diagram__zoom-value {
+  min-width: 44px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.diagram__zoom-value:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.diagram__zoom-hint {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* The sizer holds the scaled footprint; the stage inside it keeps the natural
+   layout coordinates that drag maths and saved positions rely on. */
+.diagram__sizer {
+  position: relative;
+}
+
+@media (max-width: 980px) {
+  .diagram__zoom-hint {
+    display: none;
+  }
+}

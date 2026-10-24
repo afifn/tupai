@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!-- Electron runs JavaScript in V8's JIT, which hardened runtime blocks by
+         default. Without these two entitlements a signed build crashes at
+         startup instead of showing a window. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <!-- Native modules (better-sqlite3, oracledb, cpu-features) are loaded from
+         app.asar.unpacked. Library validation would reject them because they
+         are signed by a different team than the app bundle. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+  </dict>
+</plist>

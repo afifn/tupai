@@ -1,0 +1,23 @@
+/* Accent presets. A preset only restates the accent family and never touches
+   surfaces or text, so it cannot break the base palette's contrast.
+
+   The base is still selected by `data-theme` (light or dark); the preset is
+   selected by `data-theme-preset`. Keeping them separate means the existing
+   `[data-theme='dark']` rule keeps working unchanged, and a preset inherits
+   every token it does not declare. */
+
+[data-theme='light'][data-theme-preset='ocean'] {
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-text: #ffffff;
+  --accent-soft: #e0eaff;
+  --selected-bg: #dbe6fb;
+}
+
+[data-theme='dark'][data-theme-preset='forest'] {
+  --accent: #4fbf7a;
+  --accent-hover: #6ed394;
+  --accent-text: #10231a;
+  --accent-soft: #1c3327;
+  --selected-bg: #24402f;
+}

@@ -1,0 +1,31 @@
+/* Swatch colours for the theme picker.
+ *
+ * These are the only literals outside the palette files, and they are here on
+ * purpose: a swatch previews a theme that is NOT the active one, so it cannot
+ * read `--bg` or `--accent` (those resolve to the theme you are already
+ * looking at). `custom` is not listed: it previews with the live tokens,
+ * because its colours come from the settings file. Keeping the literals next to the palettes means the swatch and
+ * the theme it previews are edited in the same folder.
+ *
+ * If you change a palette above, change its swatch here too.
+ */
+
+.settings__swatch[data-preview-theme='light'] {
+  --swatch-bg: #f4f5f7;
+  --swatch-accent: #b3521f;
+}
+
+.settings__swatch[data-preview-theme='dark'] {
+  --swatch-bg: #16181c;
+  --swatch-accent: #e08a54;
+}
+
+.settings__swatch[data-preview-theme='light-ocean'] {
+  --swatch-bg: #f4f5f7;
+  --swatch-accent: #1d4ed8;
+}
+
+.settings__swatch[data-preview-theme='dark-forest'] {
+  --swatch-bg: #16181c;
+  --swatch-accent: #4fbf7a;
+}

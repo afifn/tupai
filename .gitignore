@@ -1,0 +1,23 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+run.err
+smoke-test.db
+.DS_Store
+.env
+.env.local
+*.tsbuildinfo
+electron.vite.config.*.mjs
+# Smoke test runtime data (MySQL datadir, Electron profiles, logs)
+.smoke/
+
+# Navicat connection exports contain real hosts and encrypted passwords; they are
+# fixtures for manual import tests, never committed.
+connections.ncx
+*.ncx
+
+# Local agent scratch and CDP probe screenshots
+.playwright-mcp/
+tree-*.png

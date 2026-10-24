@@ -1,0 +1,6 @@
+# Keep the working tree identical across Windows and macOS. Without this, a
+# Windows checkout can commit CRLF and turn every diff into a full-file rewrite.
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.icns binary

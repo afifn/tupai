@@ -1,0 +1,85 @@
+/* Base palette. Every other theme inherits from this one unless it overrides a
+   token, so a new preset only has to declare the tokens it actually changes.
+
+   Values are the original ones from styles.css. Changing a colour here changes
+   the whole app; run `npm test` afterwards, because tests/themeTokens.test.ts
+   checks the WCAG pairs listed in src/shared/themeTokens.ts. */
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-muted: #eceef1;
+  --surface-hover: #e2e5ea;
+  --border: #d4d8de;
+  --border-strong: #b9c0c9;
+  --text: #1b1f24;
+  --text-muted: #566070;
+  --accent: #b3521f;
+  --accent-hover: #9a4416;
+  --accent-text: #ffffff;
+  --accent-soft: #f7e7dd;
+  --selected-bg: #f2ded2;
+  --pk-bg: #f1f3f6;
+  --ok: #1f6b3a;
+  --error: #b3261e;
+  --info: #33526b;
+  --notice-error-bg: #fdecea;
+  --notice-error-border: #f3c4bf;
+  --notice-ok-bg: #e8f5ec;
+  --notice-ok-border: #bcdcc6;
+  --notice-info-bg: #eaf1f8;
+  --notice-info-border: #c3d5e6;
+  --overlay: rgba(20, 24, 30, 0.45);
+  --scrollbar-thumb: #c2c8d1;
+  --scrollbar-thumb-hover: #a4acb8;
+  --scrollbar-track: transparent;
+  --error-text: #ffffff;
+  color-scheme: light;
+}
+
+/* Connection identity colours. Used for small markers (dots/borders), never as
+   a text background, so contrast stays with the theme tokens. */
+:root {
+  --conn-slate: #64748b;
+  --conn-red: #dc2626;
+  --conn-amber: #d97706;
+  --conn-green: #16a34a;
+  --conn-teal: #0d9488;
+  --conn-blue: #2563eb;
+  --conn-violet: #7c3aed;
+  --conn-pink: #db2777;
+}
+
+/* Brand tint for the engine icon in the object tree. Only shown when the
+   connection is open; closed connections stay muted. */
+:root {
+  --engine-mysql: #00758f;
+  --engine-mariadb: #b5885a;
+  --engine-postgres: #336791;
+  --engine-sqlite: #0f80cc;
+  --engine-oracle: #c74634;
+  --engine-mongodb: #47a248;
+}
+
+/* Colours a user can assign to a diagram card. Unlike the palette above these
+   are content, not chrome: the same card keeps its colour in light and dark, so
+   they live here once and are never re-declared by dark.css. The `-text` pair
+   is the label colour that stays readable on that fill. */
+:root {
+  --diagram-slate: #64748b;
+  --diagram-slate-text: #ffffff;
+  --diagram-blue: #3b82f6;
+  --diagram-blue-text: #ffffff;
+  --diagram-teal: #14b8a6;
+  --diagram-teal-text: #ffffff;
+  --diagram-green: #22c55e;
+  --diagram-green-text: #0b2e17;
+  --diagram-amber: #eab308;
+  --diagram-amber-text: #3b2c02;
+  --diagram-orange: #f97316;
+  --diagram-orange-text: #3a1a02;
+  --diagram-rose: #f43f5e;
+  --diagram-rose-text: #ffffff;
+  --diagram-violet: #8b5cf6;
+  --diagram-violet-text: #ffffff;
+}

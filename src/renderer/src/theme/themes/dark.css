@@ -1,0 +1,41 @@
+/* Dark palette. Declares every token on purpose: a dark theme that inherits a
+   light surface would look broken, and tests/themeTokens.test.ts requires the
+   token list to match light.css exactly. */
+
+[data-theme='dark'] {
+  --bg: #16181c;
+  --surface: #1e2126;
+  --surface-muted: #262a30;
+  --surface-hover: #30353d;
+  --border: #3a4048;
+  --border-strong: #4a525c;
+  --text: #e8eaed;
+  --text-muted: #a2abb6;
+  --accent: #e08a54;
+  --accent-hover: #f0a06a;
+  --accent-text: #1b1f24;
+  --accent-soft: #33291f;
+  --selected-bg: #3a2e22;
+  --pk-bg: #24272c;
+  --ok: #6fcf97;
+  --error: #ff8a80;
+  --info: #90b4d6;
+  --notice-error-bg: #3a2320;
+  --notice-error-border: #5c3630;
+  --notice-ok-bg: #1f3326;
+  --notice-ok-border: #2f513c;
+  --notice-info-bg: #212b34;
+  --notice-info-border: #33465a;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --scrollbar-thumb: #3f4650;
+  --scrollbar-thumb-hover: #525a66;
+  --scrollbar-track: transparent;
+  --engine-mysql: #4fb8d4;
+  --engine-mariadb: #d9b48a;
+  --engine-postgres: #7aa7d4;
+  --engine-sqlite: #5fb4ef;
+  --engine-oracle: #e07a68;
+  --engine-mongodb: #6fc47a;
+  --error-text: #ffffff;
+  color-scheme: dark;
+}
