@@ -8,7 +8,20 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah `0.0.1`.
+Belum ada perubahan setelah `0.0.2`.
+
+## [0.0.2] - 2026-10-24
+
+### Ditambahkan
+
+- `TUPAI_UPDATE_URL` untuk menunjuk feed pembaruan statis sendiri (provider
+  `generic`), dipakai menguji alur pembaruan tanpa merilis dan untuk hosting
+  sendiri.
+
+### Diubah
+
+- Rilis dipindahkan ke repositori publik agar feed pembaruan bisa dibaca tanpa
+  autentikasi.
 
 ## [0.0.1] - 2026-10-24
 

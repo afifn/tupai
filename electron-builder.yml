@@ -11,13 +11,13 @@ asarUnpack:
   # starts outside Electron's patched fs. The worker and the chunks it imports
   # must exist as real files, so they are unpacked and the path is rewritten in
   # src/main/workers/dbWorkerClient.ts.
-  - "out/main/**"
+  - 'out/main/**'
   # The unpacked worker resolves its imports from disk, so the packages it loads
   # must live outside the archive as well. Keeping only the natives unpacked made
   # `bindings` (a plain JS package) unreachable from the worker.
   # This also covers the native modules (better-sqlite3, oracledb) and the
   # optional native helpers ssh2 loads at runtime (cpu-features).
-  - "node_modules/**"
+  - 'node_modules/**'
 npmRebuild: true
 # Update feed. electron-builder writes latest.yml / latest-mac.yml next to the
 # artifacts, and electron-updater reads them from the matching GitHub release, so
