@@ -40,9 +40,7 @@ class MongoAdapter implements DatabaseAdapter {
     return `mongodb://${auth}${host}:${port}/${params}`
   }
 
-  private async clientOptions(
-    cfg: ConnectionConfig
-  ): Promise<{
+  private async clientOptions(cfg: ConnectionConfig): Promise<{
     serverSelectionTimeoutMS: number
     tls?: boolean
     tlsCAFile?: string
@@ -198,6 +196,8 @@ class MongoAdapter implements DatabaseAdapter {
     const coll = this.db(update.database).collection(update.table)
     const { _id, ...changes } = update.changes
     void _id
+    // MongoDB has no SQL, so the server clock is a Date sent as the value.
+    for (const col of update.nowColumns ?? []) changes[col.name] = new Date()
     await coll.updateOne({ _id: toObjectId(update.primaryKeys._id) } as never, {
       $set: changes
     })

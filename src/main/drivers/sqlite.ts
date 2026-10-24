@@ -23,6 +23,7 @@ import type {
   TableStat
 } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
+import { nowExpression } from '@shared/nowExpression'
 import {
   DbError,
   orderClause,
@@ -190,8 +191,17 @@ class SqliteAdapter implements DatabaseAdapter {
     const db = this.require()
     const table = quoteIdent(this.engine, update.table)
     const cols = Object.keys(update.changes)
-    if (cols.length === 0) return
-    const setClause = cols.map((c) => `${quoteIdent(this.engine, c)} = ?`).join(', ')
+    const now = update.nowColumns ?? []
+    if (cols.length === 0 && now.length === 0) return
+    const setClause = [
+      ...cols.map((c) => `${quoteIdent(this.engine, c)} = ?`),
+      ...now.map((col) => {
+        const expression = nowExpression(this.engine, col.kind)
+        if (!expression)
+          throw new DbError('UNSUPPORTED', 'now() tidak tersedia.', this.engine)
+        return `${quoteIdent(this.engine, col.name)} = ${expression}`
+      })
+    ].join(', ')
     const where = this.buildWhere(update.primaryKeys)
     const stmt: Statement = db.prepare(`UPDATE ${table} SET ${setClause}${where.sql}`)
     stmt.run(

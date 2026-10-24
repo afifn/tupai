@@ -23,6 +23,7 @@ import type {
   TableStat
 } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
+import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
 import {
   DbError,
@@ -346,10 +347,19 @@ class MysqlAdapter implements DatabaseAdapter {
         update.database
       )
       const cols = Object.keys(update.changes)
-      if (cols.length === 0) return
-      const setClause = cols.map((k) => `${quoteIdent(this.engine, k)} = ?`).join(', ')
+      const now = update.nowColumns ?? []
+      if (cols.length === 0 && now.length === 0) return
+      const assignments = [
+        ...cols.map((k) => `${quoteIdent(this.engine, k)} = ?`),
+        ...now.map((col) => {
+          const expression = nowExpression(this.engine, col.kind)
+          if (!expression)
+            throw new DbError('UNSUPPORTED', 'now() tidak tersedia.', this.engine)
+          return `${quoteIdent(this.engine, col.name)} = ${expression}`
+        })
+      ].join(', ')
       const where = this.buildWhere(update.primaryKeys)
-      await c.execute(`UPDATE ${table} SET ${setClause}${where.sql}`, [
+      await c.execute(`UPDATE ${table} SET ${assignments}${where.sql}`, [
         ...cols.map((k) => update.changes[k]),
         ...where.values
       ] as never[])

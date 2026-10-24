@@ -310,6 +310,7 @@ export const en: Record<MessageKey, string> = {
   'grid.emptyTable': 'The table is empty. Use the + button to add a row.',
   'grid.emptyTableReadOnly': 'The table is empty.',
   'grid.saveChanges': 'Save changes',
+  'grid.setNow': 'Set to now()',
   'grid.setNull': 'Set NULL',
   'grid.setEmpty': 'Set empty string',
   'grid.copyValue': 'Copy value',

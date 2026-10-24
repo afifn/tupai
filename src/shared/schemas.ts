@@ -138,7 +138,16 @@ export const rowUpdateSchema = z.object({
   schema: z.string().optional(),
   table: z.string().min(1),
   primaryKeys: z.record(z.unknown()),
-  changes: z.record(z.unknown())
+  changes: z.record(z.unknown()),
+  nowColumns: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        kind: z.enum(['date', 'datetime', 'time'])
+      })
+    )
+    .max(50)
+    .optional()
 })
 
 export const rowInsertSchema = z.object({

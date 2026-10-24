@@ -167,6 +167,13 @@ export interface PageResult {
   primaryKeys: string[]
 }
 
+// A column the database should fill with its own current time. The expression
+// is chosen by the driver, so the client clock never decides an audit value.
+export interface RowNowColumn {
+  name: string
+  kind: 'date' | 'datetime' | 'time'
+}
+
 export interface RowUpdate {
   connectionId: string
   database: string
@@ -174,6 +181,8 @@ export interface RowUpdate {
   table: string
   primaryKeys: Record<string, unknown>
   changes: Record<string, unknown>
+  // Set to the database's now() instead of a literal value in `changes`.
+  nowColumns?: RowNowColumn[]
 }
 
 export interface RowInsert {

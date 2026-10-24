@@ -328,6 +328,7 @@ export const id = {
   'grid.emptyTable': 'Tabel kosong. Klik tombol + untuk menambah baris.',
   'grid.emptyTableReadOnly': 'Tabel kosong.',
   'grid.saveChanges': 'Simpan perubahan',
+  'grid.setNow': 'Isi waktu sekarang (now())',
   'grid.setNull': 'Set NULL',
   'grid.setEmpty': 'Set string kosong',
   'grid.copyValue': 'Salin nilai',

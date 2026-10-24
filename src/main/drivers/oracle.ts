@@ -23,6 +23,7 @@ import type {
   TableStat
 } from '@shared/types'
 import { buildFilterWhere, toOracleBinds } from '@shared/filter'
+import { nowExpression } from '@shared/nowExpression'
 import {
   DbError,
   orderClause,
@@ -351,14 +352,21 @@ class OracleAdapter implements DatabaseAdapter {
     const owner = (update.schema ?? this.schema()).toUpperCase()
     const table = qualifiedTable(this.engine, update.table, owner)
     const cols = Object.keys(update.changes)
-    if (cols.length === 0) return
+    const now = update.nowColumns ?? []
+    if (cols.length === 0 && now.length === 0) return
     const binds: Record<string, unknown> = {}
-    const setClause = cols
-      .map((k, i) => {
+    const setClause = [
+      ...cols.map((k, i) => {
         binds[`s${i}`] = update.changes[k]
         return `${quoteIdent(this.engine, k)} = :s${i}`
+      }),
+      ...now.map((col) => {
+        const expression = nowExpression(this.engine, col.kind)
+        if (!expression)
+          throw new DbError('UNSUPPORTED', 'now() tidak tersedia.', this.engine)
+        return `${quoteIdent(this.engine, col.name)} = ${expression}`
       })
-      .join(', ')
+    ].join(', ')
     const where = this.buildWhere(update.primaryKeys, binds, 'w')
     await this.require().execute(
       `UPDATE ${table} SET ${setClause} WHERE ${where}`,

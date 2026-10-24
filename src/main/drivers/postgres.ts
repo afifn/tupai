@@ -23,6 +23,7 @@ import type {
   TableStat
 } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
+import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
 import {
   DbError,
@@ -374,14 +375,21 @@ class PostgresAdapter implements DatabaseAdapter {
     const client = await this.getClient(update.database)
     const table = qualifiedTable(this.engine, update.table, update.schema)
     const cols = Object.keys(update.changes)
-    if (cols.length === 0) return
+    const now = update.nowColumns ?? []
+    if (cols.length === 0 && now.length === 0) return
     const params: unknown[] = []
-    const setClause = cols
-      .map((k) => {
+    const setClause = [
+      ...cols.map((k) => {
         params.push(update.changes[k])
         return `${quoteIdent(this.engine, k)} = $${params.length}`
+      }),
+      ...now.map((col) => {
+        const expression = nowExpression(this.engine, col.kind)
+        if (!expression)
+          throw new DbError('UNSUPPORTED', 'now() tidak tersedia.', this.engine)
+        return `${quoteIdent(this.engine, col.name)} = ${expression}`
       })
-      .join(', ')
+    ].join(', ')
     const where = this.buildWhere(update.primaryKeys, params.length)
     params.push(...where.values)
     await client.query(`UPDATE ${table} SET ${setClause}${where.sql}`, params)
