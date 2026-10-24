@@ -13,6 +13,10 @@ electron.vite.config.*.mjs
 # Smoke test runtime data (MySQL datadir, Electron profiles, logs)
 .smoke/
 
+# Build scratch (electron-builder TMPDIR and the Node compile cache under it).
+# 597 cache files were committed by accident in e92e211.
+.tmp-build/
+
 # Navicat connection exports contain real hosts and encrypted passwords; they are
 # fixtures for manual import tests, never committed.
 connections.ncx
