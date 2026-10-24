@@ -18,6 +18,7 @@ npm run smoke:p2-ai      # streaming assistant via a local SSE server
 npm run smoke:p2-ui      # unsaved-tab guard and in-app confirmations
 npm run smoke:p2-preview # assistant row preview against a real SQLite file
 npm run smoke:menu      # native menu items reach the UI and follow the keymap
+npm run smoke:worker    # the db worker loads as an ES module outside the project
 npm run smoke:atomic     # store writes are atomic and keep a backup
 ```
 

@@ -14,6 +14,7 @@
 #   scripts/smoke/run.sh p2-ui      # unsaved-tab guard, in-app dialogs
 #   scripts/smoke/run.sh p2-preview # assistant row preview against SQLite
 #   scripts/smoke/run.sh menu       # native application menu items reach the UI
+#   scripts/smoke/run.sh worker     # the db worker loads as ESM outside the project
 #   scripts/smoke/run.sh atomic     # atomic store writes
 #   scripts/smoke/run.sh p1-app     # p1 limits through the packaged app
 #   scripts/smoke/run.sh provision  # create user/database/tables/seed data
@@ -238,6 +239,13 @@ case "$TARGET" in
     PIDS+=("$APP_PID")
     disown "$APP_PID" 2>/dev/null || true
     PREVIEW_DB="$PREVIEW_DB" PORT=$PORT node scripts/smoke/p2-preview.mjs
+    ;;
+  worker)
+    # Spawns the built worker from outside the project, under Electron's own Node
+    # (20.x), because that is what decides the module type in the packaged app.
+    # Node 22 detects ES module syntax on its own and would hide the bug.
+    npm run build >/dev/null 2>&1
+    ELECTRON_RUN_AS_NODE=1 npx electron scripts/smoke/worker-esm.mjs
     ;;
   menu)
     # The native menu lives in main, so this check builds the real window and

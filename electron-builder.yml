@@ -19,6 +19,14 @@ asarUnpack:
   # optional native helpers ssh2 loads at runtime (cpu-features).
   - 'node_modules/**'
 npmRebuild: true
+# The worker is an ES module that runs from app.asar.unpacked, outside the app's
+# own package.json. Without a marker Node falls back to CommonJS and every
+# connection fails with "Cannot use import statement outside a module", because
+# the nearest package.json is the archive root, which the worker cannot read.
+# This file makes the unpacked directory ESM on every platform.
+extraResources:
+  - from: build/worker-package.json
+    to: app.asar.unpacked/out/main/package.json
 # Update feed. electron-builder writes latest.yml / latest-mac.yml next to the
 # artifacts, and electron-updater reads them from the matching GitHub release, so
 # a Windows install only ever sees the Windows installer and a mac install only

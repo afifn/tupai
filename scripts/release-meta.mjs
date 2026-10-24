@@ -106,6 +106,39 @@ if (mac) {
   }
 }
 
+// The database worker is an ES module that runs from app.asar.unpacked, outside
+// the app's own package.json. Without a "type": "module" marker next to it, Node
+// falls back to CommonJS and every connection fails with "Cannot use import
+// statement outside a module". A build made inside the project directory hides
+// the bug, because Node then finds the project's package.json while walking up.
+const unpackedRoots = [
+  join(releaseDir, 'mac-arm64', 'Tupai.app', 'Contents', 'Resources'),
+  join(releaseDir, 'mac', 'Tupai.app', 'Contents', 'Resources'),
+  join(releaseDir, 'win-unpacked', 'resources')
+]
+
+let checkedUnpacked = false
+for (const resources of unpackedRoots) {
+  const marker = join(resources, 'app.asar.unpacked', 'out', 'main', 'package.json')
+  if (!existsSync(marker)) continue
+  checkedUnpacked = true
+  let type = null
+  try {
+    type = JSON.parse(readFileSync(marker, 'utf-8')).type ?? null
+  } catch {
+    type = 'unreadable'
+  }
+  check(
+    'unpacked worker is marked as an ES module',
+    type === 'module',
+    `${marker}: ${type}`
+  )
+}
+
+if (!checkedUnpacked) {
+  console.log('No unpacked app found; build a target before checking the worker marker.')
+}
+
 const artifacts = readdirSync(releaseDir).filter((f) => /\.(dmg|zip|exe)$/.test(f))
 console.log(`\nArtifacts: ${artifacts.join(', ') || '(none)'}`)
 

@@ -8,7 +8,17 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah `0.0.2`.
+Belum ada perubahan setelah `0.0.3`.
+
+## [0.0.3] - 2026-10-24
+
+### Diperbaiki
+
+- Aplikasi terpaket tidak bisa menyambung ke database apa pun: setiap tes
+  koneksi gagal dengan "Cannot use import statement outside a module". Worker
+  database adalah ES module yang berjalan dari `app.asar.unpacked`, di luar
+  `package.json` aplikasi, sehingga Node memperlakukannya sebagai CommonJS.
+  Folder worker sekarang membawa penanda `{"type":"module"}`.
 
 ## [0.0.2] - 2026-10-24
 
