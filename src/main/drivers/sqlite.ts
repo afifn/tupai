@@ -20,7 +20,8 @@ import type {
   SessionInfo,
   TableInfo,
   TableInfoDetail,
-  TableStat
+  TableStat,
+  TransactionInfo
 } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
 import { nowExpression } from '@shared/nowExpression'
@@ -639,6 +640,37 @@ class SqliteAdapter implements DatabaseAdapter {
       'SQLite tidak punya konsep user atau permission.',
       this.engine
     )
+  }
+
+  // SQLite has no session to pin: the adapter holds one handle, and a second
+  // write transaction on it would deadlock against the first. The honest answer
+  // is a clear refusal instead of a half-working transaction.
+  async beginTransaction(): Promise<TransactionInfo> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'SQLite tidak mendukung transaksi manual: satu berkas hanya punya satu penulis, jadi transaksi kedua akan mengunci diri sendiri.',
+      this.engine
+    )
+  }
+
+  async commitTransaction(): Promise<void> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'SQLite tidak mendukung transaksi manual.',
+      this.engine
+    )
+  }
+
+  async rollbackTransaction(): Promise<void> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'SQLite tidak mendukung transaksi manual.',
+      this.engine
+    )
+  }
+
+  async listTransactions(): Promise<TransactionInfo[]> {
+    return []
   }
 }
 

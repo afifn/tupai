@@ -207,6 +207,42 @@ export interface QueryRequest {
   maxRows: number
   database?: string
   schema?: string
+  // Runs the statement inside an open manual transaction. Without it the
+  // statement autocommits, which is what every other panel still does.
+  transactionId?: string
+}
+
+// How many manual transactions one connection may hold open at once. Each one
+// pins a server connection, so an unbounded number would exhaust the pool.
+export const MAX_OPEN_TRANSACTIONS = 4
+
+// Manual transaction held open by one query tab. The adapter pins a dedicated
+// connection for it: a pooled or shared connection would let another tab's
+// statement join the transaction, or the transaction's own statements run on
+// different sessions and see nothing.
+export interface TransactionBegin {
+  connectionId: string
+  transactionId: string
+  database?: string
+  schema?: string
+}
+
+export interface TransactionRef {
+  connectionId: string
+  transactionId: string
+}
+
+// One open transaction, as the renderer needs to show it.
+export interface TransactionInfo {
+  transactionId: string
+  connectionId: string
+  database?: string
+  schema?: string
+  startedAt: string
+  statements: number
+  // A statement failed inside the transaction. PostgreSQL marks the transaction
+  // aborted at that point, so only a rollback is possible.
+  failed: boolean
 }
 
 export interface QueryColumn {

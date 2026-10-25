@@ -20,8 +20,13 @@ import type {
   SessionInfo,
   TableInfo,
   TableInfoDetail,
-  TableStat
+  TableStat,
+  TransactionBegin,
+  TransactionInfo,
+  TransactionRef
 } from '@shared/types'
+import { MAX_OPEN_TRANSACTIONS } from '@shared/types'
+import { commitsImplicitly } from '@shared/transactionGuard'
 import { buildFilterWhere } from '@shared/filter'
 import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
@@ -32,7 +37,8 @@ import {
   quoteIdent,
   splitStatements,
   summarizeStatement,
-  type DatabaseAdapter
+  type DatabaseAdapter,
+  type QueryContext
 } from './types'
 import { resolveSsl, type ResolvedSsl } from '../connection/ssl'
 import { openSshTunnel, sshEnabled, type SshTunnel } from '../connection/sshTunnel'
@@ -129,6 +135,12 @@ class MysqlAdapter implements DatabaseAdapter {
 
   private pool: Pool | null = null
   private tunnel: SshTunnel | null = null
+  // One pinned connection per open manual transaction. A pooled connection is
+  // returned to the pool after every call, so a transaction needs its own.
+  private transactions = new Map<
+    string,
+    { conn: PoolConnection; info: TransactionInfo }
+  >()
 
   private async buildOptions(cfg: ConnectionConfig, ssl?: ResolvedSsl | null) {
     const tls = ssl
@@ -188,6 +200,13 @@ class MysqlAdapter implements DatabaseAdapter {
   }
 
   async disconnect(): Promise<void> {
+    // A transaction left open must not block the pool shutdown; the server rolls
+    // back uncommitted work when the socket closes, and this makes that explicit.
+    for (const [id, entry] of this.transactions) {
+      await entry.conn.query('ROLLBACK').catch(() => undefined)
+      entry.conn.release()
+      this.transactions.delete(id)
+    }
     await this.pool?.end()
     this.pool = null
     await this.closeTunnel()
@@ -555,16 +574,37 @@ class MysqlAdapter implements DatabaseAdapter {
   async runQuery(
     sql: string,
     maxRows: number,
-    context?: { database?: string; schema?: string },
+    context?: QueryContext,
     onSession?: (sessionId: string) => void
   ): Promise<QueryResultSet[]> {
     const statements = splitStatements(sql)
     if (statements.length === 0)
       throw new DbError('EMPTY', 'No SQL statement to run', this.engine)
-    return this.withConnection(async (c) => {
+    const pinned = context?.transactionId
+      ? this.transactions.get(context.transactionId)
+      : undefined
+    if (context?.transactionId && !pinned) {
+      throw new DbError(
+        'NO_TRANSACTION',
+        'Transaksi tidak lagi terbuka. Jalankan ulang atau mulai transaksi baru.',
+        this.engine
+      )
+    }
+    const run = async (c: PoolConnection): Promise<QueryResultSet[]> => {
       // MySQL binds the default schema per session; switch when a database is chosen.
       if (context?.database) {
         await c.query(`USE ${quoteIdent(this.engine, context.database)}`)
+      }
+      // MySQL commits implicitly around DDL. Clearing the entry keeps
+      // listTransactions honest, and the next statement in this transaction id
+      // fails with NO_TRANSACTION instead of running outside it by accident.
+      if (pinned) {
+        for (const stmt of statements) {
+          if (commitsImplicitly(this.engine, stmt)) {
+            this.transactions.delete(context!.transactionId!)
+            break
+          }
+        }
       }
       const threadRes = await c.query('SELECT CONNECTION_ID() AS id')
       const threadId = Number((threadRes[0] as { id?: number }[])[0]?.id ?? 0)
@@ -603,7 +643,19 @@ class MysqlAdapter implements DatabaseAdapter {
       } finally {
         this.runningConnectionId = null
       }
-    })
+    }
+    // A pinned connection must not be released: the transaction lives on it.
+    if (pinned) {
+      try {
+        const results = await run(pinned.conn)
+        pinned.info.statements += 1
+        return results
+      } catch (err) {
+        pinned.info.failed = true
+        throw err
+      }
+    }
+    return this.withConnection(run)
   }
 
   async explainQuery(
@@ -998,6 +1050,68 @@ class MysqlAdapter implements DatabaseAdapter {
         attributes: r.locked === 'Y' ? ['locked'] : []
       }))
     })
+  }
+
+  async beginTransaction(begin: TransactionBegin): Promise<TransactionInfo> {
+    if (this.transactions.size >= MAX_OPEN_TRANSACTIONS) {
+      throw new DbError(
+        'TOO_MANY_TRANSACTIONS',
+        `Maksimal ${MAX_OPEN_TRANSACTIONS} transaksi terbuka per koneksi. Commit atau rollback salah satu dulu.`,
+        this.engine
+      )
+    }
+    if (this.transactions.has(begin.transactionId)) {
+      throw new DbError('TRANSACTION_EXISTS', 'Transaksi sudah terbuka.', this.engine)
+    }
+    if (!this.pool) throw new DbError('NOT_CONNECTED', 'Not connected', this.engine)
+    const conn = await this.pool.getConnection()
+    try {
+      if (begin.database)
+        await conn.query(`USE ${quoteIdent(this.engine, begin.database)}`)
+      await conn.query('START TRANSACTION')
+    } catch (err) {
+      conn.release()
+      throw err
+    }
+    const info: TransactionInfo = {
+      transactionId: begin.transactionId,
+      connectionId: begin.connectionId,
+      database: begin.database,
+      schema: begin.schema,
+      startedAt: new Date().toISOString(),
+      statements: 0,
+      failed: false
+    }
+    this.transactions.set(begin.transactionId, { conn, info })
+    return info
+  }
+
+  async commitTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) {
+      throw new DbError('NO_TRANSACTION', 'Transaksi tidak lagi terbuka.', this.engine)
+    }
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.conn.query('COMMIT')
+    } finally {
+      entry.conn.release()
+    }
+  }
+
+  async rollbackTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) return
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.conn.query('ROLLBACK')
+    } finally {
+      entry.conn.release()
+    }
+  }
+
+  async listTransactions(): Promise<TransactionInfo[]> {
+    return [...this.transactions.values()].map((entry) => ({ ...entry.info }))
   }
 }
 

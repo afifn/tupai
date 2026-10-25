@@ -3116,6 +3116,58 @@ body.is-row-resizing {
    toggles on the right. Each group wraps internally, so a narrow pane breaks
    the line at the group boundary instead of splitting a button from its
    neighbours at random. */
+/* Manual transaction. The badge is the only always-on signal that writes are
+   pending, so it uses the accent colour and a dot rather than a filled button
+   that would compete with Run. */
+.query__toolbar-group--tx {
+  gap: 6px;
+}
+
+.query__tx-start {
+  color: var(--text-muted);
+}
+
+.query__tx-start:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.query__tx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.query__tx-badge.is-failed {
+  border-color: var(--error);
+  background: var(--notice-error-bg);
+  color: var(--error);
+}
+
+.query__tx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.btn--ok {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn--ok:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
 .query__toolbar-group {
   display: flex;
   align-items: center;

@@ -191,6 +191,34 @@ export const en: Record<MessageKey, string> = {
   'query.sample': 'Insert sample',
   'query.format': 'Format',
   'query.formatTitle': 'Format SQL with sql-formatter (local, no AI)',
+  'query.txContextLocked':
+    'Database and schema are locked while a transaction is open. Commit or roll back first.',
+  'query.transaction': 'Transaction',
+  'query.txStart': 'Start transaction',
+  'query.txStartHint':
+    'Run the following statements inside one transaction until you commit or roll back.',
+  'query.txActive': 'Transaction open',
+  'query.txStatements': '{count} statements',
+  'query.txCommit': 'Commit',
+  'query.txCommitTitle': 'Keep every change in the transaction',
+  'query.txRollback': 'Rollback',
+  'query.txRollbackTitle': 'Discard every change since the transaction began',
+  'query.txCommitted': 'Transaction committed ({count} statements).',
+  'query.txRolledBack': 'Transaction rolled back ({count} statements discarded).',
+  'query.txFailed': 'Transaction failed, only rollback is possible',
+  'query.txUnsupported': 'Manual transactions are not available for {engine}',
+  'query.txDdlTitle': 'DDL will commit the transaction',
+  'query.txDdlMessage':
+    'On {engine}, CREATE/ALTER/DROP commit the transaction implicitly. Uncommitted changes will be saved with it.',
+  'query.txDdlCommitAndRun': 'Commit and run',
+  'query.txCloseTitle': 'A transaction is still open',
+  'query.txCloseMessage':
+    '{count} statements are not committed yet. Commit them, or roll back to discard.',
+  'query.txDisconnectTitle': 'Disconnect with an open transaction?',
+  'query.txDisconnectMessage':
+    'The open transaction will be rolled back and its changes will be lost.',
+  'query.txQuitTitle': 'Quit with an open transaction?',
+  'query.txQuitMessage': 'The open transaction will be rolled back when the app closes.',
   'query.history': 'History',
   'query.historyTitle': 'Query history for this connection',
   'query.assistant': 'Assistant',
@@ -732,6 +760,7 @@ export const en: Record<MessageKey, string> = {
   'qb.noResults': 'No results.',
   'qb.truncated': '(cut at {max})',
 
+  'app.confirmCloseMessage': 'Some queries are not saved yet. Close the app anyway?',
   'app.toolbar': 'Main toolbar',
   'app.newConnection': 'New connection',
   'app.connections': 'Connections',

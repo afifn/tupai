@@ -8,7 +8,33 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah `0.0.3`.
+Belum ada perubahan setelah `0.1.0`.
+
+## [0.1.0] - 2026-10-25
+
+### Ditambahkan
+
+- Transaksi manual per tab Query untuk MySQL, MariaDB, PostgreSQL, dan Oracle:
+  mulai transaksi, jalankan beberapa statement, lalu **Commit** atau
+  **Rollback**. Selama transaksi terbuka, perubahan tidak terlihat oleh sesi
+  lain dan bisa dibatalkan. Badge di toolbar menunjukkan jumlah statement dan
+  status gagal.
+- Pengaman: menutup tab, memutus koneksi, atau keluar aplikasi saat transaksi
+  masih terbuka akan menanyakan Commit / Rollback / Batal. Tidak ada
+  auto-commit.
+- DDL pada MySQL/MariaDB/Oracle terdeteksi sebagai implicit commit dan
+  dikonfirmasi lebih dulu, bukan dibiarkan mengakhiri transaksi diam-diam.
+- Opsi "Konfirmasi sebelum menutup aplikasi" di Setelan akhirnya berfungsi,
+  termasuk saat ada query yang belum disimpan.
+- Database dan schema dikunci selama transaksi terbuka agar statement tidak
+  berpindah katalog di tengah jalan.
+
+### Catatan
+
+- SQLite dan MongoDB belum mendukung transaksi manual; tombolnya nonaktif
+  dengan alasan yang ditampilkan.
+- Edit grid, Table Designer, dan Sync tetap memakai transaksi sendiri per aksi,
+  di luar transaksi tab Query.
 
 ## [0.0.3] - 2026-10-24
 

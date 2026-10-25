@@ -37,7 +37,8 @@ async function main(): Promise<void> {
   const loaded = await getConnectionConfig(conn.id)
 
   const client = new DbWorkerClient()
-  const call = <T>(op: string, payload: unknown): Promise<T> => client.call<T>(op, payload)
+  const call = <T>(op: string, payload: unknown): Promise<T> =>
+    client.call<T>(op, payload)
 
   check('connect', (await call<boolean>('connect', loaded)) === true)
   await call('runQuery', {
@@ -50,7 +51,11 @@ async function main(): Promise<void> {
   check(
     'MySQL keeps system databases visible',
     dbs.includes('mysql') && dbs.includes('information_schema'),
-    dbs.filter((d) => ['mysql', 'sys', 'information_schema', 'performance_schema'].includes(d)).join(',')
+    dbs
+      .filter((d) =>
+        ['mysql', 'sys', 'information_schema', 'performance_schema'].includes(d)
+      )
+      .join(',')
   )
 
   await call('runQuery', {
@@ -78,24 +83,44 @@ async function main(): Promise<void> {
     maxRows: 1
   })
 
-  const page = await call<{ rows: Record<string, unknown>[]; total: number; primaryKeys: string[] }>(
-    'selectRows',
-    { connectionId: conn.id, database: DB, table: 'tricky', limit: 10, offset: 0, orderBy: 'id' }
-  )
+  const page = await call<{
+    rows: Record<string, unknown>[]
+    total: number
+    primaryKeys: string[]
+  }>('selectRows', {
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky',
+    limit: 10,
+    offset: 0,
+    orderBy: 'id'
+  })
   check('selectRows', page.total === 3 && page.primaryKeys.join(',') === 'id')
   const row1 = page.rows[0] as Record<string, unknown>
   check('MySQL keeps backslash', row1.txt === 'back\\slash', JSON.stringify(row1.txt))
   check('MySQL keeps quote', row1.note === "O'Brien")
-  check('MySQL boolean normalized', row1.flag === 1 || row1.flag === true, String(row1.flag))
+  check(
+    'MySQL boolean normalized',
+    row1.flag === 1 || row1.flag === true,
+    String(row1.flag)
+  )
 
   const filters = await call<{ total: number }>('selectRows', {
-    connectionId: conn.id, database: DB, table: 'tricky', limit: 10, offset: 0,
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky',
+    limit: 10,
+    offset: 0,
     filters: [{ column: 'note', op: 'contains', value: "'" }]
   })
   check('filter with apostrophe', filters.total === 1, `${filters.total} rows`)
 
   const orFilters = await call<{ total: number }>('selectRows', {
-    connectionId: conn.id, database: DB, table: 'tricky', limit: 10, offset: 0,
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky',
+    limit: 10,
+    offset: 0,
     filters: [
       { column: 'id', op: 'equals', value: '1' },
       { column: 'id', op: 'equals', value: '3' }
@@ -105,49 +130,96 @@ async function main(): Promise<void> {
   check('OR filter logic', orFilters.total === 2, `${orFilters.total} rows`)
 
   const columns = await call<{ name: string; autoIncrement?: boolean }[]>('listColumns', {
-    connectionId: conn.id, database: DB, table: 'tricky'
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky'
   })
-  check('listColumns marks AUTO_INCREMENT', columns[0].autoIncrement === true, String(columns[0].autoIncrement))
+  check(
+    'listColumns marks AUTO_INCREMENT',
+    columns[0].autoIncrement === true,
+    String(columns[0].autoIncrement)
+  )
 
   const pk = await call<{ columns: string[] } | null>('getPrimaryKey', {
-    connectionId: conn.id, database: DB, table: 'tricky'
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky'
   })
   check('getPrimaryKey', pk?.columns.join(',') === 'id')
 
   const plan = await call<{ format: string }>('explainQuery', {
-    connectionId: conn.id, database: DB, sql: 'SELECT * FROM tricky WHERE id = 1'
+    connectionId: conn.id,
+    database: DB,
+    sql: 'SELECT * FROM tricky WHERE id = 1'
   })
   check('explainQuery', plan.format === 'json')
 
-  const ddl = await call<string | null>('getTableDdl', { connectionId: conn.id, database: DB, table: 'tricky' })
+  const ddl = await call<string | null>('getTableDdl', {
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky'
+  })
   check('getTableDdl', Boolean(ddl?.includes('CREATE TABLE')))
 
-  const stats = await call<{ name: string; rows: number | null; sizeBytes: number | null }[]>(
-    'listTableStats', { connectionId: conn.id, database: DB }
+  const stats = await call<
+    { name: string; rows: number | null; sizeBytes: number | null }[]
+  >('listTableStats', { connectionId: conn.id, database: DB })
+  check(
+    'listTableStats',
+    stats.some((s) => s.name === 'tricky'),
+    `${stats.length} tables`
   )
-  check('listTableStats', stats.some((s) => s.name === 'tricky'), `${stats.length} tables`)
 
   const sqlFile = join(dir, 'tricky.sql')
   const exported = await exportTable(client, {
-    connectionId: conn.id, database: DB, table: 'tricky', format: 'sql', filePath: sqlFile
+    connectionId: conn.id,
+    database: DB,
+    table: 'tricky',
+    format: 'sql',
+    filePath: sqlFile
   })
   const sqlText = await readFile(sqlFile, 'utf-8')
   check('exportTable sql', exported.rowsWritten === 3)
-  check('MySQL export escapes backslash', sqlText.includes("'back\\\\slash'"), sqlText.split('\n').find((l) => l.includes('back')) ?? 'n/a')
+  check(
+    'MySQL export escapes backslash',
+    sqlText.includes("'back\\\\slash'"),
+    sqlText.split('\n').find((l) => l.includes('back')) ?? 'n/a'
+  )
   check('MySQL export blob literal', sqlText.includes("x'0102ff'"))
-  check('MySQL export boolean as 1/0', sqlText.includes('(1,') || sqlText.includes(', 1,'))
+  check(
+    'MySQL export boolean as 1/0',
+    sqlText.includes('(1,') || sqlText.includes(', 1,')
+  )
 
   const csvFile = join(dir, 'rows.csv')
   await writeFile(csvFile, '1,alpha\n2,beta\n', 'utf-8')
-  await call('runQuery', { connectionId: conn.id, database: DB, sql: 'CREATE TABLE csv_import (id int, label varchar(50))', maxRows: 1 })
+  await call('runQuery', {
+    connectionId: conn.id,
+    database: DB,
+    sql: 'CREATE TABLE csv_import (id int, label varchar(50))',
+    maxRows: 1
+  })
   const imported = await importCsv(client, {
-    connectionId: conn.id, database: DB, table: 'csv_import', filePath: csvFile,
-    delimiter: ',', hasHeader: false, mapping: { column_1: 'id', column_2: 'label' }
+    connectionId: conn.id,
+    database: DB,
+    table: 'csv_import',
+    filePath: csvFile,
+    delimiter: ',',
+    hasHeader: false,
+    mapping: { column_1: 'id', column_2: 'label' }
   })
   const csvCount = await call<{ total: number }>('selectRows', {
-    connectionId: conn.id, database: DB, table: 'csv_import', limit: 10, offset: 0
+    connectionId: conn.id,
+    database: DB,
+    table: 'csv_import',
+    limit: 10,
+    offset: 0
   })
-  check('headerless CSV import', imported.rowsInserted === 2 && csvCount.total === 2, `${imported.rowsInserted}/${csvCount.total}`)
+  check(
+    'headerless CSV import',
+    imported.rowsInserted === 2 && csvCount.total === 2,
+    `${imported.rowsInserted}/${csvCount.total}`
+  )
 
   const dumpFile = join(dir, 'dump.sql')
   const dump = await dumpDatabase(client, conn.id, DB, dumpFile)
@@ -156,40 +228,89 @@ async function main(): Promise<void> {
   check('dump has no CREATE SCHEMA for MySQL', !dumpText.includes('CREATE SCHEMA'), 'ok')
 
   const backupFile = join(dir, 'backup.sql')
-  const backup = await backupDatabase(client, conn.id, DB, backupFile, { structure: true, data: true })
-  check('backup entry', backup.rows > 0 && backup.tables >= 2, `${backup.tables} tables, ${backup.rows} rows`)
+  const backup = await backupDatabase(client, conn.id, DB, backupFile, {
+    structure: true,
+    data: true
+  })
+  check(
+    'backup entry',
+    backup.rows > 0 && backup.tables >= 2,
+    `${backup.tables} tables, ${backup.rows} rows`
+  )
 
   // DDL routing and the rename syntax this engine uses.
-  await call('runQuery', { connectionId: conn.id, database: DB, sql: 'CREATE TABLE rename_me (id int)', maxRows: 1 })
-  const rename = buildDdl('mysql', {
-    kind: 'renameTable', database: DB, table: 'rename_me', newName: 'renamed_ok'
+  await call('runQuery', {
+    connectionId: conn.id,
+    database: DB,
+    sql: 'CREATE TABLE rename_me (id int)',
+    maxRows: 1
   })
-  await call('runQuery', { connectionId: conn.id, database: DB, sql: rename.join('\n'), maxRows: 1 })
-  const tables = await call<{ name: string }[]>('listTables', { connectionId: conn.id, database: DB })
-  check('renameTable works', tables.some((t) => t.name === 'renamed_ok'))
+  const rename = buildDdl('mysql', {
+    kind: 'renameTable',
+    database: DB,
+    table: 'rename_me',
+    newName: 'renamed_ok'
+  })
+  await call('runQuery', {
+    connectionId: conn.id,
+    database: DB,
+    sql: rename.join('\n'),
+    maxRows: 1
+  })
+  const tables = await call<{ name: string }[]>('listTables', {
+    connectionId: conn.id,
+    database: DB
+  })
+  check(
+    'renameTable works',
+    tables.some((t) => t.name === 'renamed_ok')
+  )
 
   // Search, routines, users, sessions are all part of the engine surface.
   const found = await call<{ name: string; kind: string }[]>('searchObjects', {
-    connectionId: conn.id, database: DB, term: 'tricky'
+    connectionId: conn.id,
+    database: DB,
+    term: 'tricky'
   })
-  check('searchObjects', found.some((f) => f.name === 'tricky'), `${found.length} hits`)
+  check(
+    'searchObjects',
+    found.some((f) => f.name === 'tricky'),
+    `${found.length} hits`
+  )
 
-  const sessions = await call<{ id: string }[]>('listSessions', { connectionId: conn.id, database: DB })
+  const sessions = await call<{ id: string }[]>('listSessions', {
+    connectionId: conn.id,
+    database: DB
+  })
   check('listSessions', sessions.length >= 1, `${sessions.length} sessions`)
 
   const users = await call<{ name: string }[]>('listUsers', { connectionId: conn.id })
   check('listUsers', users.length >= 1, `${users.length} users`)
 
-  const routines = await call<unknown[]>('listRoutines', { connectionId: conn.id, database: DB })
+  const routines = await call<unknown[]>('listRoutines', {
+    connectionId: conn.id,
+    database: DB
+  })
   check('listRoutines', Array.isArray(routines))
 
   // Truncate path: DELETE + no sequence table in MySQL.
   const truncate = buildDdl('mysql', {
-    kind: 'truncateTable', database: DB, table: 'csv_import'
+    kind: 'truncateTable',
+    database: DB,
+    table: 'csv_import'
   })
-  await call('runQuery', { connectionId: conn.id, database: DB, sql: truncate.join('\n'), maxRows: 1 })
+  await call('runQuery', {
+    connectionId: conn.id,
+    database: DB,
+    sql: truncate.join('\n'),
+    maxRows: 1
+  })
   const afterTruncate = await call<{ total: number }>('selectRows', {
-    connectionId: conn.id, database: DB, table: 'csv_import', limit: 10, offset: 0
+    connectionId: conn.id,
+    database: DB,
+    table: 'csv_import',
+    limit: 10,
+    offset: 0
   })
   check('truncateTable', afterTruncate.total === 0)
 
@@ -212,26 +333,57 @@ async function main(): Promise<void> {
   }
   const bigStart = Date.now()
   const bigRes = await call<{ rows: unknown[]; truncated: boolean }[]>('runQuery', {
-    connectionId: conn.id, database: DB, sql: 'SELECT * FROM big_rows', maxRows: 1000
+    connectionId: conn.id,
+    database: DB,
+    sql: 'SELECT * FROM big_rows',
+    maxRows: 1000
   })
   const bigMs = Date.now() - bigStart
-  check('mysql returns exactly maxRows', bigRes[0].rows.length === 1000, `${bigRes[0].rows.length} rows`)
+  check(
+    'mysql returns exactly maxRows',
+    bigRes[0].rows.length === 1000,
+    `${bigRes[0].rows.length} rows`
+  )
   check('mysql flags truncation', bigRes[0].truncated === true)
-  check('mysql stays fast on a large table', bigMs < 5000, `${bigMs} ms for 200000 candidate rows`)
+  check(
+    'mysql stays fast on a large table',
+    bigMs < 5000,
+    `${bigMs} ms for 200000 candidate rows`
+  )
   const bigAfter = await call<{ rows: { n: number }[] }[]>('runQuery', {
-    connectionId: conn.id, database: DB, sql: 'SELECT COUNT(*) AS n FROM big_rows', maxRows: 10
+    connectionId: conn.id,
+    database: DB,
+    sql: 'SELECT COUNT(*) AS n FROM big_rows',
+    maxRows: 10
   })
-  check('mysql connection still usable', Number(bigAfter[0].rows[0].n) === 200000, String(bigAfter[0].rows[0].n))
+  check(
+    'mysql connection still usable',
+    Number(bigAfter[0].rows[0].n) === 200000,
+    String(bigAfter[0].rows[0].n)
+  )
 
   const bigCommand = await call<{ kind: string; rowCount: number }[]>('runQuery', {
-    connectionId: conn.id, database: DB, sql: 'UPDATE big_rows SET v = v WHERE id <= 4', maxRows: 10
+    connectionId: conn.id,
+    database: DB,
+    sql: 'UPDATE big_rows SET v = v WHERE id <= 4',
+    maxRows: 10
   })
-  check('mysql command rowCount preserved', bigCommand[0].kind === 'command' && bigCommand[0].rowCount === 4, JSON.stringify(bigCommand[0]))
+  check(
+    'mysql command rowCount preserved',
+    bigCommand[0].kind === 'command' && bigCommand[0].rowCount === 4,
+    JSON.stringify(bigCommand[0])
+  )
 
   const bigSmall = await call<{ rows: unknown[]; truncated: boolean }[]>('runQuery', {
-    connectionId: conn.id, database: DB, sql: 'SELECT * FROM big_rows WHERE id <= 3', maxRows: 1000
+    connectionId: conn.id,
+    database: DB,
+    sql: 'SELECT * FROM big_rows WHERE id <= 3',
+    maxRows: 1000
   })
-  check('mysql exact result not truncated', bigSmall[0].rows.length === 3 && !bigSmall[0].truncated)
+  check(
+    'mysql exact result not truncated',
+    bigSmall[0].rows.length === 3 && !bigSmall[0].truncated
+  )
 
   // Cancel: KILL QUERY must stop a long statement and keep the connection.
   let cancelError = ''
@@ -251,21 +403,101 @@ async function main(): Promise<void> {
   await slowQuery
   const cancelMs = Date.now() - cancelStart
   check('mysql cancel reports success', cancelled === true)
-  check('mysql cancel stops the statement early', cancelMs < 5000, `${cancelMs} ms (query was 30 s)`)
+  check(
+    'mysql cancel stops the statement early',
+    cancelMs < 5000,
+    `${cancelMs} ms (query was 30 s)`
+  )
   const afterCancel = await call<{ rows: { ok: number }[] }[]>('runQuery', {
-    connectionId: conn.id, database: DB, sql: 'SELECT 1 AS ok', maxRows: 5
+    connectionId: conn.id,
+    database: DB,
+    sql: 'SELECT 1 AS ok',
+    maxRows: 5
   })
-  check('mysql connection usable after cancel', afterCancel[0].rows[0].ok === 1, cancelError.slice(0, 40))
+  check(
+    'mysql connection usable after cancel',
+    afterCancel[0].rows[0].ok === 1,
+    cancelError.slice(0, 40)
+  )
   const idleCancel = await call<boolean>('cancelQuery', { connectionId: conn.id })
   check('mysql cancel with nothing running returns false', idleCancel === false)
 
-  await call('runQuery', { connectionId: conn.id, sql: `DROP DATABASE ${DB}`, maxRows: 1 })
+  // ---------- manual transaction ----------
+  const txQuery = (sql: string, transactionId?: string): Promise<unknown> =>
+    call('runQuery', {
+      connectionId: conn.id,
+      database: DB,
+      sql,
+      maxRows: 20,
+      transactionId
+    })
+  const txCount = async (): Promise<number> => {
+    const sets = (await txQuery(`SELECT COUNT(*) AS n FROM ${DB}.tx_rows`)) as {
+      rows: { n: number }[]
+    }[]
+    return Number(sets[0].rows[0].n)
+  }
+  await txQuery(`CREATE TABLE ${DB}.tx_rows (id INT PRIMARY KEY, note TEXT)`)
+  await txQuery(`INSERT INTO ${DB}.tx_rows VALUES (1, 'seed')`)
+
+  await call('beginTransaction', {
+    connectionId: conn.id,
+    transactionId: 'tx-1',
+    database: DB
+  })
+  await txQuery(`INSERT INTO ${DB}.tx_rows VALUES (2, 'in-tx')`, 'tx-1')
+  const txInside = (await txQuery(`SELECT COUNT(*) AS n FROM ${DB}.tx_rows`, 'tx-1')) as {
+    rows: { n: number }[]
+  }[]
+  check(
+    'mysql transaction sees its own write',
+    Number(txInside[0].rows[0].n) === 2,
+    String(txInside[0].rows[0].n)
+  )
+  check('mysql other session does not see it', (await txCount()) === 1)
+  await call('rollbackTransaction', { connectionId: conn.id, transactionId: 'tx-1' })
+  check('mysql rollback discards the write', (await txCount()) === 1)
+
+  await call('beginTransaction', {
+    connectionId: conn.id,
+    transactionId: 'tx-2',
+    database: DB
+  })
+  await txQuery(`INSERT INTO ${DB}.tx_rows VALUES (3, 'kept')`, 'tx-2')
+  await call('commitTransaction', { connectionId: conn.id, transactionId: 'tx-2' })
+  check('mysql commit keeps the write', (await txCount()) === 2)
+
+  // A DDL statement commits implicitly in MySQL. The transaction must not claim
+  // to be open afterwards, or a later rollback would look successful while the
+  // CREATE TABLE stays.
+  await call('beginTransaction', {
+    connectionId: conn.id,
+    transactionId: 'tx-3',
+    database: DB
+  })
+  await txQuery(`CREATE TABLE ${DB}.tx_ddl (id INT)`, 'tx-3')
+  const afterDdl = await call<{ transactionId: string }[]>('listTransactions', {
+    connectionId: conn.id
+  })
+  check(
+    'mysql reports the implicit commit caused by DDL',
+    afterDdl.every((tx) => tx.transactionId !== 'tx-3'),
+    JSON.stringify(afterDdl.map((tx) => tx.transactionId))
+  )
+  await txQuery(`DROP TABLE ${DB}.tx_ddl`)
+
+  await call('runQuery', {
+    connectionId: conn.id,
+    sql: `DROP DATABASE ${DB}`,
+    maxRows: 1
+  })
   await client.terminate()
   await rm(dir, { recursive: true, force: true })
 
   const failed = results.filter((r) => !r.ok)
   console.log(`\n${results.length - failed.length}/${results.length} passed`)
-  if (failed.length > 0) for (const f of failed) console.log(` - ${f.name}${f.detail ? ` | ${f.detail}` : ''}`)
+  if (failed.length > 0)
+    for (const f of failed) console.log(` - ${f.name}${f.detail ? ` | ${f.detail}` : ''}`)
   app.exit(failed.length === 0 ? 0 : 1)
 }
 

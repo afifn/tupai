@@ -205,6 +205,35 @@ export const id = {
   'query.sample': 'Isi contoh',
   'query.format': 'Rapikan',
   'query.formatTitle': 'Rapikan SQL dengan sql-formatter (lokal, tanpa AI)',
+  'query.txContextLocked':
+    'Database dan schema dikunci selama transaksi terbuka. Commit atau rollback dulu.',
+  'query.transaction': 'Transaksi',
+  'query.txStart': 'Mulai transaksi',
+  'query.txStartHint':
+    'Jalankan statement berikutnya di dalam satu transaksi sampai Anda commit atau rollback.',
+  'query.txActive': 'Transaksi aktif',
+  'query.txStatements': '{count} statement',
+  'query.txCommit': 'Commit',
+  'query.txCommitTitle': 'Simpan semua perubahan transaksi',
+  'query.txRollback': 'Rollback',
+  'query.txRollbackTitle': 'Batalkan semua perubahan sejak transaksi dimulai',
+  'query.txCommitted': 'Transaksi di-commit ({count} statement).',
+  'query.txRolledBack': 'Transaksi di-rollback ({count} statement dibatalkan).',
+  'query.txFailed': 'Transaksi gagal, hanya bisa di-rollback',
+  'query.txUnsupported': 'Transaksi manual tidak tersedia untuk {engine}',
+  'query.txDdlTitle': 'DDL akan meng-commit transaksi',
+  'query.txDdlMessage':
+    'Di {engine}, CREATE/ALTER/DROP meng-commit transaksi secara implisit. Perubahan yang belum di-commit akan ikut tersimpan.',
+  'query.txDdlCommitAndRun': 'Commit lalu jalankan',
+  'query.txCloseTitle': 'Transaksi masih terbuka',
+  'query.txCloseMessage':
+    'Ada {count} statement yang belum di-commit. Commit dulu, atau rollback untuk membuangnya.',
+  'query.txDisconnectTitle': 'Putuskan koneksi dengan transaksi terbuka?',
+  'query.txDisconnectMessage':
+    'Transaksi yang masih terbuka akan di-rollback dan perubahannya hilang.',
+  'query.txQuitTitle': 'Keluar dengan transaksi terbuka?',
+  'query.txQuitMessage':
+    'Transaksi yang masih terbuka akan di-rollback saat aplikasi ditutup.',
   'query.history': 'Riwayat',
   'query.historyTitle': 'Riwayat query koneksi ini',
   'query.assistant': 'Asisten',
@@ -763,6 +792,7 @@ export const id = {
   'qb.truncated': '(dipotong di {max})',
 
   // Menubar and shell
+  'app.confirmCloseMessage': 'Masih ada query yang belum disimpan. Tutup aplikasi tetap?',
   'app.toolbar': 'Toolbar utama',
   'app.newConnection': 'Koneksi baru',
   'app.connections': 'Koneksi',

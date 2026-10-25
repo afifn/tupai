@@ -96,9 +96,14 @@ export function ConfirmDialog({
                 {action.label}
               </button>
             ))}
-            <button className="btn btn--ghost" onClick={onClose}>
-              {tr('common.cancel')}
-            </button>
+            {/* The host adds a cancel button of its own; callers that already
+                include one (a three-way choice such as Commit/Rollback/Cancel)
+                must not end up with two. */}
+            {!actions.some((action) => action.label === tr('common.cancel')) && (
+              <button className="btn btn--ghost" onClick={onClose}>
+                {tr('common.cancel')}
+              </button>
+            )}
           </div>
         </div>
       </div>

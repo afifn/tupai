@@ -8,7 +8,9 @@ import type {
   RowInsert,
   RowUpdate,
   RoutineKind,
-  TableStructure
+  TableStructure,
+  TransactionBegin,
+  TransactionRef
 } from '@shared/types'
 import { describeBinary, isBinaryCell } from '@shared/binary'
 import { getAdapterFactory } from '../drivers/registry'
@@ -94,6 +96,22 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       await adapter?.disconnect()
       adapters.delete(connectionId)
       return true
+    }
+    case 'beginTransaction': {
+      const begin = payload as TransactionBegin
+      return (await getConnected(begin.connectionId)).beginTransaction(begin)
+    }
+    case 'commitTransaction': {
+      const ref = payload as TransactionRef
+      return (await getConnected(ref.connectionId)).commitTransaction(ref)
+    }
+    case 'rollbackTransaction': {
+      const ref = payload as TransactionRef
+      return (await getConnected(ref.connectionId)).rollbackTransaction(ref)
+    }
+    case 'listTransactions': {
+      const { connectionId } = payload as { connectionId: string }
+      return (await getConnected(connectionId)).listTransactions()
     }
     case 'listDatabases': {
       const { connectionId } = payload as { connectionId: string }
@@ -215,12 +233,13 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       return adapter.cancelQuery()
     }
     case 'runQuery': {
-      const { connectionId, sql, maxRows, database, schema } = payload as {
+      const { connectionId, sql, maxRows, database, schema, transactionId } = payload as {
         connectionId: string
         sql: string
         maxRows: number
         database?: string
         schema?: string
+        transactionId?: string
       }
       const adapter = await getConnected(connectionId)
       // The adapter records the backend id itself; the callback exists so a
@@ -228,7 +247,7 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       const results = await adapter.runQuery(
         sql,
         maxRows,
-        { database, schema },
+        { database, schema, transactionId },
         () => undefined
       )
       return results.map((r) => ({ ...r, rows: prepareRows(r.rows, false) }))

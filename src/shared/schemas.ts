@@ -184,12 +184,28 @@ export const cancelQuerySchema = z.object({
   connectionId: z.string().min(1)
 })
 
+const transactionIdSchema = z.string().min(1).max(120)
+
+export const transactionBeginSchema = z.object({
+  connectionId: z.string().min(1),
+  transactionId: transactionIdSchema,
+  database: z.string().optional(),
+  schema: z.string().optional()
+})
+
+export const transactionRefSchema = z.object({
+  connectionId: z.string().min(1),
+  transactionId: transactionIdSchema
+})
+
 export const queryRequestSchema = z.object({
   connectionId: z.string().min(1),
   sql: z.string().min(1),
   maxRows: z.number().int().positive().max(10000),
   database: z.string().optional(),
-  schema: z.string().optional()
+  schema: z.string().optional(),
+  // Runs the statement inside an open manual transaction.
+  transactionId: transactionIdSchema.optional()
 })
 
 const ddlColumnDefSchema = z.object({

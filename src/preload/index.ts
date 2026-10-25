@@ -8,6 +8,9 @@ import type {
   AiStreamEvent,
   MenuAction,
   MenuState,
+  TransactionBegin,
+  TransactionInfo,
+  TransactionRef,
   UpdateState,
   AiSettingsInput,
   BackupEntry,
@@ -287,6 +290,18 @@ const dbApi = {
       table,
       rows
     })
+  },
+  beginTransaction(begin: TransactionBegin): Promise<IpcResult<TransactionInfo>> {
+    return ipcRenderer.invoke(IPC.beginTransaction, begin)
+  },
+  commitTransaction(ref: TransactionRef): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.commitTransaction, ref)
+  },
+  rollbackTransaction(ref: TransactionRef): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.rollbackTransaction, ref)
+  },
+  listTransactions(connectionId: string): Promise<IpcResult<TransactionInfo[]>> {
+    return ipcRenderer.invoke(IPC.listTransactions, { connectionId })
   },
   runQuery(req: QueryRequest): Promise<IpcResult<QueryResultSet[]>> {
     return ipcRenderer.invoke(IPC.runQuery, req)

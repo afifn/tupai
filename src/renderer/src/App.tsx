@@ -23,7 +23,7 @@ import { SessionsPanel } from './SessionsPanel'
 import { ObjectsPanel } from './ObjectsPanel'
 import { QueryEditor, type QueryEditorHandle } from './QueryEditor'
 import { ConfirmDialog, type ConfirmAction } from './ConfirmDialog'
-import { confirmDestructive } from './confirm'
+import { confirmAction, confirmDestructive } from './confirm'
 import { TableDesigner } from './TableDesigner'
 import { ViewDesigner } from './ViewDesigner'
 import { ObjectDefinition } from './ObjectDefinition'
@@ -334,6 +334,9 @@ export function App(): JSX.Element {
   activeTabIdRef.current = activeTabId
   const [treeVersion, setTreeVersion] = useState(0)
   const [queryVersion, setQueryVersion] = useState(0)
+  // Query tabs with an uncommitted manual transaction. The shell guards closing
+  // the tab, disconnecting, and quitting on this set.
+  const [openTransactions, setOpenTransactions] = useState<Set<string>>(new Set())
   // The right dock holds the assistant and the selected record. It opens on
   // demand so the editor keeps the full width until the user needs it.
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
@@ -1560,9 +1563,40 @@ export function App(): JSX.Element {
   // Closing used to discard typed SQL without asking. The close now stops at
   // the first query tab with unsaved text and lets the user save, discard, or
   // cancel; tabs without edits still close immediately.
-  function requestClose(predicate: (tab: Tab, index: number) => boolean): void {
+  async function requestClose(
+    predicate: (tab: Tab, index: number) => boolean
+  ): Promise<void> {
     const doomed = tabs.filter((tab, i) => predicate(tab, i))
     if (doomed.length === 0) return
+    // An open transaction is more dangerous than unsaved text: closing would
+    // roll back work the user may believe is saved. Ask before anything else.
+    const withTx = doomed.find((tab) => openTransactions.has(tab.id))
+    if (withTx) {
+      const editor = queryEditors.current.get(withTx.id)
+      const choice = await confirmAction({
+        title: tr('query.txCloseTitle'),
+        message: tr('query.txCloseMessage', {
+          count: editor?.transactionStatementCount() ?? 0
+        }),
+        actions: [
+          { label: tr('query.txCommit'), primary: true },
+          { label: tr('query.txRollback'), danger: true },
+          { label: tr('common.cancel') }
+        ]
+      })
+      // "Batal" is one of the actions, not the dialog's own close button, so it
+      // arrives as a normal choice. Without this check it fell through to the
+      // else branch and rolled back, which is the opposite of cancelling.
+      if (!choice || choice.label === tr('common.cancel')) return
+      if (choice.label === tr('query.txCommit')) {
+        await editor?.commitTransaction()
+      } else {
+        await editor?.rollbackTransaction()
+      }
+      // The editor reports the new state; if it is still open (the commit
+      // failed), do not close the tab and lose the reason.
+      if (editor?.hasOpenTransaction()) return
+    }
     const dirty = doomed.find((tab) => {
       if (tab.type !== 'query') return false
       return queryEditors.current.get(tab.id)?.hasDirty() ?? false
@@ -1575,11 +1609,11 @@ export function App(): JSX.Element {
   }
 
   function closeTab(id: string): void {
-    requestClose((t) => t.id === id)
+    void requestClose((t) => t.id === id)
   }
 
   function closeTabs(predicate: (tab: Tab, index: number) => boolean): void {
-    requestClose(predicate)
+    void requestClose(predicate)
   }
 
   function finishPendingClose(): void {
@@ -1607,6 +1641,27 @@ export function App(): JSX.Element {
     }
     finishPendingClose()
   }
+
+  // Quitting with an open transaction would roll it back on the server without a
+  // word. Electron cannot show an in-app dialog during teardown, so the browser's
+  // own confirm is the only hook that can cancel the close; it is used only when
+  // there is something to lose.
+  useEffect(() => {
+    function onBeforeUnload(event: BeforeUnloadEvent): void {
+      const open = openTransactions.size
+      const dirtyQuery = tabs.some(
+        (tab) =>
+          tab.type === 'query' && (queryEditors.current.get(tab.id)?.hasDirty() ?? false)
+      )
+      if (open === 0 && !(settings.general.confirmOnClose && dirtyQuery)) return
+      // A non-empty returnValue is what makes Chromium ask. The text itself is
+      // ignored by every current browser, so it only has to exist.
+      event.preventDefault()
+      event.returnValue = tr(open > 0 ? 'query.txQuitMessage' : 'app.confirmCloseMessage')
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [openTransactions, settings.general.confirmOnClose, tabs, tr])
 
   // A dropped table (or a dropped schema, which removes all its tables) must
   // not leave a stale data/struct/io tab pointed at an object that is gone.
@@ -1990,6 +2045,31 @@ export function App(): JSX.Element {
   }
 
   async function handleDisconnect(id: string): Promise<void> {
+    // An open transaction would be rolled back by the server on disconnect. Say
+    // so before it happens instead of letting the changes vanish.
+    const openHere = tabs.filter(
+      (tab) =>
+        tab.type === 'query' && tab.connectionId === id && openTransactions.has(tab.id)
+    )
+    if (openHere.length > 0) {
+      const choice = await confirmAction({
+        title: tr('query.txDisconnectTitle'),
+        message: tr('query.txDisconnectMessage'),
+        actions: [
+          { label: tr('query.txCommit'), primary: true },
+          { label: tr('query.txRollback'), danger: true },
+          { label: tr('common.cancel') }
+        ]
+      })
+      if (!choice || choice.label === tr('common.cancel')) return
+      for (const tab of openHere) {
+        const editor = queryEditors.current.get(tab.id)
+        if (!editor) continue
+        if (choice.label === tr('query.txCommit')) await editor.commitTransaction()
+        else await editor.rollbackTransaction()
+        if (editor.hasOpenTransaction()) return
+      }
+    }
     await unwrap(window.dbApi.disconnect(id))
     setOpenConnectionIds((prev) => {
       const next = new Set(prev)
@@ -2062,6 +2142,18 @@ export function App(): JSX.Element {
           onContextChange={({ database, schema }) => {
             if (activeTabIdRef.current !== tab.id) return
             setAssistantScope({ connectionId: tab.connectionId, database, schema })
+          }}
+          onTransactionNotice={(message) => {
+            pushToast({ kind: 'ok', title: message })
+          }}
+          onTransactionChange={(open) => {
+            setOpenTransactions((prev) => {
+              if (open === prev.has(tab.id)) return prev
+              const next = new Set(prev)
+              if (open) next.add(tab.id)
+              else next.delete(tab.id)
+              return next
+            })
           }}
           onRan={(sql) => {
             // A CREATE/ALTER/DROP makes both the tree and the assistant's

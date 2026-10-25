@@ -61,6 +61,29 @@ src/
 scripts/smoke/           smoke test
 ```
 
+## Transaksi manual
+
+Satu transaksi per tab Query, bukan per koneksi: tab yang sama bisa punya
+beberapa sub-tab, dan semuanya berbagi sesi database yang sama.
+
+- Setiap adapter menyimpan `Map<transactionId, pinned connection>`. Koneksi
+  di-pin karena pooled/shared connection akan membuat statement tab lain ikut
+  masuk transaksi, atau statement transaksi berjalan di sesi berbeda dan tidak
+  melihat tulisannya sendiri.
+- MySQL/MariaDB memakai `PoolConnection` yang ditahan; PostgreSQL membuka
+  `pg.Client` baru (bukan cache per database); Oracle membuka `Connection`
+  baru dengan `autoCommit: false`.
+- Batas 4 transaksi terbuka per koneksi (`MAX_OPEN_TRANSACTIONS`), karena tiap
+  transaksi menahan satu koneksi server.
+- `commitsImplicitly` (`src/shared/transactionGuard.ts`) menandai DDL yang
+  meng-commit implisit di MySQL/MariaDB/Oracle; driver menghapus entri transaksi
+  saat itu terjadi supaya `listTransactions` tidak berbohong, dan UI bertanya
+  lebih dulu.
+- PostgreSQL tidak terkena aturan itu: DDL-nya transaksional, dan rollback
+  `CREATE TABLE` sudah diuji.
+- SQLite dan MongoDB melempar `DbError('UNSUPPORTED')` dengan alasan yang
+  ditampilkan ke pengguna.
+
 ## Membangun installer
 
 **Windows** (dijalankan di Windows):

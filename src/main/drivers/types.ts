@@ -18,7 +18,10 @@ import type {
   RoutineInfo,
   RoutineKind,
   SearchResult,
-  SessionInfo
+  SessionInfo,
+  TransactionBegin,
+  TransactionInfo,
+  TransactionRef
 } from '@shared/types'
 import { quoteIdent } from '@shared/ddl'
 
@@ -122,16 +125,32 @@ export interface DatabaseAdapter {
   listSessions(database?: string): Promise<SessionInfo[]>
   killSession(sessionId: string): Promise<void>
   listUsers(): Promise<DbUser[]>
+  // Manual transaction. The adapter pins a dedicated connection for the id and
+  // keeps it until commit or rollback, so statements sent with the same id share
+  // one session and see their own uncommitted writes. Engines without
+  // transactions (SQLite's single handle, MongoDB without a replica set) throw
+  // DbError('UNSUPPORTED') with a reason the UI shows.
+  beginTransaction(begin: TransactionBegin): Promise<TransactionInfo>
+  commitTransaction(ref: TransactionRef): Promise<void>
+  rollbackTransaction(ref: TransactionRef): Promise<void>
+  // Open transactions on this adapter, for the shell to warn about before a
+  // disconnect and for tests to assert cleanup.
+  listTransactions(): Promise<TransactionInfo[]>
 }
 
 export interface QueryContext {
   database?: string
   schema?: string
+  // When set, the statement runs on the connection pinned by beginTransaction.
+  transactionId?: string
 }
 
 export type AdapterFactory = (engine: DbEngine) => DatabaseAdapter
 
 export { quoteIdent, qualifiedTable, buildDdl, engineColumnTypes } from '@shared/ddl'
+// The splitter lives in src/shared so the renderer can preview the same
+// statements the drivers will run.
+export { splitStatements } from '@shared/sqlBoundary'
 
 // Read a batch ordered by an explicit column list. `orderByColumns` exists for
 // sync, where a composite primary key must be the paging order; a single
@@ -150,89 +169,7 @@ export function orderClause(
   return ` ORDER BY ${quoteIdent(engine, orderBy)} ${dir}`
 }
 
-export function splitStatements(sql: string): string[] {
-  const statements: string[] = []
-  let current = ''
-  let i = 0
-  let quote: string | null = null
-  // Postgres dollar-quoting: $$ ... $$ or $tag$ ... $tag$. Bodies often contain
-  // semicolons, so the terminator must be matched before splitting.
-  let dollarTag: string | null = null
-  while (i < sql.length) {
-    const ch = sql[i]
-    const next = sql[i + 1]
-    if (dollarTag) {
-      if (sql.startsWith(dollarTag, i)) {
-        current += dollarTag
-        i += dollarTag.length
-        dollarTag = null
-        continue
-      }
-      current += ch
-      i += 1
-      continue
-    }
-    if (quote) {
-      current += ch
-      if (ch === quote) {
-        if (next === quote) {
-          current += next
-          i += 2
-          continue
-        }
-        quote = null
-      }
-      i += 1
-      continue
-    }
-    if (ch === '-' && next === '-') {
-      while (i < sql.length && sql[i] !== '\n') {
-        current += sql[i]
-        i += 1
-      }
-      continue
-    }
-    if (ch === '/' && next === '*') {
-      current += ch + next
-      i += 2
-      while (i < sql.length && !(sql[i] === '*' && sql[i + 1] === '/')) {
-        current += sql[i]
-        i += 1
-      }
-      if (i < sql.length) {
-        current += '*/'
-        i += 2
-      }
-      continue
-    }
-    if (ch === '$') {
-      // A dollar-quote tag is $ followed by an optional identifier then $.
-      const match = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(i))
-      if (match) {
-        dollarTag = match[0]
-        current += dollarTag
-        i += dollarTag.length
-        continue
-      }
-    }
-    if (ch === "'" || ch === '"' || ch === '`') {
-      quote = ch
-      current += ch
-      i += 1
-      continue
-    }
-    if (ch === ';') {
-      if (current.trim()) statements.push(current.trim())
-      current = ''
-      i += 1
-      continue
-    }
-    current += ch
-    i += 1
-  }
-  if (current.trim()) statements.push(current.trim())
-  return statements
-}
+
 
 export function summarizeStatement(sql: string): string {
   const oneLine = sql.replace(/\s+/g, ' ').trim()

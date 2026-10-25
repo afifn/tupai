@@ -20,8 +20,13 @@ import type {
   SessionInfo,
   TableInfo,
   TableInfoDetail,
-  TableStat
+  TableStat,
+  TransactionBegin,
+  TransactionInfo,
+  TransactionRef
 } from '@shared/types'
+import { MAX_OPEN_TRANSACTIONS } from '@shared/types'
+import { commitsImplicitly } from '@shared/transactionGuard'
 import { buildFilterWhere, toOracleBinds } from '@shared/filter'
 import { nowExpression } from '@shared/nowExpression'
 import {
@@ -31,7 +36,8 @@ import {
   quoteIdent,
   splitStatements,
   summarizeStatement,
-  type DatabaseAdapter
+  type DatabaseAdapter,
+  type QueryContext
 } from './types'
 import { sslEnabled } from '../connection/ssl'
 import { sshEnabled } from '../connection/sshTunnel'
@@ -41,6 +47,9 @@ const QUERY_TIMEOUT_MS = 30000
 class OracleAdapter implements DatabaseAdapter {
   readonly engine: DbEngine = 'oracle'
   private connection: Connection | null = null
+  // One dedicated connection per open manual transaction, because the shared
+  // connection runs statements with autoCommit on.
+  private transactions = new Map<string, { conn: Connection; info: TransactionInfo }>()
   private config: ConnectionConfig | null = null
 
   private buildConnectString(cfg: ConnectionConfig): string {
@@ -88,6 +97,11 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async disconnect(): Promise<void> {
+    for (const [id, entry] of this.transactions) {
+      await entry.conn.rollback().catch(() => undefined)
+      await entry.conn.close().catch(() => undefined)
+      this.transactions.delete(id)
+    }
     await this.connection?.close()
     this.connection = null
     this.config = null
@@ -548,8 +562,11 @@ class OracleAdapter implements DatabaseAdapter {
   // CURRENT_SCHEMA is session state. A query that selected schema A used to
   // leave the session there, so later queries without an explicit schema ran
   // against A instead of the user's own schema.
-  private async applyCurrentSchema(schema?: string): Promise<void> {
-    const conn = this.require()
+  private async applyCurrentSchema(
+    schema?: string,
+    connection?: Connection
+  ): Promise<void> {
+    const conn = connection ?? this.require()
     const target = schema ?? this.schema()
     await conn.execute(
       `ALTER SESSION SET CURRENT_SCHEMA = ${quoteIdent(this.engine, target)}`
@@ -583,16 +600,39 @@ class OracleAdapter implements DatabaseAdapter {
   async runQuery(
     sql: string,
     maxRows: number,
-    context?: { database?: string; schema?: string },
+    context?: QueryContext,
     onSession?: (sessionId: string) => void
   ): Promise<QueryResultSet[]> {
     const oracledb = await import('oracledb')
-    const conn = this.require()
-    // Oracle has no separate database switch; the schema is the owning user.
-    await this.applyCurrentSchema(context?.schema)
+    const pinned = context?.transactionId
+      ? this.transactions.get(context.transactionId)
+      : undefined
+    if (context?.transactionId && !pinned) {
+      throw new DbError(
+        'NO_TRANSACTION',
+        'Transaksi tidak lagi terbuka. Jalankan ulang atau mulai transaksi baru.',
+        this.engine
+      )
+    }
     const statements = splitStatements(sql)
     if (statements.length === 0)
       throw new DbError('EMPTY', 'No SQL statement to run', this.engine)
+    // Oracle commits implicitly before and after DDL, so an open transaction
+    // cannot survive it. Clearing the entry keeps listTransactions honest.
+    if (pinned) {
+      for (const stmt of statements) {
+        if (commitsImplicitly(this.engine, stmt)) {
+          this.transactions.delete(context!.transactionId!)
+          break
+        }
+      }
+    }
+    const conn = pinned?.conn ?? this.require()
+    // Oracle has no separate database switch; the schema is the owning user.
+    await this.applyCurrentSchema(context?.schema, conn)
+    // A pinned connection keeps autoCommit off so COMMIT/ROLLBACK stay the
+    // caller's decision.
+    const autoCommit = !pinned
     const sidRes = await conn.execute(
       "SELECT SYS_CONTEXT('USERENV','SID') || ',' || serial# AS sid FROM v$session WHERE sid = SYS_CONTEXT('USERENV','SID')"
     )
@@ -610,7 +650,7 @@ class OracleAdapter implements DatabaseAdapter {
           {},
           {
             outFormat: oracledb.OUT_FORMAT_OBJECT,
-            autoCommit: true,
+            autoCommit,
             resultSet: true,
             fetchArraySize: Math.min(500, maxRows + 1)
           }
@@ -657,7 +697,11 @@ class OracleAdapter implements DatabaseAdapter {
           })
         }
       }
+      if (pinned) pinned.info.statements += 1
       return results
+    } catch (err) {
+      if (pinned) pinned.info.failed = true
+      throw err
     } finally {
       this.runningSession = null
     }
@@ -1075,6 +1119,72 @@ class OracleAdapter implements DatabaseAdapter {
         attributes: []
       }
     })
+  }
+
+  async beginTransaction(begin: TransactionBegin): Promise<TransactionInfo> {
+    if (this.transactions.size >= MAX_OPEN_TRANSACTIONS) {
+      throw new DbError(
+        'TOO_MANY_TRANSACTIONS',
+        `Maksimal ${MAX_OPEN_TRANSACTIONS} transaksi terbuka per koneksi. Commit atau rollback salah satu dulu.`,
+        this.engine
+      )
+    }
+    if (this.transactions.has(begin.transactionId)) {
+      throw new DbError('TRANSACTION_EXISTS', 'Transaksi sudah terbuka.', this.engine)
+    }
+    if (!this.config) throw new DbError('NOT_CONNECTED', 'Not connected', this.engine)
+    const oracledb = await import('oracledb')
+    const conn = await oracledb.getConnection({
+      user: this.config.user,
+      password: this.config.password,
+      connectString: this.buildConnectString(this.config)
+    })
+    conn.callTimeout = QUERY_TIMEOUT_MS
+    try {
+      await this.applyCurrentSchema(begin.schema, conn)
+    } catch (err) {
+      await conn.close().catch(() => undefined)
+      throw err
+    }
+    const info: TransactionInfo = {
+      transactionId: begin.transactionId,
+      connectionId: begin.connectionId,
+      database: begin.database,
+      schema: begin.schema,
+      startedAt: new Date().toISOString(),
+      statements: 0,
+      failed: false
+    }
+    this.transactions.set(begin.transactionId, { conn, info })
+    return info
+  }
+
+  async commitTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) {
+      throw new DbError('NO_TRANSACTION', 'Transaksi tidak lagi terbuka.', this.engine)
+    }
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.conn.commit()
+    } finally {
+      await entry.conn.close().catch(() => undefined)
+    }
+  }
+
+  async rollbackTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) return
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.conn.rollback()
+    } finally {
+      await entry.conn.close().catch(() => undefined)
+    }
+  }
+
+  async listTransactions(): Promise<TransactionInfo[]> {
+    return [...this.transactions.values()].map((entry) => ({ ...entry.info }))
   }
 }
 

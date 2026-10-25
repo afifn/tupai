@@ -20,8 +20,12 @@ import type {
   SessionInfo,
   TableInfo,
   TableInfoDetail,
-  TableStat
+  TableStat,
+  TransactionBegin,
+  TransactionInfo,
+  TransactionRef
 } from '@shared/types'
+import { MAX_OPEN_TRANSACTIONS } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
 import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
@@ -32,7 +36,8 @@ import {
   quoteIdent,
   splitStatements,
   summarizeStatement,
-  type DatabaseAdapter
+  type DatabaseAdapter,
+  type QueryContext
 } from './types'
 import { resolveSsl, type ResolvedSsl } from '../connection/ssl'
 import { openSshTunnel, sshEnabled, type SshTunnel } from '../connection/sshTunnel'
@@ -53,6 +58,9 @@ class PostgresAdapter implements DatabaseAdapter {
 
   private ssl: ResolvedSsl | null = null
   private tunnel: SshTunnel | null = null
+  // One dedicated client per open manual transaction. Reusing a cached client
+  // would put every other tab's statement inside the same transaction.
+  private transactions = new Map<string, { client: Client; info: TransactionInfo }>()
 
   private buildConfig(cfg: ConnectionConfig, database: string) {
     return {
@@ -114,6 +122,13 @@ class PostgresAdapter implements DatabaseAdapter {
   }
 
   async disconnect(): Promise<void> {
+    // Roll back before closing: the server does it on disconnect anyway, but an
+    // explicit rollback also releases any lock the client was holding.
+    for (const [id, entry] of this.transactions) {
+      await entry.client.query('ROLLBACK').catch(() => undefined)
+      await entry.client.end().catch(() => undefined)
+      this.transactions.delete(id)
+    }
     for (const client of this.clients.values()) {
       await client.end().catch(() => undefined)
     }
@@ -122,6 +137,25 @@ class PostgresAdapter implements DatabaseAdapter {
     this.ssl = null
     await this.tunnel?.close()
     this.tunnel = null
+  }
+
+  /** A fresh client for a manual transaction, never the shared cache. */
+  private async openTransactionClient(database: string): Promise<Client> {
+    if (!this.config) throw new DbError('NOT_CONNECTED', 'Not connected', this.engine)
+    const { Client: PgClient } = await import('pg')
+    const options: Record<string, unknown> = this.buildConfig(this.config, database)
+    if (this.tunnel) {
+      options.stream = await this.tunnel.forward(
+        this.config.host ?? 'localhost',
+        this.config.port ?? 5432
+      )
+      delete options.host
+      delete options.port
+    }
+    const client = new PgClient(options as never)
+    await client.connect()
+    await client.query(`SET statement_timeout = ${QUERY_TIMEOUT_MS}`)
+    return client
   }
 
   private async getClient(database: string): Promise<Client> {
@@ -618,10 +652,22 @@ class PostgresAdapter implements DatabaseAdapter {
   async runQuery(
     sql: string,
     maxRows: number,
-    context?: { database?: string; schema?: string },
+    context?: QueryContext,
     onSession?: (sessionId: string) => void
   ): Promise<QueryResultSet[]> {
-    const client = await this.getClient(context?.database ?? this.defaultDatabase())
+    const pinned = context?.transactionId
+      ? this.transactions.get(context.transactionId)
+      : undefined
+    if (context?.transactionId && !pinned) {
+      throw new DbError(
+        'NO_TRANSACTION',
+        'Transaksi tidak lagi terbuka. Jalankan ulang atau mulai transaksi baru.',
+        this.engine
+      )
+    }
+    const client =
+      pinned?.client ??
+      (await this.getClient(context?.database ?? this.defaultDatabase()))
     await this.applySearchPath(client, context?.schema)
     const pidRes = await client.query('SELECT pg_backend_pid() AS pid')
     this.runningPid = Number(pidRes.rows[0]?.pid ?? 0) || null
@@ -659,7 +705,11 @@ class PostgresAdapter implements DatabaseAdapter {
           })
         }
       }
+      if (pinned) pinned.info.statements += 1
       return results
+    } catch (err) {
+      if (pinned) pinned.info.failed = true
+      throw err
     } finally {
       this.runningPid = null
     }
@@ -1145,6 +1195,67 @@ class PostgresAdapter implements DatabaseAdapter {
         attributes
       }
     })
+  }
+
+  async beginTransaction(begin: TransactionBegin): Promise<TransactionInfo> {
+    if (this.transactions.size >= MAX_OPEN_TRANSACTIONS) {
+      throw new DbError(
+        'TOO_MANY_TRANSACTIONS',
+        `Maksimal ${MAX_OPEN_TRANSACTIONS} transaksi terbuka per koneksi. Commit atau rollback salah satu dulu.`,
+        this.engine
+      )
+    }
+    if (this.transactions.has(begin.transactionId)) {
+      throw new DbError('TRANSACTION_EXISTS', 'Transaksi sudah terbuka.', this.engine)
+    }
+    const database = begin.database ?? this.defaultDatabase()
+    const client = await this.openTransactionClient(database)
+    try {
+      await this.applySearchPath(client, begin.schema)
+      await client.query('BEGIN')
+    } catch (err) {
+      await client.end().catch(() => undefined)
+      throw err
+    }
+    const info: TransactionInfo = {
+      transactionId: begin.transactionId,
+      connectionId: begin.connectionId,
+      database,
+      schema: begin.schema,
+      startedAt: new Date().toISOString(),
+      statements: 0,
+      failed: false
+    }
+    this.transactions.set(begin.transactionId, { client, info })
+    return info
+  }
+
+  async commitTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) {
+      throw new DbError('NO_TRANSACTION', 'Transaksi tidak lagi terbuka.', this.engine)
+    }
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.client.query('COMMIT')
+    } finally {
+      await entry.client.end().catch(() => undefined)
+    }
+  }
+
+  async rollbackTransaction(ref: TransactionRef): Promise<void> {
+    const entry = this.transactions.get(ref.transactionId)
+    if (!entry) return
+    this.transactions.delete(ref.transactionId)
+    try {
+      await entry.client.query('ROLLBACK')
+    } finally {
+      await entry.client.end().catch(() => undefined)
+    }
+  }
+
+  async listTransactions(): Promise<TransactionInfo[]> {
+    return [...this.transactions.values()].map((entry) => ({ ...entry.info }))
   }
 }
 

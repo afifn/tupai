@@ -12,7 +12,8 @@ import type {
   DbEngine,
   ExplainResult,
   QueryHistoryEntry,
-  QueryResultSet
+  QueryResultSet,
+  TransactionInfo
 } from '@shared/types'
 import { qualifiedTable } from '@shared/ddl'
 import { formatSql, isFormatterSupported } from '@shared/sqlFormat'
@@ -39,6 +40,10 @@ import {
   IconWrench
 } from './Icons'
 import { useLocale } from './i18n'
+import type { MessageKey } from '@shared/i18n'
+import { confirmAction } from './confirm'
+import { commitsImplicitly } from '@shared/transactionGuard'
+import { splitStatements } from '@shared/sqlBoundary'
 import { useSettings } from './settingsStore'
 import { shortcutLabel } from './platform'
 import {
@@ -69,6 +74,11 @@ interface Props {
   // Called after a statement succeeds. The parent uses it to refresh the tree
   // and the assistant's table list when the script changed the schema.
   onRan?: (sql: string) => void
+  // Commit/rollback outcome, so the shell can show a toast with the count.
+  onTransactionNotice?: (message: string) => void
+  // Tells the shell whether this editor holds an open transaction, so closing
+  // the tab or disconnecting can ask first.
+  onTransactionChange?: (open: boolean) => void
   // Inactive editors stay mounted, so they must re-report when they become the
   // visible one; the parent ignores reports from hidden editors.
   isVisible?: boolean
@@ -118,6 +128,15 @@ export interface QueryEditorHandle {
   saveDirty: () => Promise<boolean>
   // Opens the history side panel, used by the native View menu.
   openHistory: () => void
+  // A manual transaction is open, so the shell must ask before closing the tab
+  // or disconnecting: an abrupt close would silently roll the work back.
+  hasOpenTransaction: () => boolean
+  // Rolls the open transaction back, used by the close and disconnect guards.
+  rollbackTransaction: () => Promise<void>
+  // Commits it, for the close guard's "Commit" choice.
+  commitTransaction: () => Promise<void>
+  // How many statements the open transaction holds, for the close dialog.
+  transactionStatementCount: () => number
 }
 
 const MAX_ROWS = 1000
@@ -192,6 +211,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
     onContextChange,
     onOpenSettings,
     onRan,
+    onTransactionNotice,
+    onTransactionChange,
     isVisible = true
   },
   ref
@@ -227,6 +248,13 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
     ai: false,
     actions: false
   })
+  // One manual transaction per editor. It is created on demand and lives on the
+  // connection until the user commits or rolls back, so every sub-tab shares it:
+  // they all talk to the same database session.
+  const [transaction, setTransaction] = useState<TransactionInfo | null>(null)
+  const transactionIdRef = useRef<string | null>(null)
+  const transactionRef = useRef<TransactionInfo | null>(null)
+  const transactionSupported = engine !== 'sqlite' && engine !== 'mongodb'
   const railOpen = panels.history || panels.ai || panels.actions
   const historyOpen = panels.history
   const aiOpen = panels.ai
@@ -265,6 +293,10 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
     () => ({
       hasDirty: () => dirtyTabs.length > 0,
       openHistory: () => setPanels((prev) => ({ ...prev, history: true })),
+      hasOpenTransaction: () => transactionIdRef.current !== null,
+      rollbackTransaction,
+      commitTransaction,
+      transactionStatementCount: () => transactionRef.current?.statements ?? 0,
       saveDirty: async (): Promise<boolean> => {
         if (!savedId) return false
         const tab = tabs.find((t) => t.id === activeId)
@@ -391,6 +423,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
   // every render cannot retrigger this effect in a loop.
   const contextChangeRef = useRef(onContextChange)
   contextChangeRef.current = onContextChange
+  const onTransactionChangeRef = useRef(onTransactionChange)
+  onTransactionChangeRef.current = onTransactionChange
   // Same pattern: the run handler is created per render, but the callback may
   // change without the editor needing to re-register anything.
   const onRanRef = useRef(onRan)
@@ -523,6 +557,12 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
     }
     updateTab(tab.id, { running: true, error: null, failure: null })
     try {
+      // DDL would silently end a manual transaction on MySQL/Oracle, so the
+      // user is asked before anything runs.
+      if (!(await confirmImplicitCommit(sql))) {
+        updateTab(tab.id, { running: false })
+        return
+      }
       const started = performance.now()
       const results = await unwrap(
         window.dbApi.runQuery({
@@ -530,9 +570,17 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
           sql,
           maxRows: MAX_ROWS,
           database: database || undefined,
-          schema: schema || undefined
+          schema: schema || undefined,
+          transactionId: transactionIdRef.current ?? undefined
         })
       )
+      if (transactionIdRef.current) {
+        // The adapter counts statements; mirror the count so the toolbar shows
+        // how much is pending without a round trip.
+        setTransaction((prev) =>
+          prev ? { ...prev, statements: prev.statements + 1 } : prev
+        )
+      }
       const durationMs = Math.round(performance.now() - started)
       const firstRows = results.findIndex((r) => r.kind === 'rows')
       updateTab(tab.id, {
@@ -698,12 +746,112 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
   }, [tables, database, schema, engine])
 
   useEffect(() => {
+    transactionRef.current = transaction
+    onTransactionChangeRef.current?.(transaction !== null)
+  }, [transaction])
+
+  useEffect(() => {
     localStorage.setItem('queryEditor.split', String(editorFraction))
   }, [editorFraction])
 
   useEffect(() => {
     localStorage.setItem('queryEditor.railWidth', String(railWidth))
   }, [railWidth])
+
+  // ---------- manual transaction ----------
+
+  /** Starts a transaction for this editor, or returns the one already open. */
+  async function beginTransaction(): Promise<TransactionInfo | null> {
+    if (transaction) return transaction
+    const id = `tx-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+    try {
+      const info = await unwrap(
+        window.dbApi.beginTransaction({
+          connectionId,
+          transactionId: id,
+          database: database || undefined,
+          schema: schema || undefined
+        })
+      )
+      transactionIdRef.current = info.transactionId
+      setTransaction(info)
+      return info
+    } catch (err) {
+      updateTab(active.id, { error: errorText(err) })
+      return null
+    }
+  }
+
+  async function commitTransaction(): Promise<void> {
+    const current = transaction
+    if (!current) return
+    try {
+      await unwrap(
+        window.dbApi.commitTransaction({
+          connectionId,
+          transactionId: current.transactionId
+        })
+      )
+      pushTransactionToast('query.txCommitted', current.statements)
+    } catch (err) {
+      updateTab(active.id, { error: errorText(err) })
+      return
+    } finally {
+      transactionIdRef.current = null
+      setTransaction(null)
+    }
+    // Committed work is visible now, so any open table grid is stale.
+    onRan?.('')
+  }
+
+  async function rollbackTransaction(): Promise<void> {
+    const current = transaction
+    if (!current) return
+    try {
+      await unwrap(
+        window.dbApi.rollbackTransaction({
+          connectionId,
+          transactionId: current.transactionId
+        })
+      )
+      pushTransactionToast('query.txRolledBack', current.statements)
+    } catch (err) {
+      updateTab(active.id, { error: errorText(err) })
+    } finally {
+      transactionIdRef.current = null
+      setTransaction(null)
+    }
+  }
+
+  function pushTransactionToast(key: MessageKey, statements: number): void {
+    onTransactionNotice?.(tr(key, { count: statements }))
+  }
+
+  /**
+   * DDL commits implicitly on MySQL, MariaDB, and Oracle. Running it inside a
+   * manual transaction would end the transaction without telling the user, so
+   * the script is checked first and the user decides.
+   */
+  async function confirmImplicitCommit(sql: string): Promise<boolean> {
+    if (!transaction) return true
+    const statements = splitStatements(sql)
+    const offender = statements.find((stmt) =>
+      commitsImplicitly(engine as DbEngine, stmt)
+    )
+    if (!offender) return true
+    const choice = await confirmAction({
+      title: tr('query.txDdlTitle'),
+      message: tr('query.txDdlMessage', { engine }),
+      detail: offender.trim().slice(0, 300),
+      actions: [
+        { label: tr('query.txDdlCommitAndRun'), primary: true },
+        { label: tr('common.cancel') }
+      ]
+    })
+    if (!choice) return false
+    await commitTransaction()
+    return true
+  }
 
   function togglePanel(next: AuxSurface): void {
     setPanels((current) => ({ ...current, [next]: !current[next] }))
@@ -814,7 +962,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
             className="input"
             value={database}
             onChange={(e) => setDatabase(e.target.value)}
-            disabled={databases.length === 0}
+            disabled={databases.length === 0 || transaction !== null}
+            title={transaction ? tr('query.txContextLocked') : undefined}
           >
             {databases.length === 0 && <option value="">{tr('query.none')}</option>}
             {databases.map((db) => (
@@ -831,7 +980,8 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
             className="input"
             value={schema}
             onChange={(e) => setSchema(e.target.value)}
-            disabled={schemas.length === 0}
+            disabled={schemas.length === 0 || transaction !== null}
+            title={transaction ? tr('query.txContextLocked') : undefined}
           >
             {schemas.length === 0 && <option value="">{tr('query.none')}</option>}
             {schemas.map((s) => (
@@ -934,6 +1084,51 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
                   {hasSelection ? tr('query.runSelection') : tr('query.run')}
                   <span className="query__kbd">{shortcutLabel('Enter')}</span>
                 </button>
+              )}
+            </div>
+
+            <div className="query__toolbar-group query__toolbar-group--tx">
+              {!transaction ? (
+                <button
+                  className="btn btn--small btn--ghost query__tx-start"
+                  onClick={() => void beginTransaction()}
+                  disabled={!transactionSupported || active.running}
+                  title={
+                    transactionSupported
+                      ? tr('query.txStartHint')
+                      : tr('query.txUnsupported', { engine })
+                  }
+                >
+                  {tr('query.txStart')}
+                </button>
+              ) : (
+                <>
+                  <span
+                    className={`query__tx-badge${transaction.failed ? ' is-failed' : ''}`}
+                    title={
+                      transaction.failed ? tr('query.txFailed') : tr('query.txActive')
+                    }
+                  >
+                    <span className="query__tx-dot" aria-hidden="true" />
+                    {tr('query.txStatements', { count: transaction.statements })}
+                  </span>
+                  <button
+                    className="btn btn--small btn--ok"
+                    onClick={() => void commitTransaction()}
+                    disabled={transaction.failed || active.running}
+                    title={tr('query.txCommitTitle')}
+                  >
+                    {tr('query.txCommit')}
+                  </button>
+                  <button
+                    className="btn btn--small btn--ghost"
+                    onClick={() => void rollbackTransaction()}
+                    disabled={active.running}
+                    title={tr('query.txRollbackTitle')}
+                  >
+                    {tr('query.txRollback')}
+                  </button>
+                </>
               )}
             </div>
 

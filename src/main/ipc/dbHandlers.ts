@@ -38,6 +38,8 @@ import {
   saveSettingsSchema,
   importSettingsSchema,
   menuStateSchema,
+  transactionBeginSchema,
+  transactionRefSchema,
   openPathSchema,
   saveQuerySchema,
   savedQueryScopeSchema,
@@ -461,6 +463,38 @@ export function registerDbHandlers(): void {
         primaryKeys
       }))
       return getClient().call<number>('deleteRows', { dels })
+    })
+  )
+
+  ipcMain.handle(IPC.beginTransaction, (_e, raw) =>
+    run(() => {
+      const parsed = transactionBeginSchema.parse(raw)
+      return getClient().call('beginTransaction', parsed)
+    })
+  )
+
+  ipcMain.handle(IPC.commitTransaction, (_e, raw) =>
+    run(async () => {
+      const parsed = transactionRefSchema.parse(raw)
+      await getClient().call('commitTransaction', parsed)
+      return true
+    })
+  )
+
+  ipcMain.handle(IPC.rollbackTransaction, (_e, raw) =>
+    run(async () => {
+      const parsed = transactionRefSchema.parse(raw)
+      await getClient().call('rollbackTransaction', parsed)
+      return true
+    })
+  )
+
+  ipcMain.handle(IPC.listTransactions, (_e, raw) =>
+    run(() => {
+      const { connectionId } = transactionRefSchema
+        .pick({ connectionId: true })
+        .parse(raw)
+      return getClient().call('listTransactions', { connectionId })
     })
   )
 

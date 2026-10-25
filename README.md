@@ -47,6 +47,10 @@ penyimpanan aman OS, dan setiap channel IPC divalidasi sebelum menyentuh driver.
 - Workspace hasil: satu tab per statement, tab Messages, dan query plan
   (EXPLAIN) di area hasil yang sama.
 - Jalankan hanya bagian yang diseleksi.
+- Transaksi manual (MySQL, MariaDB, PostgreSQL, Oracle): mulai transaksi,
+  jalankan beberapa statement, lalu **Commit** atau **Rollback**. Perubahan
+  belum terlihat oleh sesi lain sampai di-commit, dan menutup tab atau memutus
+  koneksi akan menanyakan nasib transaksi itu.
 - Beautify lokal memakai `sql-formatter`.
 - Query Builder visual untuk SELECT.
 - Asisten AI (endpoint OpenAI-compatible) dengan streaming dan tombol berhenti,

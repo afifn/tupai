@@ -15,6 +15,7 @@
 #   scripts/smoke/run.sh p2-preview # assistant row preview against SQLite
 #   scripts/smoke/run.sh menu       # native application menu items reach the UI
 #   scripts/smoke/run.sh worker     # the db worker loads as ESM outside the project
+#   scripts/smoke/run.sh p2-tx      # manual transactions through the real UI
 #   scripts/smoke/run.sh atomic     # atomic store writes
 #   scripts/smoke/run.sh p1-app     # p1 limits through the packaged app
 #   scripts/smoke/run.sh provision  # create user/database/tables/seed data
@@ -239,6 +240,24 @@ case "$TARGET" in
     PIDS+=("$APP_PID")
     disown "$APP_PID" 2>/dev/null || true
     PREVIEW_DB="$PREVIEW_DB" PORT=$PORT node scripts/smoke/p2-preview.mjs
+    ;;
+  p2-tx)
+    # Manual transactions through the real UI. Needs a local PostgreSQL and the
+    # fixture table the runner creates below.
+    npm run build >/dev/null 2>&1
+    PORT=9392
+    require_port_free "$PORT"
+    PROFILE="$(mktemp -d "$RUN_DIR/profile-XXXXXX")"
+    printf '[{"id":"tx-smoke","name":"Tx Smoke","engine":"postgres","host":"127.0.0.1","port":5432,"user":"%s","database":"postgres"}]' "$USER" >"$PROFILE/connections.json"
+    psql -h 127.0.0.1 -d postgres -q -c 'DROP TABLE IF EXISTS tx_smoke_notes' >/dev/null 2>&1 || true
+    psql -h 127.0.0.1 -d postgres -q -c 'CREATE TABLE tx_smoke_notes (id serial primary key, body text)' >/dev/null
+    npx electron . --user-data-dir="$PROFILE" --remote-debugging-port=$PORT \
+      >"$LOG_DIR/p2-tx.log" 2>&1 &
+    APP_PID=$!
+    PIDS+=("$APP_PID")
+    disown "$APP_PID" 2>/dev/null || true
+    PORT=$PORT node scripts/smoke/p2-tx.mjs
+    psql -h 127.0.0.1 -d postgres -q -c 'DROP TABLE IF EXISTS tx_smoke_notes' >/dev/null 2>&1 || true
     ;;
   worker)
     # Spawns the built worker from outside the project, under Electron's own Node

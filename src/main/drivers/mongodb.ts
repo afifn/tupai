@@ -20,7 +20,8 @@ import type {
   SessionInfo,
   TableInfo,
   TableInfoDetail,
-  TableStat
+  TableStat,
+  TransactionInfo
 } from '@shared/types'
 import { DbError, type DatabaseAdapter } from './types'
 import { resolveSsl, sslEnabled } from '../connection/ssl'
@@ -394,6 +395,36 @@ class MongoAdapter implements DatabaseAdapter {
         Array.isArray(u.roles) && u.roles.some((r) => JSON.stringify(r).includes('root')),
       attributes: []
     }))
+  }
+
+  // Multi-document transactions need a replica set. A standalone server rejects
+  // them at runtime, so the refusal happens here with a reason instead.
+  async beginTransaction(): Promise<TransactionInfo> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'MongoDB hanya mendukung transaksi pada replica set. Server ini tidak mendukungnya.',
+      this.engine
+    )
+  }
+
+  async commitTransaction(): Promise<void> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'MongoDB tidak mendukung transaksi manual.',
+      this.engine
+    )
+  }
+
+  async rollbackTransaction(): Promise<void> {
+    throw new DbError(
+      'UNSUPPORTED',
+      'MongoDB tidak mendukung transaksi manual.',
+      this.engine
+    )
+  }
+
+  async listTransactions(): Promise<TransactionInfo[]> {
+    return []
   }
 }
 
