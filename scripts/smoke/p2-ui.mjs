@@ -112,18 +112,18 @@ check(
   `clicked=${opened} toolbar=${toolbarAfterClick} menus=${await ev(`Array.from(document.querySelectorAll('.menubar__item')).map(b => b.textContent.trim()).join('|')`)}`
 )
 
-// "Isi contoh" writes starter SQL into the active editor, which is a real user
+// "Insert sample" writes starter SQL into the active editor, which is a real user
 // path to make the tab dirty (Monaco is not exposed on window for scripting).
 // It lives in the toolbar's overflow menu, so open that first.
 const moreOpened = await ev(`(() => {
-  const more = document.querySelector('.query__toolbar button[aria-label="Aksi lain"]')
+  const more = document.querySelector('.query__toolbar button[aria-label="More actions"]')
   more?.click()
   return Boolean(more)
 })()`)
 await sleep(250)
 const sampleClicked = await ev(`(() => {
   const item = Array.from(document.querySelectorAll('.context-menu__item'))
-    .find((b) => b.textContent.trim() === 'Isi contoh')
+    .find((b) => b.textContent.trim() === 'Insert sample')
   item?.click()
   return Boolean(item)
 })()`)
@@ -135,7 +135,7 @@ check(
   `overflow=${moreOpened} sample=${sampleClicked}`
 )
 
-// Select all in the editor: the run button must switch to "Jalankan seleksi",
+// Select all in the editor: the run button must switch to "Run selection",
 // because executing the whole tab while a fragment is highlighted runs the
 // wrong statement. Cmd/Ctrl+A is the same path a user takes.
 await ev(`document.querySelector('.monaco-editor textarea')?.focus()`)
@@ -159,7 +159,7 @@ await send('Input.dispatchKeyEvent', {
 })
 await sleep(300)
 const runLabel = await ev(`document.querySelector('.query__run')?.textContent ?? ''`)
-check('selection changes the run action', runLabel.includes('seleksi'), runLabel.trim())
+check('selection changes the run action', runLabel.includes('selection'), runLabel.trim())
 
 // Running opens one result tab per row-returning statement plus the message log.
 await ev(`document.querySelector('.query__run')?.click()`)
@@ -174,7 +174,7 @@ check(
 
 const messagesOpened = await ev(`(() => {
   const tab = Array.from(document.querySelectorAll('.qres-tab'))
-    .find((b) => b.textContent.trim().startsWith('Pesan'))
+    .find((b) => b.textContent.trim().startsWith('Messages'))
   tab?.click()
   return Boolean(tab)
 })()`)
@@ -201,7 +201,7 @@ check('closing a dirty tab asks first', dialogTitle.length > 0, dialogTitle)
 const beforeCancel = await ev(`document.querySelectorAll('.query__tab').length`)
 await ev(`(async () => {
   const buttons = Array.from(document.querySelectorAll('.modal--confirm button'))
-  const cancel = buttons.find((b) => b.textContent.trim() === 'Batal')
+  const cancel = buttons.find((b) => b.textContent.trim() === 'Cancel')
   cancel?.click()
   return true
 })()`)
@@ -221,7 +221,7 @@ await ev(
 await sleep(300)
 await ev(`(async () => {
   const buttons = Array.from(document.querySelectorAll('.modal--confirm button'))
-  const discard = buttons.find((b) => b.textContent.trim() === 'Buang')
+  const discard = buttons.find((b) => b.textContent.trim() === 'Discard')
   discard?.click()
   return true
 })()`)

@@ -1,9 +1,10 @@
-import { app, safeStorage } from 'electron'
+import { app } from 'electron'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { writeJsonAtomic } from '../storage/atomicWrite'
 import type { AiSettings, AiSettingsInput } from '@shared/types'
 import { normaliseModelIds } from '@shared/settings'
+import { decryptSecret, encryptSecret } from '../connection/secrets'
 import { readSettings, writeSettings } from '../settings/store'
 
 // The API key is the only secret here. Everything else (base URL, model, the
@@ -65,32 +66,9 @@ async function writeSecret(record: StoredSecret): Promise<void> {
 }
 
 // Same rule as connection passwords: refuse to save rather than write an empty
-// value that looks saved but can never be read back.
-function encrypt(secret: string): string {
-  if (!secret) return ''
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error(
-      'Penyimpanan aman OS tidak tersedia, jadi API key tidak bisa disimpan. ' +
-        'Di Linux pastikan keyring (gnome-keyring/kwallet) berjalan.'
-    )
-  }
-  try {
-    return safeStorage.encryptString(secret).toString('base64')
-  } catch (err) {
-    throw new Error(
-      `API key tidak bisa dienkripsi: ${err instanceof Error ? err.message : String(err)}`
-    )
-  }
-}
-
-function decrypt(cipher: string | undefined): string {
-  if (!cipher) return ''
-  try {
-    return safeStorage.decryptString(Buffer.from(cipher, 'base64'))
-  } catch {
-    return ''
-  }
-}
+// value that looks saved but can never be read back. The shared helper keeps one
+// message and one code path for every secret in the app.
+const SUBJECT_API_KEY = 'API key'
 
 function normaliseBaseUrl(value: string): string {
   const trimmed = value.trim().replace(/\/+$/, '')
@@ -122,7 +100,9 @@ async function migrateLegacy(): Promise<void> {
     }
     if (legacy.apiKeyCipher) {
       const existing = await readSecret()
-      if (!existing.apiKeyCipher) await writeSecret({ apiKeyCipher: legacy.apiKeyCipher })
+      if (!existing.apiKeyCipher) {
+        await writeSecret({ apiKeyCipher: legacy.apiKeyCipher })
+      }
     }
     const settings = await readSettings()
     const next = {
@@ -178,14 +158,17 @@ export async function saveAiModels(models: string[]): Promise<string[]> {
 export async function getAiApiKey(): Promise<string> {
   await migrateLegacy()
   const secret = await readSecret()
-  return decrypt(secret.apiKeyCipher)
+  return decryptSecret(secret.apiKeyCipher)
 }
 
 export async function saveAiSettings(input: AiSettingsInput): Promise<AiSettings> {
   await migrateLegacy()
   if (input.apiKey) {
     const secret = await readSecret()
-    await writeSecret({ ...secret, apiKeyCipher: encrypt(input.apiKey) })
+    await writeSecret({
+      ...secret,
+      apiKeyCipher: await encryptSecret(input.apiKey, SUBJECT_API_KEY)
+    })
   }
   const settings = await readSettings()
   await writeSettings({

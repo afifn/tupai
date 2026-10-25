@@ -54,11 +54,11 @@
    connection is open; closed connections stay muted. */
 :root {
   --engine-mysql: #00758f;
-  --engine-mariadb: #b5885a;
+  --engine-mariadb: #8a6234;
   --engine-postgres: #336791;
-  --engine-sqlite: #0f80cc;
-  --engine-oracle: #c74634;
-  --engine-mongodb: #47a248;
+  --engine-sqlite: #0b6aa8;
+  --engine-oracle: #a83728;
+  --engine-mongodb: #337a36;
 }
 
 /* Colours a user can assign to a diagram card. Unlike the palette above these

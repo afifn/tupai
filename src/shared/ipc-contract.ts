@@ -105,6 +105,9 @@ export const IPC = {
   // renderer reports back which of them are usable.
   menuAction: 'app:menuAction',
   menuState: 'app:menuState',
+  menuLabels: 'app:menuLabels',
+  windowState: 'app:windowState',
+  windowStateEvent: 'app:windowStateEvent',
   trustSshHost: 'conn:trustSshHost',
   sshHostFingerprint: 'conn:sshHostFingerprint'
 } as const

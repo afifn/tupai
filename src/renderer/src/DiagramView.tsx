@@ -339,7 +339,7 @@ export function DiagramView({
             <button
               className="diagram__zoom-value"
               onClick={() => setZoom(1)}
-              title={`Kembali ke 100% (${shortcutLabel('0')})`}
+              title={tr('diagram.zoomResetTitle', { key: shortcutLabel('0') })}
               aria-label={tr('diagram.zoomReset', { percent: Math.round(zoom * 100) })}
             >
               {Math.round(zoom * 100)}%
@@ -527,7 +527,7 @@ export function DiagramView({
                       ))}
                       {hidden > 0 && (
                         <li className="diagram__column diagram__column--more">
-                          +{hidden} kolom lain
+                          {tr('diagram.hiddenColumns', { count: hidden })}
                         </li>
                       )}
                     </ul>

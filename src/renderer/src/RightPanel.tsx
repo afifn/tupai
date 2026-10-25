@@ -145,6 +145,7 @@ export function RightPanel({
           style={{ display: tab === 'assistant' ? 'flex' : 'none' }}
         >
           <AiAssistant
+            embedded
             schemaContext={schemaContext}
             connectionId={mentionConnectionId}
             database={mentionDatabase}

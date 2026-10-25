@@ -40,6 +40,10 @@ interface Props {
   onClose?: () => void
   // The AI form lives in the Settings dialog now; this panel only points there.
   onOpenSettings?: () => void
+  // The right dock already names the panel in its tab, so the inner title row
+  // would repeat it. Embedded mode drops that row and folds its actions into
+  // the metadata line.
+  embedded?: boolean
 }
 
 interface Turn {
@@ -65,7 +69,8 @@ export function AiAssistant({
   engine,
   onInsertSql,
   onClose,
-  onOpenSettings
+  onOpenSettings,
+  embedded = false
 }: Props): JSX.Element {
   const openSettings = onOpenSettings ?? (() => undefined)
   const { tr, errorText } = useLocale()
@@ -110,6 +115,9 @@ export function AiAssistant({
   const mentionEnabled = Boolean(connectionId && database && engine !== 'mongodb')
 
   const configured = Boolean(settings?.hasApiKey && settings.model)
+  // The scope the next question will be answered in. Shown as plain text: a
+  // pill for each fact would be three badges saying "this is a database".
+  const scopeLabel = [engine, database, schema].filter(Boolean).join(' · ')
 
   const loadSettings = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -235,7 +243,11 @@ export function AiAssistant({
     if (partial.trim().length > 0) {
       setTurns((prev) => [
         ...prev,
-        { id: nextTurnId(), role: 'assistant', content: `${partial}\n\n(dihentikan)` }
+        {
+          id: nextTurnId(),
+          role: 'assistant',
+          content: `${partial}\n\n${tr('ai.stopped')}`
+        }
       ])
     }
     streamingTextRef.current = ''
@@ -262,7 +274,7 @@ export function AiAssistant({
     if (!already && mentions.length >= MAX_MENTIONS) {
       setNotice({
         kind: 'info',
-        text: `Maksimal ${MAX_MENTIONS} tabel per percakapan.`
+        text: tr('ai.maxMentionsNotice', { count: MAX_MENTIONS })
       })
       setMention(null)
       return
@@ -299,6 +311,12 @@ export function AiAssistant({
     setMentions((prev) => prev.filter((m) => tableKey(m) !== tableKey(table)))
   }
 
+  function clearThread(): void {
+    setTurns([])
+    setMentions([])
+    setMention(null)
+  }
+
   const sqlBlocks = useMemo(() => {
     return turns.map((turn) => ({ id: turn.id, blocks: extractSqlBlocks(turn.content) }))
   }, [turns])
@@ -327,46 +345,44 @@ export function AiAssistant({
 
   return (
     <section className="ai" aria-label={tr('ai.assistant')}>
-      <header className="ai__head">
-        <div className="ai__title">
-          <IconChat size={14} />
-          <h2>{tr('ai.assistant')}</h2>
-        </div>
-        <div className="ai__head-actions">
-          <button
-            className="icon-btn"
-            onClick={openSettings}
-            title={tr('ai.settings')}
-            aria-label={tr('ai.settings')}
-          >
-            <IconSettings size={14} />
-          </button>
-          {turns.length > 0 && (
+      {!embedded && (
+        <header className="ai__head">
+          <div className="ai__title">
+            <IconChat size={14} />
+            <h2>{tr('ai.assistant')}</h2>
+          </div>
+          <div className="ai__head-actions">
             <button
               className="icon-btn"
-              onClick={() => {
-                setTurns([])
-                setMentions([])
-                setMention(null)
-              }}
-              title={tr('ai.clearThread')}
-              aria-label={tr('ai.clearThread')}
+              onClick={openSettings}
+              title={tr('ai.settings')}
+              aria-label={tr('ai.settings')}
             >
-              <IconTrash size={14} />
+              <IconSettings size={14} />
             </button>
-          )}
-          {onClose && (
-            <button
-              className="icon-btn"
-              onClick={onClose}
-              title={tr('ai.closeAssistant')}
-              aria-label={tr('ai.closeAssistant')}
-            >
-              <IconClose size={14} />
-            </button>
-          )}
-        </div>
-      </header>
+            {turns.length > 0 && (
+              <button
+                className="icon-btn"
+                onClick={clearThread}
+                title={tr('ai.clearThread')}
+                aria-label={tr('ai.clearThread')}
+              >
+                <IconTrash size={14} />
+              </button>
+            )}
+            {onClose && (
+              <button
+                className="icon-btn"
+                onClick={onClose}
+                title={tr('ai.closeAssistant')}
+                aria-label={tr('ai.closeAssistant')}
+              >
+                <IconClose size={14} />
+              </button>
+            )}
+          </div>
+        </header>
+      )}
 
       {notice && (
         <p
@@ -391,26 +407,44 @@ export function AiAssistant({
       ) : (
         <>
           <div className="ai__meta">
-            <span className="ai__badge" title={tr('ai.activeModel')}>
-              {settings?.model}
+            <span className="ai__scope" title={tr('ai.activeContext')}>
+              {scopeLabel || tr('ai.noContext')}
             </span>
-            {schemaContext ? (
-              <span className="ai__badge ai__badge--muted">{tr('ai.activeContext')}</span>
-            ) : (
-              <span className="ai__badge ai__badge--muted">{tr('ai.noContext')}</span>
-            )}
-            {mentions.length > 0 && (
-              <span className="ai__badge ai__badge--muted">
-                {mentions.length} tabel dirujuk
-              </span>
-            )}
+            <span className="ai__meta-right">
+              {settings?.model && (
+                <span className="ai__model" title={tr('ai.activeModel')}>
+                  {settings.model}
+                </span>
+              )}
+              {embedded && (
+                <div className="ai__head-actions">
+                  <button
+                    className="icon-btn icon-btn--xs"
+                    onClick={openSettings}
+                    title={tr('ai.settings')}
+                    aria-label={tr('ai.settings')}
+                  >
+                    <IconSettings size={13} />
+                  </button>
+                  {turns.length > 0 && (
+                    <button
+                      className="icon-btn icon-btn--xs"
+                      onClick={clearThread}
+                      title={tr('ai.clearThread')}
+                      aria-label={tr('ai.clearThread')}
+                    >
+                      <IconTrash size={13} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </span>
           </div>
 
           <div className="ai__thread" ref={listRef}>
             {turns.length === 0 ? (
-              <p className="muted ai__pad">
-                Tanya soal tabel, kolom, atau query. Ketik @ di kotak pesan untuk merujuk
-                tabel lain beserta kolomnya.
+              <p className="muted ai__pad ai__empty">
+                {mentionEnabled ? tr('ai.emptyThread') : tr('ai.emptyNoScope')}
               </p>
             ) : (
               turns.map((turn) => {
@@ -422,7 +456,7 @@ export function AiAssistant({
                     className={`ai__turn ai__turn--${turn.role}${turn.error ? ' is-error' : ''}`}
                   >
                     <span className="ai__role">
-                      {turn.role === 'user' ? 'Kamu' : 'Asisten'}
+                      {turn.role === 'user' ? tr('ai.roleUser') : tr('ai.roleAssistant')}
                     </span>
                     <div className="ai__content">
                       {splitFences(turn.content).map((segment, index) =>
@@ -469,7 +503,9 @@ export function AiAssistant({
                               })
                             }
                           >
-                            Sisipkan SQL{blocks.length > 1 ? ` #${index + 1}` : ''}
+                            {blocks.length > 1
+                              ? tr('ai.insertSqlIndexed', { index: index + 1 })
+                              : tr('ai.insertSql')}
                           </button>
                         ))}
                       </div>
@@ -485,7 +521,7 @@ export function AiAssistant({
             )}
             {sending && streamingText.length > 0 && (
               <article className="ai__turn ai__turn--assistant" aria-live="polite">
-                <div className="ai__bubble">{streamingText}</div>
+                <div className="ai__content">{streamingText}</div>
               </article>
             )}
           </div>
@@ -503,11 +539,11 @@ export function AiAssistant({
                   <p className="ai__suggest-note">{tr('ai.noTables')}</p>
                 ) : catalog.error ? (
                   <p className="ai__suggest-note ai__suggest-note--error">
-                    Gagal memuat tabel: {catalog.error}
+                    {tr('ai.tablesFailed', { message: catalog.error })}
                   </p>
                 ) : mentionOptions.length === 0 ? (
                   <p className="ai__suggest-note">
-                    Tidak ada tabel yang cocok di {database}.
+                    {tr('ai.noMatchingTables', { database: database ?? '' })}
                   </p>
                 ) : (
                   mentionOptions.map((table, index) => (
@@ -522,7 +558,9 @@ export function AiAssistant({
                     >
                       <span className="ai__suggest-name">{table.name}</span>
                       <span className="ai__suggest-kind">
-                        {table.type === 'view' ? 'view' : 'tabel'}
+                        {table.type === 'view'
+                          ? tr('ai.tableKindView')
+                          : tr('ai.tableKindTable')}
                       </span>
                     </button>
                   ))
@@ -534,7 +572,11 @@ export function AiAssistant({
                 {mentions.map((table) => (
                   <li key={tableKey(table)} className="ai__mention">
                     <span
-                      title={`${table.database}.${table.name} (${table.columns.length} kolom)`}
+                      title={tr('ai.mentionTitle', {
+                        database: table.database,
+                        table: table.name,
+                        count: table.columns.length
+                      })}
                     >
                       {table.name}
                       <span className="ai__mention-count">{table.columns.length}</span>
@@ -542,7 +584,7 @@ export function AiAssistant({
                     <button
                       className="ai__mention-remove"
                       onClick={() => removeMention(table)}
-                      aria-label={`Hapus rujukan ${table.name}`}
+                      aria-label={tr('ai.removeMentionLabel', { table: table.name })}
                       title={tr('ai.removeMention')}
                     >
                       <IconClose size={10} />
@@ -612,14 +654,12 @@ export function AiAssistant({
               aria-label={tr('ai.messageLabel')}
             />
             <div className="ai__composer-foot">
-              <span className="ai__hint">
+              <span className={`ai__hint${sending ? ' ai__hint--busy' : ''}`}>
                 {loadingMention
                   ? tr('ai.loadingColumns')
                   : sending
                     ? tr('ai.thinking')
-                    : mentionEnabled
-                      ? tr('ai.hintMention')
-                      : tr('ai.hintPlain')}
+                    : tr('ai.hintPlain')}
               </span>
               {sending && (
                 <button

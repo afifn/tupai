@@ -14,18 +14,23 @@ export const FILTER_OPERATORS: FilterOperator[] = [
   'isNotNull'
 ]
 
+// Operator names stay in English, like the other SQL terms the catalogue leaves
+// untranslated (NULL, SELECT). Each one starts with a glyph so the list can be
+// scanned without reading: `=` and `!=` are what the user looks for, and the
+// words after them only disambiguate. `~`, `^`, and `$` mark the text matchers;
+// they are hints, not regex syntax, and the SQL built for them is still LIKE.
 export const FILTER_OPERATOR_LABELS: Record<FilterOperator, string> = {
-  contains: 'mengandung',
-  equals: 'sama dengan',
-  notEquals: 'tidak sama',
-  startsWith: 'diawali',
-  endsWith: 'diakhiri',
-  gt: 'lebih besar',
-  gte: 'lebih besar atau sama',
-  lt: 'lebih kecil',
-  lte: 'lebih kecil atau sama',
-  isNull: 'kosong (NULL)',
-  isNotNull: 'tidak kosong'
+  contains: '~ contains',
+  equals: '= equals',
+  notEquals: '!= not equals',
+  startsWith: '^ starts with',
+  endsWith: '$ ends with',
+  gt: '> greater',
+  gte: '>= greater or equal',
+  lt: '< less',
+  lte: '<= less or equal',
+  isNull: 'is NULL',
+  isNotNull: 'is not NULL'
 }
 
 export function operatorNeedsValue(op: FilterOperator): boolean {
@@ -99,7 +104,13 @@ export function buildFilterWhere(
       case 'lt':
       case 'lte': {
         const op =
-          filter.op === 'gt' ? '>' : filter.op === 'gte' ? '>=' : filter.op === 'lt' ? '<' : '<='
+          filter.op === 'gt'
+            ? '>'
+            : filter.op === 'gte'
+              ? '>='
+              : filter.op === 'lt'
+                ? '<'
+                : '<='
         params.push(filter.value ?? '')
         clauses.push(`${column} ${op} ${placeholderFor(engine, params.length)}`)
         break

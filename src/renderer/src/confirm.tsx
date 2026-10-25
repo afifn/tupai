@@ -48,11 +48,12 @@ export async function confirmDestructive(
   message: string,
   options: { title?: string; detail?: string; confirmLabel?: string } = {}
 ): Promise<boolean> {
+  const locale = readStoredLocale()
   const chosen = await confirmAction({
-    title: options.title ?? 'Konfirmasi',
+    title: options.title ?? t(locale, 'confirm.title'),
     message,
     detail: options.detail,
-    actions: [{ label: options.confirmLabel ?? 'Hapus', danger: true }]
+    actions: [{ label: options.confirmLabel ?? t(locale, 'action.delete'), danger: true }]
   })
   return chosen !== null
 }

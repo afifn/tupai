@@ -786,6 +786,10 @@ export const aiSettingsInputSchema = z.object({
   previewRows: z.boolean().optional()
 })
 
+export const menuLabelsSchema = z
+  .record(z.string().min(1).max(120))
+  .refine((value) => Object.keys(value).length <= 200, 'too many labels')
+
 export const menuStateSchema = z.object({
   hasConnection: z.boolean(),
   sqlEngine: z.boolean(),

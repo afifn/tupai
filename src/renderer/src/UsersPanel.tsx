@@ -398,8 +398,12 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
                 <tr key={`${u.name}@${u.host ?? ''}`}>
                   <td className="cell">{u.name}</td>
                   {isMysql && <td className="cell">{u.host}</td>}
-                  <td className="cell">{u.canLogin ? 'ya' : 'tidak'}</td>
-                  <td className="cell">{u.isSuperuser ? 'ya' : 'tidak'}</td>
+                  <td className="cell">
+                    {u.canLogin ? tr('common.yes') : tr('common.no')}
+                  </td>
+                  <td className="cell">
+                    {u.isSuperuser ? tr('common.yes') : tr('common.no')}
+                  </td>
                   <td className="cell">
                     {u.attributes.length === 0 ? (
                       <span className="cell-null">-</span>

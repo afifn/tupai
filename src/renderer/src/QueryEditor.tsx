@@ -1044,7 +1044,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
                   <button
                     className="query__tab-close"
                     onClick={() => closeTab(t.id)}
-                    aria-label={`Tutup ${t.title}`}
+                    aria-label={tr('query.closeTabLabel', { name: t.title })}
                   >
                     <IconClose size={12} />
                   </button>
@@ -1516,7 +1516,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
           title={savedId ? tr('query.updateTitlePrompt') : 'Simpan query'}
           label={tr('query.namePrompt')}
           defaultValue={savedName ?? active.title}
-          confirmLabel={savedId ? 'Perbarui' : 'Simpan'}
+          confirmLabel={tr(savedId ? 'query.updateLabel' : 'query.saveLabel')}
           onConfirm={(name) => void saveQueryWithName(name)}
           onClose={() => setSavePrompt(false)}
         />

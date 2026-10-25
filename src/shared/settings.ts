@@ -84,7 +84,7 @@ export const MONO_FONTS = [
 
 export const DEFAULT_SETTINGS: AppSettings = {
   general: {
-    locale: 'id',
+    locale: 'en',
     themeId: 'light',
     confirmOnClose: true
   },

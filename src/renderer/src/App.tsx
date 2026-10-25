@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { MessageKey } from '@shared/i18n'
 import type {
   DbEngine,
   MenuAction,
@@ -57,6 +58,7 @@ import {
   IconQuery,
   IconSidebar,
   IconServer,
+  IconFilter,
   IconSettings,
   IconSync,
   IconTable,
@@ -216,55 +218,85 @@ function tabScope(tab: Tab | null): { database: string; schema?: string } | null
   return null
 }
 
-function tabLabel(tab: Tab): string {
-  if (tab.type === 'query') return tab.savedName ?? 'Query'
-  if (tab.type === 'users') return 'Users'
-  if (tab.type === 'backup') return 'Backup'
-  if (tab.type === 'sync') return 'Sync'
-  if (tab.type === 'builder') return 'Query Builder'
-  if (tab.type === 'transfer') return 'Data Transfer'
-  if (tab.type === 'sessions') return 'Sesi'
+// Tab labels are user-visible, so they come from the catalogue. `tr` is passed
+// in because these helpers live outside the component.
+function tabLabel(
+  tab: Tab,
+  tr: (key: MessageKey, params?: Record<string, string | number>) => string
+): string {
+  if (tab.type === 'query') return tab.savedName ?? tr('tab.query')
+  if (tab.type === 'users') return tr('app.users')
+  if (tab.type === 'backup') return tr('app.backup')
+  if (tab.type === 'sync') return tr('app.sync')
+  if (tab.type === 'builder') return tr('app.builder')
+  if (tab.type === 'transfer') return tr('app.transferTitle').split(' (')[0]
+  if (tab.type === 'sessions') return tr('app.sessions')
   if (tab.type === 'objects') return tab.database
-  if (tab.type === 'createTable') return 'Tabel baru'
-  if (tab.type === 'view') return tab.viewName || 'View baru'
+  if (tab.type === 'createTable') return tr('tab.newTable')
+  if (tab.type === 'view') return tab.viewName || tr('tab.newView')
   if (tab.type === 'definition') return tab.name
-  if (tab.type === 'diagram') return 'Diagram'
+  if (tab.type === 'diagram') return tr('app.diagram')
   return tab.selection.table
 }
 
 // Two connections each have their own query tab, so a bare "Query editor" made
 // them indistinguishable in the tab bar; the connection name disambiguates.
-function tabTooltip(tab: Tab, connectionName?: string): string {
-  const where = connectionName ? ` di ${connectionName}` : ''
-  if (tab.type === 'query') return tab.savedName ?? `Query editor${where}`
-  if (tab.type === 'users') return 'User & permission'
-  if (tab.type === 'backup') return 'Backup & restore'
+function tabTooltip(
+  tab: Tab,
+  tr: (key: MessageKey, params?: Record<string, string | number>) => string,
+  connectionName?: string
+): string {
+  const where = connectionName ? tr('tab.where', { name: connectionName }) : ''
+  if (tab.type === 'query') return tab.savedName ?? tr('tab.queryTooltip', { where })
+  if (tab.type === 'users') return tr('app.usersTitle', { key: '' }).trim()
+  if (tab.type === 'backup') return tr('appMenu.backup')
   if (tab.type === 'sync') {
-    return `Sync struktur/data${tab.database ? ` di ${tab.database}` : ''}`
+    return tr('tab.syncTooltip', {
+      where: tab.database ? tr('tab.where', { name: tab.database }) : ''
+    })
   }
   if (tab.type === 'builder') {
-    return `Query Builder di ${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    return tr('tab.builderTooltip', {
+      scope: `${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    })
   }
   if (tab.type === 'transfer') {
-    return `Data Transfer${tab.table ? ` dari ${tab.table}` : ''}`
+    return tr('tab.transferTooltip', {
+      from: tab.table ? tr('tab.from', { table: tab.table }) : ''
+    })
   }
   if (tab.type === 'sessions') {
-    return `Sesi aktif${tab.database ? ` di ${tab.database}` : ''}`
+    return tr('tab.sessionsTooltip', {
+      where: tab.database ? tr('tab.where', { name: tab.database }) : ''
+    })
   }
   if (tab.type === 'objects') {
-    return `Objek ${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    return tr('tab.objectsTooltip', {
+      database: tab.database,
+      scope: tab.schema ? `.${tab.schema}` : ''
+    })
   }
   if (tab.type === 'createTable') {
-    return `Tabel baru di ${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    return tr('tab.newTableTooltip', {
+      scope: `${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    })
   }
   if (tab.type === 'view') {
-    return `${tab.database}${tab.schema ? `.${tab.schema}` : ''}.${tab.viewName || '(view baru)'}`
+    return tr('tab.newViewTooltip', {
+      scope: `${tab.database}${tab.schema ? `.${tab.schema}` : ''}.${tab.viewName || tr('tab.newSuffix')}`
+    })
   }
   if (tab.type === 'definition') {
-    return `${tab.database}${tab.schema ? `.${tab.schema}` : ''}.${tab.name} (${tab.kind})`
+    return tr('tab.definitionTooltip', {
+      scope: `${tab.database}${tab.schema ? `.${tab.schema}` : ''}`,
+      name: tab.name,
+      kind: tab.kind
+    })
   }
   if (tab.type === 'diagram') {
-    return `Diagram ${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    return tr('tab.diagramTooltip', {
+      scope: `${tab.database}${tab.schema ? `.${tab.schema}` : ''}`
+    })
   }
   const { database, schema, table } = tab.selection
   return `${database}${schema ? `.${schema}` : ''}.${table}`
@@ -328,6 +360,26 @@ export function App(): JSX.Element {
     dirtyTabId: string
   } | null>(null)
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const tabStripRef = useRef<HTMLDivElement | null>(null)
+  // Table tabs whose filter panel is open. The toggle lives in the tab strip
+  // (see the table tab below), so the shell owns it instead of the grid.
+  const [openFilterTabs, setOpenFilterTabs] = useState<Set<string>>(new Set())
+  // macOS runs with `titleBarStyle: 'hiddenInset'`, so the toolbar is the title
+  // bar: it needs room for the traffic lights, and none in fullscreen where
+  // macOS hides them. Every other platform keeps the native frame.
+  const customTitleBar = window.dbApi.usesCustomTitleBar === true
+  const [windowFullscreen, setWindowFullscreen] = useState(false)
+
+  useEffect(() => {
+    if (!customTitleBar) return
+    void window.dbApi
+      .getWindowState()
+      .then((res) => {
+        if (res.ok && res.data) setWindowFullscreen(res.data.fullscreen)
+      })
+      .catch(() => undefined)
+    return window.dbApi.onWindowState((state) => setWindowFullscreen(state.fullscreen))
+  }, [customTitleBar])
   // Inactive editors stay mounted so their state survives tab switches. Their
   // scope reports must be ignored, or the last mounted tab would win.
   const activeTabIdRef = useRef<string | null>(null)
@@ -350,6 +402,13 @@ export function App(): JSX.Element {
     database?: string
     schema?: string
   }>({})
+  // Last database/schema clicked in the sidebar, per connection. A new query tab
+  // uses it as its default scope, and the tree marks it while no tab points
+  // somewhere else. Per connection so switching servers cannot inherit a
+  // database that belongs to another one.
+  const [treeFocus, setTreeFocus] = useState<
+    Record<string, { database: string; schema?: string }>
+  >({})
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; tabId: string } | null>(
     null
   )
@@ -440,14 +499,17 @@ export function App(): JSX.Element {
   // Where the active tab works. A tab on another connection must not mark a
   // database in the focused connection's tree.
   const activeScope = tabScope(activeTab)
+  // A tab is the strongest signal; without one, the tree still marks the
+  // database the user last opened so the sidebar keeps saying where they are.
+  const focusedTreeScope = menuConnectionId ? treeFocus[menuConnectionId] : undefined
   const treeActiveDatabase =
     activeTabConnectionId && activeTabConnectionId === activeId
       ? activeScope?.database
-      : undefined
+      : focusedTreeScope?.database
   const treeActiveSchema =
     activeTabConnectionId && activeTabConnectionId === activeId
       ? activeScope?.schema
-      : undefined
+      : focusedTreeScope?.schema
 
   // What the Detail pane describes. Clicking a table in the sidebar opens its
   // tab, so the active table tab is the selection.
@@ -681,7 +743,17 @@ export function App(): JSX.Element {
 
   function openQueryFor(database?: string, schema?: string): void {
     if (!menuConnectionId) return
-    const id = `query:${menuConnectionId}`
+    openQueryForConnection(menuConnectionId, database, schema)
+  }
+
+  // The explicit connection matters when the caller just changed focus: reading
+  // menuConnectionId in a timeout would still see the previous value.
+  function openQueryForConnection(
+    connectionId: string,
+    database?: string,
+    schema?: string
+  ): void {
+    const id = `query:${connectionId}`
     setTabs((prev) => {
       const existing = prev.find((t) => t.id === id)
       if (existing) {
@@ -690,7 +762,11 @@ export function App(): JSX.Element {
             ? {
                 ...t,
                 initialDatabase: database ?? t.initialDatabase,
-                initialSchema: schema ?? t.initialSchema
+                initialSchema: schema ?? t.initialSchema,
+                // The editor only re-applies the scope when a dependency
+                // changes. A hand-edited selector keeps the same strings, so the
+                // handoff bumps the token to force it back.
+                ...(database || schema ? { initialToken: (t.initialToken ?? 0) + 1 } : {})
               }
             : t
         )
@@ -700,9 +776,10 @@ export function App(): JSX.Element {
         {
           id,
           type: 'query',
-          connectionId: menuConnectionId,
+          connectionId,
           initialDatabase: database,
-          initialSchema: schema
+          initialSchema: schema,
+          initialToken: database || schema ? 1 : undefined
         }
       ]
     })
@@ -747,7 +824,8 @@ export function App(): JSX.Element {
         onSelect: () => {
           if (!isOpen) void handleConnect(conn.id)
           setActiveId(conn.id)
-          setTimeout(() => openQueryFor(), 0)
+          const focus = treeFocus[conn.id]
+          openQueryForConnection(conn.id, focus?.database ?? conn.database, focus?.schema)
         }
       },
       {
@@ -798,10 +876,13 @@ export function App(): JSX.Element {
         label: tr('menu.deleteConnection'),
         danger: true,
         onSelect: () => {
-          void confirmDestructive(`Hapus koneksi "${conn.name}"?`, {
-            title: tr('app.deleteConnectionTitle'),
-            detail: tr('app.deleteConnectionDetail')
-          }).then((ok) => {
+          void confirmDestructive(
+            tr('app.deleteConnectionMessage', { name: conn.name }),
+            {
+              title: tr('app.deleteConnectionTitle'),
+              detail: tr('app.deleteConnectionDetail')
+            }
+          ).then((ok) => {
             if (ok) void handleDelete(conn.id)
           })
         }
@@ -985,7 +1066,9 @@ export function App(): JSX.Element {
         label: tr('menu.drop'),
         danger: true,
         onSelect: () => {
-          void confirmDestructive(`Hapus ${kindLabel} "${r.name}"?`).then((ok) => {
+          void confirmDestructive(
+            tr('app.dropRoutineMessage', { kind: kindLabel, name: r.name })
+          ).then((ok) => {
             if (!ok) return
             void executeDdl(target.connectionId, {
               kind: 'dropRoutine',
@@ -1059,7 +1142,7 @@ export function App(): JSX.Element {
         label: tr('menu.emptyTable'),
         disabled: isView,
         onSelect: () => {
-          void confirmDestructive(`Kosongkan tabel "${target.table}"?`, {
+          void confirmDestructive(tr('app.emptyTableMessage', { table: target.table }), {
             title: tr('app.emptyTableTitle'),
             detail: tr('app.emptyTableDetail')
           }).then((ok) => {
@@ -1077,10 +1160,13 @@ export function App(): JSX.Element {
         label: tr('menu.truncateTable'),
         disabled: isView,
         onSelect: () => {
-          void confirmDestructive(`Truncate tabel "${target.table}"?`, {
-            title: tr('app.truncateTableTitle'),
-            detail: tr('app.truncateTableDetail')
-          }).then((ok) => {
+          void confirmDestructive(
+            tr('app.truncateTableMessage', { table: target.table }),
+            {
+              title: tr('app.truncateTableTitle'),
+              detail: tr('app.truncateTableDetail')
+            }
+          ).then((ok) => {
             if (!ok) return
             void executeDdl(target.connectionId, {
               kind: 'truncateTable',
@@ -1177,6 +1263,19 @@ export function App(): JSX.Element {
     ]
   }
 
+  // Keep the active tab visible. Opening a table from the tree appends a tab at
+  // the far right, and with enough tabs open that tab starts off-screen, so the
+  // user had to scroll the strip before they could see what had just opened.
+  // `inline: 'nearest'` scrolls only when needed, so clicking a tab that is
+  // already visible does not jump the strip.
+  useEffect(() => {
+    if (!activeTabId) return
+    const strip = tabStripRef.current
+    if (!strip) return
+    const active = strip.querySelector<HTMLElement>('.tab.is-active')
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activeTabId, tabs.length])
+
   const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -1212,13 +1311,22 @@ export function App(): JSX.Element {
   // focused must not steal the tab that belongs to the first one.
   function openQuery(): void {
     if (!menuConnectionId) return
-    const id = `query:${menuConnectionId}`
-    setTabs((prev) =>
-      prev.some((t) => t.id === id)
-        ? prev
-        : [...prev, { id, type: 'query', connectionId: menuConnectionId }]
-    )
-    setActiveTabId(id)
+    // Follow the context the user is looking at. A table/objects/diagram tab
+    // names its database, and a query tab keeps the tree focus in sync with its
+    // toolbar, so the tree is the freshest signal for a query tab: clicking
+    // another database and then "+" must move the editor there.
+    const tabScopeHere = activeTabConnectionId === menuConnectionId ? activeScope : null
+    const focus = treeFocus[menuConnectionId]
+    const connection = connections.find((c) => c.id === menuConnectionId)
+    const database =
+      activeTab?.type === 'query'
+        ? (focus?.database ?? tabScopeHere?.database ?? connection?.database)
+        : (tabScopeHere?.database ?? focus?.database ?? connection?.database)
+    const schema =
+      activeTab?.type === 'query'
+        ? (focus?.schema ?? tabScopeHere?.schema)
+        : (tabScopeHere?.schema ?? focus?.schema)
+    openQueryForConnection(menuConnectionId, database, schema)
     setActiveId(menuConnectionId)
   }
 
@@ -1309,7 +1417,7 @@ export function App(): JSX.Element {
   }
 
   function deleteSavedQuery(query: SavedQuery): void {
-    void confirmDestructive(`Hapus query "${query.name}"?`, {
+    void confirmDestructive(tr('app.deleteQueryMessage', { name: query.name }), {
       title: tr('app.deleteQueryTitle'),
       detail: tr('app.deleteQueryDetail')
     }).then((ok) => {
@@ -1854,6 +1962,40 @@ export function App(): JSX.Element {
     })
   }, [pushToast, tr])
 
+  // The native menu lives in main, which does not bundle the locale catalogue.
+  // Send the translated labels whenever the language changes.
+  useEffect(() => {
+    const keys = [
+      'appMenu.settings',
+      'appMenu.checkUpdates',
+      'appMenu.file',
+      'appMenu.edit',
+      'appMenu.view',
+      'appMenu.tools',
+      'appMenu.window',
+      'appMenu.newConnection',
+      'appMenu.importConnections',
+      'appMenu.exportConnections',
+      'appMenu.newGroup',
+      'appMenu.newQuery',
+      'appMenu.importQuery',
+      'appMenu.queryHistory',
+      'appMenu.findObjects',
+      'appMenu.browseTables',
+      'appMenu.diagram',
+      'appMenu.assistantPanel',
+      'appMenu.reloadTree',
+      'appMenu.transfer',
+      'appMenu.sync',
+      'appMenu.backup',
+      'appMenu.sessions',
+      'appMenu.users'
+    ] as const
+    const labels: Record<string, string> = {}
+    for (const key of keys) labels[key] = tr(key)
+    void window.dbApi.setMenuLabels(labels).catch(() => undefined)
+  }, [tr])
+
   // Report which menu items are usable.  // Report which menu items are usable. Recomputed from the same values the
   // toolbar uses to disable its own buttons, so the two never disagree.
   useEffect(() => {
@@ -1959,7 +2101,7 @@ export function App(): JSX.Element {
   async function handleConnect(id: string): Promise<void> {
     setError(null)
     const conn = connections.find((c) => c.id === id)
-    const label = conn?.name ?? 'koneksi'
+    const label = conn?.name ?? tr('app.connectionFallback')
     setConnectingIds((prev) => new Set(prev).add(id))
     try {
       await unwrap(window.dbApi.connect(id))
@@ -2410,6 +2552,7 @@ export function App(): JSX.Element {
         </div>
       )
     }
+    const filterOpen = openFilterTabs.has(tab.id)
     return (
       <div className="table-tab">
         <nav className="viewtabs">
@@ -2446,10 +2589,30 @@ export function App(): JSX.Element {
               {tr('tab.definition')}
             </button>
           )}
+          {tab.view === 'data' && (
+            <button
+              className={`viewtab viewtab--filter${filterOpen ? ' is-active' : ''}`}
+              onClick={() =>
+                setOpenFilterTabs((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(tab.id)) next.delete(tab.id)
+                  else next.add(tab.id)
+                  return next
+                })
+              }
+              aria-expanded={filterOpen}
+              aria-pressed={filterOpen}
+              title={filterOpen ? tr('grid.hideFilters') : tr('grid.advancedFilter')}
+            >
+              <IconFilter size={13} />
+              <span>{tr('grid.showFilters')}</span>
+            </button>
+          )}
         </nav>
         {tab.view === 'data' ? (
           <DataGrid
             selection={tab.selection}
+            filterOpen={filterOpen}
             inspectedRowKey={
               inspectedRow && activeTabId === tab.id ? inspectedRow.key : null
             }
@@ -2498,7 +2661,13 @@ export function App(): JSX.Element {
 
   return (
     <div className="app">
-      <header className="menubar" role="toolbar" aria-label={tr('app.toolbar')}>
+      <header
+        className={`menubar${customTitleBar ? ' menubar--titlebar' : ''}${
+          windowFullscreen ? ' is-fullscreen' : ''
+        }`}
+        role="toolbar"
+        aria-label={tr('app.toolbar')}
+      >
         <div className="menubar__scroll">
           <div className="menubar__group">
             <button
@@ -2745,6 +2914,24 @@ export function App(): JSX.Element {
               onContextSchema={(target, x, y) => setSchemaMenu({ target, x, y })}
               onContextTable={(target, x, y) => setTableMenu({ target, x, y })}
               onContextRoutine={(target, x, y) => setRoutineMenu({ target, x, y })}
+              onFocusScope={(target) =>
+                setTreeFocus((prev) => {
+                  const current = prev[target.connectionId]
+                  if (
+                    current?.database === target.database &&
+                    (current?.schema ?? undefined) === (target.schema ?? undefined)
+                  ) {
+                    return prev
+                  }
+                  return {
+                    ...prev,
+                    [target.connectionId]: {
+                      database: target.database,
+                      schema: target.schema
+                    }
+                  }
+                })
+              }
               onOpenDefinition={(target) =>
                 openDefinition({
                   connectionId: target.connectionId,
@@ -2763,7 +2950,7 @@ export function App(): JSX.Element {
 
         <main className="content">
           <div className="tabbar">
-            <div className="tabbar__tabs" role="tablist">
+            <div className="tabbar__tabs" role="tablist" ref={tabStripRef}>
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
@@ -2780,18 +2967,19 @@ export function App(): JSX.Element {
                     }}
                     title={tabTooltip(
                       tab,
+                      tr,
                       connections.find((c) => c.id === tabConnectionId(tab))?.name
                     )}
                   >
                     <span className="tab__icon">
                       <TabIcon tab={tab} />
                     </span>
-                    <span className="tab__text">{tabLabel(tab)}</span>
+                    <span className="tab__text">{tabLabel(tab, tr)}</span>
                   </button>
                   <button
                     className="tab__close"
                     onClick={() => closeTab(tab.id)}
-                    aria-label={`Tutup ${tabLabel(tab)}`}
+                    aria-label={tr('app.closeTabLabel', { name: tabLabel(tab, tr) })}
                   >
                     <IconClose size={11} />
                   </button>
@@ -2857,8 +3045,12 @@ export function App(): JSX.Element {
       </div>
 
       <footer className="statusbar">
-        <span className="statusbar__item">{connections.length} koneksi</span>
-        <span className="statusbar__item">{tabs.length} tab</span>
+        <span className="statusbar__item">
+          {tr('app.connectionCount', { count: connections.length })}
+        </span>
+        <span className="statusbar__item">
+          {tr('app.tabCount', { count: tabs.length })}
+        </span>
         {activeConnectionName && (
           <span className="statusbar__item statusbar__item--active">
             {activeConnectionName}
@@ -2973,7 +3165,7 @@ export function App(): JSX.Element {
       {pendingClose && (
         <ConfirmDialog
           title={tr('app.queryUnsaved')}
-          message="Tab ini berisi SQL yang belum disimpan. Simpan dulu, buang perubahannya, atau batalkan penutupan."
+          message={tr('query.unsavedCloseMessage')}
           detail={
             tabs.find((t) => t.id === pendingClose.dirtyTabId)?.type === 'query'
               ? (

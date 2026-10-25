@@ -285,7 +285,7 @@ export function IoPanel({ selection }: Props): JSX.Element {
           {preview && (
             <>
               <span className="field__label">
-                Mapping kolom (CSV &rarr; tabel). Preview {preview.sampledRows} baris.
+                {tr('io.columnMapping', { rows: preview.sampledRows })}
               </span>
               <div className="table-scroll table-scroll--short">
                 <table className="data-table">

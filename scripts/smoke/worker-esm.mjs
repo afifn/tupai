@@ -1,10 +1,12 @@
 // The database worker must load from a directory outside the project.
 //
 // In a packaged app the worker lives in `app.asar.unpacked/out/main`, where the
-// nearest package.json is not the project's. Node then treats the ES module as
-// CommonJS and every connection fails with "Cannot use import statement outside
-// a module". Running the check from inside the project hides that, because Node
-// finds the project's `"type": "module"` while walking up the tree.
+// nearest package.json is not the project's. Under Node 20 (Electron 32) that
+// made Node treat the ES module as CommonJS and every connection failed with
+// "Cannot use import statement outside a module". Node 24 (Electron 45) detects
+// the syntax instead, so that failure no longer reproduces here; the marker is
+// still shipped and checked below so a future runtime cannot reintroduce it
+// silently.
 //
 // This copies the built worker to a temporary directory outside the repository
 // and spawns it with plain Node, so the module type is decided the same way the
@@ -76,12 +78,11 @@ try {
   //    so a future change that drops it fails here.
   const withoutMarker = join(work, 'without-marker')
   cpSync(source, withoutMarker, { recursive: true })
-  const broken = await probe(withoutMarker)
+  const bare = await probe(withoutMarker)
   check(
-    'without the marker the worker fails, proving the marker matters',
-    broken.kind === 'error' &&
-      /import statement outside a module/.test(broken.message ?? ''),
-    JSON.stringify(broken)
+    'the worker also loads without the marker on this Node',
+    bare.kind === 'message',
+    JSON.stringify(bare)
   )
 
   // 3. The shipped configuration must actually produce that marker.

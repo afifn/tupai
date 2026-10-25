@@ -176,32 +176,32 @@ export const THEME_TOKENS: ThemeToken[] = [
   {
     name: '--engine-mysql',
     group: 'engine',
-    description: 'Warna ikon MySQL saat koneksi terbuka.'
+    description: 'Warna ikon engine MySQL.'
   },
   {
     name: '--engine-mariadb',
     group: 'engine',
-    description: 'Warna ikon MariaDB saat koneksi terbuka.'
+    description: 'Warna ikon engine MariaDB.'
   },
   {
     name: '--engine-postgres',
     group: 'engine',
-    description: 'Warna ikon PostgreSQL saat koneksi terbuka.'
+    description: 'Warna ikon engine PostgreSQL.'
   },
   {
     name: '--engine-sqlite',
     group: 'engine',
-    description: 'Warna ikon SQLite saat koneksi terbuka.'
+    description: 'Warna ikon engine SQLite.'
   },
   {
     name: '--engine-oracle',
     group: 'engine',
-    description: 'Warna ikon Oracle saat koneksi terbuka.'
+    description: 'Warna ikon engine Oracle.'
   },
   {
     name: '--engine-mongodb',
     group: 'engine',
-    description: 'Warna ikon MongoDB saat koneksi terbuka.'
+    description: 'Warna ikon engine MongoDB.'
   },
 
   // Diagram card colours. Content, not chrome: identical in every theme.
@@ -380,7 +380,46 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { fg: '--accent-text', bg: '--accent', min: 4.5, note: 'Label tombol primer' },
   { fg: '--error', bg: '--surface', min: 4.5, note: 'Pesan error di panel' },
   { fg: '--ok', bg: '--surface', min: 4.5, note: 'Pesan berhasil di panel' },
-  { fg: '--info', bg: '--surface', min: 4.5, note: 'Pesan informasi di panel' }
+  { fg: '--info', bg: '--surface', min: 4.5, note: 'Pesan informasi di panel' },
+  // Engine marks sit on the 20px badge, so the badge is the background that
+  // matters. 3:1 is the WCAG floor for meaningful non-text graphics; the
+  // sidebar is small and dense, so the tints have to clear it.
+  {
+    fg: '--engine-mysql',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine MySQL di badge sidebar'
+  },
+  {
+    fg: '--engine-mariadb',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine MariaDB di badge sidebar'
+  },
+  {
+    fg: '--engine-postgres',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine PostgreSQL di badge sidebar'
+  },
+  {
+    fg: '--engine-sqlite',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine SQLite di badge sidebar'
+  },
+  {
+    fg: '--engine-oracle',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine Oracle di badge sidebar'
+  },
+  {
+    fg: '--engine-mongodb',
+    bg: '--surface-muted',
+    min: 3,
+    note: 'Ikon engine MongoDB di badge sidebar'
+  }
 ]
 
 export interface KnownContrastGap extends ContrastPair {

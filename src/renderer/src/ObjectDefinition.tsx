@@ -109,7 +109,7 @@ export function ObjectDefinition({ target, onClose, onError }: Props): JSX.Eleme
             disabled={loading}
             title={tr('def.reload')}
           >
-            {loading ? 'Memuat...' : 'Muat ulang'}
+            {loading ? tr('objectDef.loadingLabel') : tr('objectDef.reloadLabel')}
           </button>
           <button
             className="btn btn--tiny btn--ghost"
@@ -141,8 +141,7 @@ export function ObjectDefinition({ target, onClose, onError }: Props): JSX.Eleme
       ) : empty ? (
         <div className="defview__pad">
           <p className="muted">
-            Server tidak mengembalikan definisi untuk{' '}
-            {KIND_LABEL[target.kind] ?? target.kind} ini.
+            {tr('def.empty', { kind: KIND_LABEL[target.kind] ?? target.kind })}
           </p>
           <p className="muted defview__hint">{tr('def.ownerOnly')}</p>
         </div>

@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, shell } from 'electron'
 import { clipboard } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '@shared/ipc-contract'
@@ -37,6 +37,7 @@ import {
   exportNcxSchema,
   saveSettingsSchema,
   importSettingsSchema,
+  menuLabelsSchema,
   menuStateSchema,
   transactionBeginSchema,
   transactionRefSchema,
@@ -106,7 +107,7 @@ import {
 } from '../connection/groups'
 import { previewNcxFile, toExportable, writeNcxFile } from '../connection/ncx'
 import { appInfo, readSettings, resetSettings, writeSettings } from '../settings/store'
-import { applyMenuState, refreshApplicationMenu } from '../menu'
+import { applyMenuState, refreshApplicationMenu, setMenuLabels } from '../menu'
 import {
   checkForUpdates,
   downloadUpdate,
@@ -671,15 +672,19 @@ export function registerDbHandlers(): void {
     })
   )
 
+  // Electron 44 reworked the clipboard to match the W3C API, so writeText and
+  // readText return promises. The old synchronous calls still compile but the
+  // value would be a promise, which is how a copy silently became "[object
+  // Promise]" after the upgrade.
   ipcMain.handle(IPC.clipboardWrite, (_e, raw) =>
     run(async () => {
       const { text } = clipboardWriteSchema.parse(raw)
-      clipboard.writeText(text)
+      await clipboard.writeText(text)
       return true
     })
   )
 
-  ipcMain.handle(IPC.clipboardRead, () => run(async () => clipboard.readText()))
+  ipcMain.handle(IPC.clipboardRead, () => run(() => clipboard.readText()))
 
   ipcMain.handle(IPC.getAiSettings, () => run(() => getAiSettings()))
 
@@ -845,8 +850,12 @@ export function registerDbHandlers(): void {
       // model). Import is the exception: there the file is the user's intent.
       const stored = await readSettings()
       const saved = await writeSettings({ ...next, ai: stored.ai })
-      // A rebound shortcut has to reach the native menu too.
-      if (JSON.stringify(saved.keymap) !== JSON.stringify(stored.keymap)) {
+      // A rebound shortcut or a language change has to reach the native menu
+      // too; it is built in main from the catalogue.
+      if (
+        JSON.stringify(saved.keymap) !== JSON.stringify(stored.keymap) ||
+        saved.general.locale !== stored.general.locale
+      ) {
         await refreshApplicationMenu()
       }
       return saved
@@ -857,6 +866,19 @@ export function registerDbHandlers(): void {
 
   // The renderer knows which tools are usable right now; main greys out the menu
   // items that would otherwise be dead entries.
+  // The renderer owns the catalogue, so it sends the translated menu labels.
+  ipcMain.handle(IPC.windowState, (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    return run(async () => ({ fullscreen: win?.isFullScreen() ?? false }))
+  })
+
+  ipcMain.handle(IPC.menuLabels, (_e, raw) =>
+    run(async () => {
+      setMenuLabels(menuLabelsSchema.parse(raw))
+      return true
+    })
+  )
+
   ipcMain.handle(IPC.menuState, (_e, raw) =>
     run(async () => {
       applyMenuState(menuStateSchema.parse(raw))

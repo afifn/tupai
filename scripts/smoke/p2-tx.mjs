@@ -2,7 +2,7 @@
 //
 // The interesting part is not the happy path: it is that a write inside the
 // transaction is invisible outside it, that rollback really discards, and that
-// closing the tab asks first and honours "Batal".
+// closing the tab asks first and honours "Cancel".
 const PORT = Number(process.env.PORT ?? 9392)
 const results = []
 const check = (name, ok, detail) => {
@@ -74,6 +74,13 @@ await send('Runtime.enable')
 check(
   'app shell mounted',
   await waitFor(`Boolean(window.dbApi && document.querySelector('.menubar'))`, 120)
+)
+
+// The sidebar reads connections.json asynchronously, so wait for the row before
+// double-clicking it; otherwise the test races the first render.
+check(
+  'the saved connection is listed',
+  await waitFor(`[...document.querySelectorAll('.objtree__row')].some((r) => r.textContent.includes('Tx Smoke'))`)
 )
 
 // Connect through the sidebar so the shell knows the session is open.
@@ -213,11 +220,11 @@ const actions = await ev(
 )
 check(
   'the dialog offers commit, rollback, and cancel',
-  JSON.stringify(actions) === JSON.stringify(['Commit', 'Rollback', 'Batal']),
+  JSON.stringify(actions) === JSON.stringify(['Commit', 'Rollback', 'Cancel']),
   JSON.stringify(actions)
 )
 await ev(
-  `(() => { const b = [...document.querySelectorAll('.modal--confirm button')].find((x) => /^Batal$/.test(x.textContent.trim())); b?.click(); return Boolean(b) })()`
+  `(() => { const b = [...document.querySelectorAll('.modal--confirm button')].find((x) => /^Cancel$/.test(x.textContent.trim())); b?.click(); return Boolean(b) })()`
 )
 await sleep(900)
 check(

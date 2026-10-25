@@ -35,6 +35,9 @@ interface Props {
   onInspectRow?: (row: Record<string, unknown>, key: string) => void
   // Highlights the row the detail dock is showing.
   inspectedRowKey?: string | null
+  // The filter toggle lives in the tab strip, so the shell owns this flag and
+  // the panel is closed only from there.
+  filterOpen?: boolean
 }
 
 interface EditState {
@@ -83,22 +86,6 @@ function IconReload(): JSX.Element {
     >
       <path d="M13 8a5 5 0 1 1-1.5-3.5" strokeLinecap="round" />
       <path d="M13 2.5V5h-2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function IconFilter({ size = 13 }: { size?: number }): JSX.Element {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width={size}
-      height={size}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden="true"
-    >
-      <path d="M2.5 3.5h11L9.2 8.3v4.2l-2.4 1.3V8.3z" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -206,7 +193,8 @@ function IconClose(): JSX.Element {
 export function DataGrid({
   selection,
   onInspectRow,
-  inspectedRowKey
+  inspectedRowKey,
+  filterOpen
 }: Props): JSX.Element {
   const { tr, errorText } = useLocale()
   const [page, setPage] = useState(0)
@@ -223,15 +211,10 @@ export function DataGrid({
   const [error, setError] = useState<string | null>(null)
   const [orderBy, setOrderBy] = useState<string | undefined>(undefined)
   const [orderDir, setOrderDir] = useState<'asc' | 'desc'>('asc')
-  const [filterColumn, setFilterColumn] = useState<string>('')
-  const [filterValue, setFilterValue] = useState<string>('')
-  // Typing must not run a query per keystroke; the debounced copy is what the
-  // load callback depends on.
-  const debouncedFilterValue = useDebouncedValue(filterValue, 250)
   const [advancedFilters, setAdvancedFilters] = useState<ColumnFilter[]>([])
   const debouncedAdvancedFilters = useDebouncedValue(advancedFilters, 250)
   const [filterLogic, setFilterLogic] = useState<'and' | 'or'>('and')
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(filterOpen ?? false)
   const [edit, setEdit] = useState<EditState | null>(null)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState<Record<string, string> | null>(null)
@@ -263,18 +246,15 @@ export function DataGrid({
     null
   )
 
-  // The advanced filter takes precedence; the quick filter is a single contains
-  // condition on one column.
+  // Only the conditions are real filters now. A row with no column, or one whose
+  // operator needs a value it does not have, is ignored so a half-typed
+  // condition does not empty the grid.
   const activeFilters = useMemo<ColumnFilter[]>(
     () =>
-      filtersOpen
-        ? debouncedAdvancedFilters.filter(
-            (f) => f.column && (operatorNeedsValue(f.op) ? (f.value ?? '') !== '' : true)
-          )
-        : filterColumn && debouncedFilterValue
-          ? [{ column: filterColumn, op: 'contains', value: debouncedFilterValue }]
-          : [],
-    [filtersOpen, debouncedAdvancedFilters, filterColumn, debouncedFilterValue]
+      debouncedAdvancedFilters.filter(
+        (f) => f.column && (operatorNeedsValue(f.op) ? (f.value ?? '') !== '' : true)
+      ),
+    [debouncedAdvancedFilters]
   )
 
   const fetchPage = useCallback(
@@ -327,10 +307,22 @@ export function DataGrid({
     setColWidths({})
     setAdvancedFilters([])
     setFiltersOpen(false)
-    setFilterColumn('')
-    setFilterValue('')
     setSavedKey(null)
   }, [selection])
+
+  // The toggle lives in the tab strip now, so the panel follows the shell's
+  // flag instead of keeping a second copy of it. Opening an empty panel seeds
+  // one blank condition, so the user starts from a row they can fill in rather
+  // than from a button they have to find first.
+  useEffect(() => {
+    if (filterOpen === undefined) return
+    setFiltersOpen(filterOpen)
+    if (filterOpen) {
+      setAdvancedFilters((prev) =>
+        prev.length === 0 ? [{ column: '', op: 'contains', value: '' }] : prev
+      )
+    }
+  }, [filterOpen])
 
   useEffect(() => {
     void load()
@@ -767,91 +759,46 @@ export function DataGrid({
         </h2>
       </div>
 
-      {!canEdit && (
-        <p className="notice notice--info">
-          Tabel ini tidak punya primary key: baris bisa ditambah, tapi ubah/hapus
-          dinonaktifkan karena baris tidak bisa diidentifikasi dengan aman.
-        </p>
+      {/* Only once the page has loaded: `canEdit` is false while `data` is still
+          null, so this used to flash a "no primary key" warning on every first
+          open of a table that does have one, then take it away again. */}
+      {data && !canEdit && (
+        <p className="notice notice--info">{tr('grid.noPrimaryKeyNotice')}</p>
       )}
 
-      <div className="grid-filters">
-        <label className="field field--inline">
-          <span className="field__label">{tr('grid.filter')}</span>
+      {filtersOpen && (
+        <div className="grid-filters">
+          <span className="field__label">{tr('grid.combine')}</span>
           <select
-            className="input"
-            value={filterColumn}
+            className="input grid-filters__logic"
+            value={filterLogic}
             onChange={(e) => {
-              setFilterColumn(e.target.value)
+              setFilterLogic(e.target.value === 'or' ? 'or' : 'and')
               setPage(0)
             }}
-            disabled={filtersOpen}
+            aria-label={tr('grid.combine')}
           >
-            <option value="">{tr('grid.noFilter')}</option>
-            {columns.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
-              </option>
-            ))}
+            <option value="and">AND</option>
+            <option value="or">OR</option>
           </select>
-        </label>
-        <label className="field field--inline">
-          <span className="field__label">{tr('grid.value')}</span>
-          <input
-            className="input"
-            value={filterValue}
-            onChange={(e) => {
-              setFilterValue(e.target.value)
+          <span className="settings__hint grid-filters__count">
+            {activeFilters.length === 0
+              ? tr('grid.noConditions')
+              : tr('grid.filtersActive', { count: activeFilters.length })}
+          </span>
+          <button
+            className="btn btn--tiny btn--ghost grid-filters__reset"
+            onClick={() => {
+              setAdvancedFilters([])
+              setFilterLogic('and')
               setPage(0)
             }}
-            disabled={!filterColumn || filtersOpen}
-            placeholder={tr('grid.searchPlaceholder')}
-          />
-        </label>
-        <button
-          className={`btn btn--tiny btn--ghost${filtersOpen ? ' is-active' : ''}`}
-          onClick={() => {
-            setFiltersOpen((open) => {
-              if (!open && advancedFilters.length === 0) {
-                setAdvancedFilters([{ column: '', op: 'contains', value: '' }])
-              }
-              setPage(0)
-              return !open
-            })
-          }}
-          aria-expanded={filtersOpen}
-          title={tr('grid.advancedFilter')}
-        >
-          <IconFilter size={13} />
-          <span>{tr('grid.advancedFilterShort')}</span>
-        </button>
-        {filtersOpen && (
-          <>
-            <label className="field field--inline">
-              <span className="field__label">{tr('grid.combine')}</span>
-              <select
-                className="input"
-                value={filterLogic}
-                onChange={(e) => {
-                  setFilterLogic(e.target.value === 'or' ? 'or' : 'and')
-                  setPage(0)
-                }}
-              >
-                <option value="and">AND</option>
-                <option value="or">OR</option>
-              </select>
-            </label>
-            <button
-              className="btn btn--tiny btn--ghost"
-              onClick={() => {
-                setAdvancedFilters([{ column: '', op: 'contains', value: '' }])
-                setPage(0)
-              }}
-            >
-              {tr('common.reset')}
-            </button>
-          </>
-        )}
-      </div>
+            disabled={advancedFilters.length === 0}
+          >
+            {tr('common.reset')}
+          </button>
+        </div>
+      )}
 
       {filtersOpen && (
         <div className="grid-advfilters">
@@ -866,7 +813,7 @@ export function DataGrid({
                   setAdvancedFilters(next)
                   setPage(0)
                 }}
-                aria-label={`Kolom filter ${index + 1}`}
+                aria-label={tr('grid.filterColumnLabel', { n: index + 1 })}
               >
                 <option value="">{tr('qb.chooseColumn')}</option>
                 {columns.map((c) => (
@@ -887,7 +834,7 @@ export function DataGrid({
                   setAdvancedFilters(next)
                   setPage(0)
                 }}
-                aria-label={`Operator filter ${index + 1}`}
+                aria-label={tr('grid.filterOperatorLabel', { n: index + 1 })}
               >
                 {FILTER_OPERATORS.map((op) => (
                   <option key={op} value={op}>
@@ -910,7 +857,7 @@ export function DataGrid({
                     ? tr('grid.valuePlaceholder')
                     : tr('grid.valueNotNeeded')
                 }
-                aria-label={`Nilai filter ${index + 1}`}
+                aria-label={tr('grid.filterValueLabel', { n: index + 1 })}
               />
               <button
                 className="icon-btn"
@@ -918,7 +865,7 @@ export function DataGrid({
                   setAdvancedFilters(advancedFilters.filter((_, i) => i !== index))
                   setPage(0)
                 }}
-                aria-label={`Hapus filter ${index + 1}`}
+                aria-label={tr('grid.removeFilterLabel', { n: index + 1 })}
                 title={tr('grid.removeCondition')}
               >
                 <IconRemove size={13} />
@@ -946,280 +893,294 @@ export function DataGrid({
         </p>
       )}
 
-      <div className="grid-body">
-        {loading ? (
-          <p className="muted">{tr('grid.loadingData')}</p>
-        ) : !data ? (
+      <div className="grid-body" aria-busy={loading}>
+        {/* The bordered shell is rendered before the rows arrive. It used to be
+            replaced by a bare "Loading data..." line, so the first open of a
+            table popped: text, then a full box with a pager at the bottom. A
+            page or filter change had the same flash, because the previous rows
+            were thrown away. Keeping the shell and dimming the old rows makes
+            both transitions look like the same table filling in. */}
+        {!data && !loading ? (
           <p className="muted">{tr('grid.columnsFailed')}</p>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table" style={{ width: totalWidth }}>
-              <colgroup>
-                <col style={{ width: CHECKBOX_COL_WIDTH }} />
-                {columns.map((c) => (
-                  <col key={c.name} style={{ width: widthOf(c.name) }} />
-                ))}
-                <col style={{ width: ACTIONS_COL_WIDTH }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="th-select">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleAll}
-                      disabled={busy || !canEdit}
-                      aria-label={tr('grid.selectAllRows')}
-                    />
-                  </th>
+          <div className={`table-scroll${loading && data ? ' is-loading' : ''}`}>
+            {!data ? (
+              <p className="muted grid-loading">{tr('grid.loadingData')}</p>
+            ) : (
+              <table className="data-table" style={{ width: totalWidth }}>
+                <colgroup>
+                  <col style={{ width: CHECKBOX_COL_WIDTH }} />
                   {columns.map((c) => (
-                    <th
-                      key={c.name}
-                      className="th-col"
-                      // Screen readers announce the sort state of the column
-                      // instead of relying on the ▲/▼ glyph alone.
-                      aria-sort={
-                        orderBy === c.name
-                          ? orderDir === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      <button className="th-btn" onClick={() => toggleSort(c.name)}>
-                        <span className="th-name">{c.name}</span>
-                        <span className="th-type">{c.dataType}</span>
-                        {orderBy === c.name && (
-                          <span className="th-sort" aria-hidden="true">
-                            {orderDir === 'asc' ? '▲' : '▼'}
-                          </span>
-                        )}
-                      </button>
-                      <span
-                        className="col-resizer"
-                        onMouseDown={(e) => startResize(e, c.name)}
-                        onKeyDown={(e) => resizeByKeyboard(e, c.name)}
-                        tabIndex={0}
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label={tr('grid.resizeColumn', { name: c.name })}
-                        title={tr('query.resizeHint')}
+                    <col key={c.name} style={{ width: widthOf(c.name) }} />
+                  ))}
+                  <col style={{ width: ACTIONS_COL_WIDTH }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th className="th-select">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        disabled={busy || !canEdit}
+                        aria-label={tr('grid.selectAllRows')}
                       />
                     </th>
-                  ))}
-                  <th className="th-actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {data.rows.length === 0 && !draft && (
-                  <tr className="grid-empty">
-                    <td className="cell grid-empty__cell" colSpan={columns.length + 2}>
-                      {filterValue
-                        ? tr('grid.rowsNoMatch')
-                        : canEdit
-                          ? tr('grid.emptyTable')
-                          : tr('grid.emptyTableReadOnly')}
-                    </td>
-                  </tr>
-                )}
-                {data.rows.map((row, rowIndex) => {
-                  const key = rowKey(row, pks) || String(rowIndex)
-                  const isInspected = inspectedRowKey !== null && inspectedRowKey === key
-                  return (
-                    <tr
-                      key={key}
-                      className={`${selected.has(key) ? 'is-selected' : ''}${
-                        isInspected ? ' is-inspected' : ''
-                      }${savedKey === key ? ' is-saved' : ''}`}
-                      onClick={() => onInspectRow?.(row, key)}
-                    >
-                      <td className="cell cell--select">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(key)}
-                          onChange={() => toggleRow(key)}
-                          onClick={(e) => e.stopPropagation()}
-                          disabled={busy || !canEdit}
-                          aria-label={tr('grid.selectRow')}
+                    {columns.map((c) => (
+                      <th
+                        key={c.name}
+                        className="th-col"
+                        // Screen readers announce the sort state of the column
+                        // instead of relying on the ▲/▼ glyph alone.
+                        aria-sort={
+                          orderBy === c.name
+                            ? orderDir === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                        }
+                      >
+                        <button className="th-btn" onClick={() => toggleSort(c.name)}>
+                          <span className="th-name">{c.name}</span>
+                          <span className="th-type">{c.dataType}</span>
+                          {orderBy === c.name && (
+                            <span className="th-sort" aria-hidden="true">
+                              {orderDir === 'asc' ? '▲' : '▼'}
+                            </span>
+                          )}
+                        </button>
+                        <span
+                          className="col-resizer"
+                          onMouseDown={(e) => startResize(e, c.name)}
+                          onKeyDown={(e) => resizeByKeyboard(e, c.name)}
+                          tabIndex={0}
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label={tr('grid.resizeColumn', { name: c.name })}
+                          title={tr('query.resizeHint')}
                         />
+                      </th>
+                    ))}
+                    <th className="th-actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.rows.length === 0 && !draft && (
+                    <tr className="grid-empty">
+                      <td className="cell grid-empty__cell" colSpan={columns.length + 2}>
+                        {activeFilters.length > 0
+                          ? tr('grid.rowsNoMatch')
+                          : canEdit
+                            ? tr('grid.emptyTable')
+                            : tr('grid.emptyTableReadOnly')}
                       </td>
-                      {columns.map((c) => {
-                        const isEditing =
-                          edit?.rowIndex === rowIndex && edit.column === c.name
-                        const raw = row[c.name]
-                        const kind = classifyColumnType(c.dataType)
-                        const text = editableCellValue(raw, c.dataType)
-                        return (
-                          <td
-                            key={c.name}
-                            className={c.isPrimaryKey ? 'cell cell--pk' : 'cell'}
-                            onDoubleClick={() => {
-                              if (!canEdit || busy || isBinaryCell(raw)) return
-                              setEdit({ rowIndex, column: c.name, value: text })
-                            }}
-                            onContextMenu={(e) => {
-                              e.preventDefault()
-                              setMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                rowIndex,
-                                column: c.name
-                              })
-                            }}
-                          >
-                            {isEditing ? (
-                              kind === 'boolean' ? (
-                                <select
-                                  className="cell-input"
-                                  autoFocus
-                                  value={edit.value}
-                                  onChange={(e) =>
-                                    setEdit({ ...edit, value: e.target.value })
-                                  }
-                                  onBlur={() => void commitEdit()}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Escape') setEdit(null)
-                                  }}
-                                >
-                                  <option value="true">true</option>
-                                  <option value="false">false</option>
-                                </select>
-                              ) : (
-                                <input
-                                  className="cell-input"
-                                  type={inputElementType(kind)}
-                                  autoFocus
-                                  value={edit.value}
-                                  onChange={(e) =>
-                                    setEdit({ ...edit, value: e.target.value })
-                                  }
-                                  onBlur={() => void commitEdit()}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') void commitEdit()
-                                    if (e.key === 'Escape') setEdit(null)
-                                  }}
-                                />
-                              )
-                            ) : raw === null ? (
-                              <span className="cell-null">NULL</span>
-                            ) : isBinaryCell(raw) ? (
-                              <button
-                                className="blob-badge"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setPreview(raw)
-                                }}
-                                title={tr('grid.viewBinary')}
-                              >
-                                {raw.kind === 'image' && raw.dataUrl ? (
-                                  <img
-                                    className="blob-badge__thumb"
-                                    src={raw.dataUrl}
-                                    alt=""
-                                  />
+                    </tr>
+                  )}
+                  {data.rows.map((row, rowIndex) => {
+                    const key = rowKey(row, pks) || String(rowIndex)
+                    const isInspected =
+                      inspectedRowKey !== null && inspectedRowKey === key
+                    return (
+                      <tr
+                        key={key}
+                        className={`${selected.has(key) ? 'is-selected' : ''}${
+                          isInspected ? ' is-inspected' : ''
+                        }${savedKey === key ? ' is-saved' : ''}`}
+                        onClick={() => onInspectRow?.(row, key)}
+                      >
+                        <td className="cell cell--select">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(key)}
+                            onChange={() => toggleRow(key)}
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={busy || !canEdit}
+                            aria-label={tr('grid.selectRow')}
+                          />
+                        </td>
+                        {columns.map((c) => {
+                          const isEditing =
+                            edit?.rowIndex === rowIndex && edit.column === c.name
+                          const raw = row[c.name]
+                          const kind = classifyColumnType(c.dataType)
+                          const text = editableCellValue(raw, c.dataType)
+                          return (
+                            <td
+                              key={c.name}
+                              className={c.isPrimaryKey ? 'cell cell--pk' : 'cell'}
+                              onDoubleClick={() => {
+                                if (!canEdit || busy || isBinaryCell(raw)) return
+                                setEdit({ rowIndex, column: c.name, value: text })
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                setMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  rowIndex,
+                                  column: c.name
+                                })
+                              }}
+                            >
+                              {isEditing ? (
+                                kind === 'boolean' ? (
+                                  <select
+                                    className="cell-input"
+                                    autoFocus
+                                    value={edit.value}
+                                    onChange={(e) =>
+                                      setEdit({ ...edit, value: e.target.value })
+                                    }
+                                    onBlur={() => void commitEdit()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') setEdit(null)
+                                    }}
+                                  >
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
                                 ) : (
-                                  <span className="blob-badge__icon" aria-hidden="true">
-                                    BLOB
+                                  <input
+                                    className="cell-input"
+                                    type={inputElementType(kind)}
+                                    autoFocus
+                                    value={edit.value}
+                                    onChange={(e) =>
+                                      setEdit({ ...edit, value: e.target.value })
+                                    }
+                                    onBlur={() => void commitEdit()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') void commitEdit()
+                                      if (e.key === 'Escape') setEdit(null)
+                                    }}
+                                  />
+                                )
+                              ) : raw === null ? (
+                                <span className="cell-null">NULL</span>
+                              ) : isBinaryCell(raw) ? (
+                                <button
+                                  className="blob-badge"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setPreview(raw)
+                                  }}
+                                  title={tr('grid.viewBinary')}
+                                >
+                                  {raw.kind === 'image' && raw.dataUrl ? (
+                                    <img
+                                      className="blob-badge__thumb"
+                                      src={raw.dataUrl}
+                                      alt=""
+                                    />
+                                  ) : (
+                                    <span className="blob-badge__icon" aria-hidden="true">
+                                      BLOB
+                                    </span>
+                                  )}
+                                  <span className="blob-badge__size">
+                                    {formatBytes(raw.size)}
                                   </span>
-                                )}
-                                <span className="blob-badge__size">
-                                  {formatBytes(raw.size)}
-                                </span>
-                              </button>
+                                </button>
+                              ) : (
+                                formatCellValue(raw, c.dataType)
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="cell cell--actions">
+                          <button
+                            className="icon-btn icon-btn--danger"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void deleteRows([row])
+                            }}
+                            disabled={busy || !canEdit}
+                            title={tr('grid.deleteRowTitle')}
+                            aria-label={tr('grid.deleteRowTitle')}
+                          >
+                            <IconTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {draft && (
+                    <tr className="draft-row">
+                      <td className="cell cell--select" />
+                      {columns.map((c) => {
+                        if (!(c.name in draft)) {
+                          return (
+                            <td key={c.name} className="cell cell--pk">
+                              <span className="cell-null">{tr('grid.autoValue')}</span>
+                            </td>
+                          )
+                        }
+                        const kind = classifyColumnType(c.dataType)
+                        const type = inputElementType(kind)
+                        const isFirst = Object.keys(draft)[0] === c.name
+                        return (
+                          <td key={c.name} className="cell cell--edit">
+                            {kind === 'boolean' ? (
+                              <select
+                                className="cell-input"
+                                value={draft[c.name]}
+                                autoFocus={isFirst}
+                                onChange={(e) =>
+                                  setDraft({ ...draft, [c.name]: e.target.value })
+                                }
+                              >
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                              </select>
                             ) : (
-                              formatCellValue(raw, c.dataType)
+                              <input
+                                className="cell-input"
+                                type={type}
+                                value={draft[c.name]}
+                                autoFocus={isFirst}
+                                placeholder={c.defaultValue !== null ? 'default' : ''}
+                                onChange={(e) =>
+                                  setDraft({ ...draft, [c.name]: e.target.value })
+                                }
+                              />
                             )}
                           </td>
                         )
                       })}
                       <td className="cell cell--actions">
                         <button
-                          className="icon-btn icon-btn--danger"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void deleteRows([row])
-                          }}
-                          disabled={busy || !canEdit}
-                          title={tr('grid.deleteRowTitle')}
-                          aria-label={tr('grid.deleteRowTitle')}
+                          className="icon-btn icon-btn--ok"
+                          onClick={() => void commitDraft()}
+                          disabled={busy}
+                          title={tr('grid.saveRow')}
+                          aria-label={tr('grid.saveRow')}
                         >
-                          <IconTrash />
+                          <IconCheck />
+                        </button>
+                        <button
+                          className="icon-btn"
+                          onClick={() => setDraft(null)}
+                          disabled={busy}
+                          title={tr('grid.cancel')}
+                          aria-label={tr('grid.cancel')}
+                        >
+                          <IconClose />
                         </button>
                       </td>
                     </tr>
-                  )
-                })}
-                {draft && (
-                  <tr className="draft-row">
-                    <td className="cell cell--select" />
-                    {columns.map((c) => {
-                      if (!(c.name in draft)) {
-                        return (
-                          <td key={c.name} className="cell cell--pk">
-                            <span className="cell-null">{tr('grid.autoValue')}</span>
-                          </td>
-                        )
-                      }
-                      const kind = classifyColumnType(c.dataType)
-                      const type = inputElementType(kind)
-                      const isFirst = Object.keys(draft)[0] === c.name
-                      return (
-                        <td key={c.name} className="cell cell--edit">
-                          {kind === 'boolean' ? (
-                            <select
-                              className="cell-input"
-                              value={draft[c.name]}
-                              autoFocus={isFirst}
-                              onChange={(e) =>
-                                setDraft({ ...draft, [c.name]: e.target.value })
-                              }
-                            >
-                              <option value="true">true</option>
-                              <option value="false">false</option>
-                            </select>
-                          ) : (
-                            <input
-                              className="cell-input"
-                              type={type}
-                              value={draft[c.name]}
-                              autoFocus={isFirst}
-                              placeholder={c.defaultValue !== null ? 'default' : ''}
-                              onChange={(e) =>
-                                setDraft({ ...draft, [c.name]: e.target.value })
-                              }
-                            />
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td className="cell cell--actions">
-                      <button
-                        className="icon-btn icon-btn--ok"
-                        onClick={() => void commitDraft()}
-                        disabled={busy}
-                        title={tr('grid.saveRow')}
-                        aria-label={tr('grid.saveRow')}
-                      >
-                        <IconCheck />
-                      </button>
-                      <button
-                        className="icon-btn"
-                        onClick={() => setDraft(null)}
-                        disabled={busy}
-                        title={tr('grid.cancel')}
-                        aria-label={tr('grid.cancel')}
-                      >
-                        <IconClose />
-                      </button>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>
 
+      {/* The pager keeps its height while the first page loads, so the table
+          does not grow by 35px the moment the rows arrive. */}
+      {!data && loading && (
+        <div className="pager pager--placeholder" aria-hidden="true" />
+      )}
       {data && (
         <div className="pager">
           <div className="pager__nav">

@@ -9,7 +9,7 @@ import {
   derivePalette,
   validatePalette
 } from '@shared/customTheme'
-import { LOCALES, type Locale } from '@shared/i18n'
+import { LOCALE_LABELS, LOCALES, type Locale } from '@shared/i18n'
 import { THEMES, type ThemeId } from './theme'
 import { useSettings } from './settingsStore'
 import { useLocale } from './i18n'
@@ -201,21 +201,28 @@ function GeneralSection({
       <fieldset className="settings__group">
         <legend>{tr('settings.general.language')}</legend>
         <p className="settings__hint">{tr('settings.general.languageHint')}</p>
-        <div className="settings__choices">
-          {LOCALES.map((locale: Locale) => (
-            <label key={locale} className="settings__choice">
-              <input
-                type="radio"
-                name="settings-locale"
-                checked={settings.general.locale === locale}
-                onChange={() => void update({ general: { ...settings.general, locale } })}
-              />
-              <span>
-                {locale === 'id' ? tr('settings.languageId') : tr('settings.languageEn')}
-              </span>
-            </label>
-          ))}
-        </div>
+        {/* A dropdown rather than a radio row: the list grows with each
+            language, and five stacked radios pushed the rest of the section
+            below the fold. Each label is written in its own language so someone
+            who cannot read the current one can still find theirs. */}
+        <label className="settings__field settings__field--inline">
+          <span>{tr('settings.languageLabel')}</span>
+          <select
+            className="input"
+            value={settings.general.locale}
+            onChange={(e) =>
+              void update({
+                general: { ...settings.general, locale: e.target.value as Locale }
+              })
+            }
+          >
+            {LOCALES.map((locale: Locale) => (
+              <option key={locale} value={locale}>
+                {LOCALE_LABELS[locale]}
+              </option>
+            ))}
+          </select>
+        </label>
       </fieldset>
 
       <fieldset className="settings__group">

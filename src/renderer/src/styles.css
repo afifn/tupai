@@ -122,6 +122,28 @@ button {
   min-width: 0;
 }
 
+/* On macOS the window has no native title bar, so this row is the title bar.
+   The traffic lights sit at their standard inset, which needs 78px of clear
+   space at the start; the whole row can be dragged, while every control inside
+   it opts back out so clicks still land. */
+.menubar--titlebar {
+  padding-left: 78px;
+  -webkit-app-region: drag;
+}
+
+.menubar--titlebar button,
+.menubar--titlebar input,
+.menubar--titlebar select,
+.menubar--titlebar a,
+.menubar--titlebar [role='button'] {
+  -webkit-app-region: no-drag;
+}
+
+/* Fullscreen hides the traffic lights, so the inset would be dead space. */
+.menubar--titlebar.is-fullscreen {
+  padding-left: 10px;
+}
+
 /* Only the menu groups scroll. The dock and theme buttons stay pinned on the
    right so they never disappear on a narrow window. */
 .menubar__scroll {
@@ -646,40 +668,9 @@ button {
   opacity: 1;
 }
 
-/* The status dot only shows when no actions are visible. */
-.objtree__status {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--border-strong);
-  flex-shrink: 0;
-}
-
-.objtree__status.is-on {
-  background: var(--ok);
-}
-
-/* Connecting and failed states reuse the same dot so the row height never
-   changes while a connection attempt is in flight. */
-.objtree__status.is-busy {
-  background: var(--accent);
-  animation: objtree-pulse 1s ease-in-out infinite;
-}
-
-.objtree__status.is-failed {
-  background: var(--error);
-}
-
-@keyframes objtree-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
+/* Connected state lives on the engine mark: it turns full-strength with its
+   brand tint when the session is open. A separate status dot said the same
+   thing twice and left a grey bullet next to every disconnected row. */
 .objtree__row.is-failed .objtree__name {
   color: var(--error);
 }
@@ -688,13 +679,6 @@ button {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-/* Actions replace the dot on hover so the row never grows a second column. */
-.objtree__row:hover .objtree__status,
-.objtree__row:focus-within .objtree__status,
-.objtree__row.is-connecting .objtree__status {
-  display: none;
 }
 
 .objtree__caret {
@@ -731,6 +715,9 @@ button {
   flex-shrink: 0;
   border-radius: 4px;
   background: var(--surface-muted);
+  /* A hairline edge keeps the badge visible on its own row colour: the fill is
+     only 1.07:1 against the light sidebar and 1.23:1 in dark. */
+  box-shadow: inset 0 0 0 1px var(--border);
   color: var(--text-muted);
 }
 
@@ -746,23 +733,19 @@ button {
 .objtree__icon.is-active .engine-icon.is-active {
   color: var(--accent-text);
   opacity: 1;
-  filter: none;
 }
 
-/* Engine brand tints: muted and desaturated until the connection is active. */
 .engine-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   color: var(--text-muted);
-  opacity: 0.55;
-  filter: grayscale(1);
+  opacity: 0.85;
 }
 
 .engine-icon.is-active {
   opacity: 1;
-  filter: none;
 }
 
 .engine-icon svg {
@@ -772,51 +755,30 @@ button {
   display: block;
 }
 
-.engine-icon--mysql.is-active {
+/* Brand tint is always applied: the engine is the same engine whether the
+   session is open or not, and the tint is what makes the six marks readable at
+   14px. Opacity, not hue, tells connected from disconnected. */
+.engine-icon--mysql {
   color: var(--engine-mysql);
 }
 
-.engine-icon--mariadb.is-active {
+.engine-icon--mariadb {
   color: var(--engine-mariadb);
 }
 
-.engine-icon--postgres.is-active {
+.engine-icon--postgres {
   color: var(--engine-postgres);
 }
 
-.engine-icon--sqlite.is-active {
+.engine-icon--sqlite {
   color: var(--engine-sqlite);
 }
 
-.engine-icon--oracle.is-active {
+.engine-icon--oracle {
   color: var(--engine-oracle);
 }
 
-.engine-icon--mongodb.is-active {
-  color: var(--engine-mongodb);
-}
-
-[data-theme='dark'] .engine-icon--mysql.is-active {
-  color: var(--engine-mysql);
-}
-
-[data-theme='dark'] .engine-icon--mariadb.is-active {
-  color: var(--engine-mariadb);
-}
-
-[data-theme='dark'] .engine-icon--postgres.is-active {
-  color: var(--engine-postgres);
-}
-
-[data-theme='dark'] .engine-icon--sqlite.is-active {
-  color: var(--engine-sqlite);
-}
-
-[data-theme='dark'] .engine-icon--oracle.is-active {
-  color: var(--engine-oracle);
-}
-
-[data-theme='dark'] .engine-icon--mongodb.is-active {
+.engine-icon--mongodb {
   color: var(--engine-mongodb);
 }
 
@@ -986,7 +948,9 @@ button {
   overflow-y: hidden;
   flex: 1;
   min-width: 0;
-  padding: 5px 0;
+  /* 4px + a 28px tab + 4px fits inside the 37px content box of the 38px bar,
+     so the strip never spills past the bar's bottom border. */
+  padding: 4px 0;
   scrollbar-width: none;
 }
 
@@ -1037,6 +1001,9 @@ button {
   cursor: pointer;
   color: var(--text-muted);
   font-size: 12.5px;
+  /* Pinned so the tab measures 28px tall regardless of the 1.5 body leading,
+     matching the right dock's tabs. */
+  line-height: 16px;
 }
 
 .tab.is-active .tab__label {
@@ -2199,7 +2166,8 @@ button {
 
 .grid-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 13px;
+  font-weight: 600;
   font-family: 'Consolas', 'SFMono-Regular', monospace;
 }
 
@@ -2224,6 +2192,20 @@ button {
 
 .grid-filters .field {
   gap: 6px;
+}
+
+.grid-filters__logic {
+  width: auto;
+  min-width: 78px;
+}
+
+.grid-filters__count {
+  flex: 1;
+  min-width: 0;
+}
+
+.grid-filters__reset {
+  margin-left: auto;
 }
 
 .grid-filters > .btn {
@@ -2255,6 +2237,28 @@ button {
   border-radius: 6px;
   background: var(--surface);
   max-height: calc(100vh - 320px);
+}
+
+/* First load: the bordered shell exists before the rows do, with the loading
+   line centred inside it, so opening a table does not pop the layout. */
+.grid-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 120px;
+  margin: 0;
+}
+
+/* A refetch of the same table (page, filter, sort) keeps the old rows visible
+   and dims them instead of blanking the grid. */
+.table-scroll.is-loading .data-table {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.pager--placeholder {
+  min-height: 28px;
 }
 
 .grid-body > .table-scroll {
@@ -2752,21 +2756,50 @@ body.is-col-resizing {
 }
 
 /* View tabs */
+/* View tabs sit above the grid, so they are sized to the grid's density rather
+   than the form default: 12px text with 5px/10px padding keeps the strip to one
+   compact line and leaves more room for rows. */
 .viewtabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 14px;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .viewtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 8px 14px;
+  padding: 5px 10px;
   cursor: pointer;
   color: var(--text-muted);
+  font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The filter toggle is the one action in the strip, so it is pushed to the far
+   right and reads as a control rather than another view. */
+.viewtab--filter {
+  margin-left: auto;
+  border-bottom-color: transparent;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.viewtab--filter:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.viewtab--filter.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  border-bottom-color: transparent;
 }
 
 .viewtab:hover:not(:disabled) {
@@ -4395,23 +4428,44 @@ body.is-row-resizing {
 
 .ai__meta {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
 }
 
-.ai__badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid transparent;
-}
-
-.ai__badge--muted {
-  background: var(--surface-muted);
+/* The scope is a fact about the next answer, not a status chip: plain muted
+   text reads as metadata, three pills read as decoration. */
+.ai__scope {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
   color: var(--text-muted);
+}
+
+.ai__meta-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ai__model {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* An empty thread is an instruction, not a headline: no icon, no card. */
+.ai__empty {
+  max-width: 34ch;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 .ai__thread {
@@ -4659,10 +4713,10 @@ body.is-row-resizing {
   color: var(--text-muted);
 }
 
+/* The status line already sits in the muted hint slot; while a request is open
+   the colour shift alone is enough, no extra weight or tracking. */
 .ai__hint--busy {
   color: var(--accent);
-  font-weight: 700;
-  letter-spacing: 0.1em;
 }
 
 .ai__para {
@@ -4809,7 +4863,11 @@ body.is-row-resizing {
 }
 
 .grid-advfilter .input:nth-child(2) {
-  flex: 0 0 190px;
+  /* Wide enough for "!= not equals" plus the dropdown arrow, so the symbol and
+     the name both stay visible instead of the symbol being clipped. */
+  flex: 0 0 172px;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12.5px;
 }
 
 /* Backup & restore */
@@ -5859,7 +5917,7 @@ body.is-row-resizing {
   align-items: center;
   justify-content: center;
   width: 26px;
-  height: 26px;
+  height: 28px;
   flex-shrink: 0;
   margin-left: 2px;
   border: 1px solid transparent;
@@ -5988,13 +6046,13 @@ body.is-panel-resizing {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: 28px;
   padding: 0 9px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   cursor: pointer;
   white-space: nowrap;
 }

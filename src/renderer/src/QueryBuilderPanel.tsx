@@ -576,7 +576,7 @@ export function QueryBuilderPanel({
                 <button
                   className="icon-btn"
                   onClick={() => removeTable(table.id)}
-                  aria-label={`Hapus ${table.table}`}
+                  aria-label={tr('qb.removeTableLabel', { table: table.table })}
                   title={tr('qb.removeTable')}
                 >
                   ×

@@ -1052,6 +1052,11 @@ export type MenuAction =
 // Which menu items make sense right now. The renderer owns this knowledge (it
 // holds the open tabs and the focused connection), so it reports it to main and
 // main greys out the items that would do nothing.
+// Native window facts the renderer needs to lay out its own title bar row.
+export interface WindowState {
+  fullscreen: boolean
+}
+
 export interface MenuState {
   // A connection is focused, so connection-scoped tools have a target.
   hasConnection: boolean

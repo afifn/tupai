@@ -1,22 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import { en } from '@shared/i18n/en'
+import { es } from '@shared/i18n/es'
 import { id } from '@shared/i18n/id'
-import { formatDateTime, formatNumber, LOCALE_TAGS, t, type Locale } from '@shared/i18n'
+import { ja } from '@shared/i18n/ja'
+import { zh } from '@shared/i18n/zh'
+import {
+  DEFAULT_LOCALE,
+  LOCALE_LABELS,
+  LOCALE_TAGS,
+  LOCALES,
+  formatDateTime,
+  formatNumber,
+  t,
+  type Locale
+} from '@shared/i18n'
 
 const idKeys = Object.keys(id).sort()
 const enKeys = Object.keys(en).sort()
+// Every shipped language must cover the whole catalogue, so a new key cannot
+// land in English only and silently show English on a Chinese screen.
+const CATALOGUES: Record<Locale, Record<string, string>> = { en, id, zh, ja, es }
 
 describe('translation catalogue', () => {
-  it('has the same keys in both languages', () => {
-    expect(enKeys).toEqual(idKeys)
+  it('has the same keys in every language', () => {
+    for (const [locale, catalogue] of Object.entries(CATALOGUES)) {
+      expect(Object.keys(catalogue).sort(), `${locale} keys`).toEqual(idKeys)
+    }
   })
 
-  it('has no empty or whitespace-only value', () => {
-    for (const [key, value] of Object.entries(id)) {
-      expect(value.trim().length, `id:${key} is empty`).toBeGreaterThan(0)
-    }
-    for (const [key, value] of Object.entries(en)) {
-      expect(value.trim().length, `en:${key} is empty`).toBeGreaterThan(0)
+  it('ships English as the default and first locale', () => {
+    expect(DEFAULT_LOCALE).toBe('en')
+    expect(LOCALES[0]).toBe('en')
+  })
+
+  it('has a label for every locale', () => {
+    for (const locale of LOCALES) expect(LOCALE_LABELS[locale]?.trim()).toBeTruthy()
+  })
+
+  it('has no empty or whitespace-only value, except where empty is intended', () => {
+    // A blank label hides an action that is disabled anyway; these two are the
+    // only entries that are deliberately empty.
+    const ALLOWED_EMPTY = new Set(['sessions.cannotStopSelf'])
+    for (const [locale, catalogue] of Object.entries(CATALOGUES)) {
+      for (const [key, value] of Object.entries(catalogue)) {
+        if (ALLOWED_EMPTY.has(key)) continue
+        expect(value.trim().length, `${locale}:${key} is empty`).toBeGreaterThan(0)
+      }
     }
   })
 
@@ -25,9 +54,12 @@ describe('translation catalogue', () => {
       [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort()
 
     for (const key of idKeys as (keyof typeof id)[]) {
-      expect(placeholders(en[key]), `placeholders differ for ${key}`).toEqual(
-        placeholders(id[key])
-      )
+      for (const [locale, catalogue] of Object.entries(CATALOGUES)) {
+        expect(
+          placeholders(catalogue[key]),
+          `placeholders differ for ${key} in ${locale}`
+        ).toEqual(placeholders(en[key]))
+      }
     }
   })
 
@@ -74,6 +106,7 @@ describe('locale formatting', () => {
     // Indonesian groups thousands with a dot, English with a comma.
     expect(formatNumber('id', 1234567)).toBe('1.234.567')
     expect(formatNumber('en', 1234567)).toBe('1,234,567')
+    expect(formatNumber('es', 1234567)).toBe('1.234.567')
   })
 
   it('formats dates per locale and survives an invalid value', () => {
@@ -84,8 +117,8 @@ describe('locale formatting', () => {
   })
 
   it('exposes a BCP 47 tag for every locale', () => {
-    const locales: Locale[] = ['id', 'en']
-    for (const locale of locales)
-      expect(LOCALE_TAGS[locale]).toMatch(/^[a-z]{2}-[A-Z]{2}$/)
+    for (const locale of LOCALES) {
+      expect(LOCALE_TAGS[locale], locale).toMatch(/^[a-z]{2}-[A-Z]{2}$/)
+    }
   })
 })

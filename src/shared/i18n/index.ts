@@ -1,24 +1,44 @@
 import { en } from './en'
 import { id, type MessageKey } from './id'
+import { es } from './es'
+import { ja } from './ja'
+import { zh } from './zh'
 
-export type Locale = 'id' | 'en'
+// English is the product language: every key is authored there first and the
+// others are translations of it. Keeping it first in the list also makes it the
+// fallback for a key a translation has not reached yet.
+export type Locale = 'en' | 'id' | 'zh' | 'ja' | 'es'
 
-export const LOCALES: Locale[] = ['id', 'en']
+export const LOCALES: Locale[] = ['en', 'id', 'zh', 'ja', 'es']
 
-export const DEFAULT_LOCALE: Locale = 'id'
+export const DEFAULT_LOCALE: Locale = 'en'
 
 /** BCP 47 tags for Intl, so dates and numbers follow the chosen language. */
 export const LOCALE_TAGS: Record<Locale, string> = {
+  en: 'en-US',
   id: 'id-ID',
-  en: 'en-US'
+  zh: 'zh-CN',
+  ja: 'ja-JP',
+  es: 'es-ES'
 }
 
-const CATALOGUES: Record<Locale, Record<MessageKey, string>> = { id, en }
+/** Label shown in the language picker, written in that language. */
+export const LOCALE_LABELS: Record<Locale, string> = {
+  en: 'English',
+  id: 'Bahasa Indonesia',
+  zh: '简体中文',
+  ja: '日本語',
+  es: 'Español'
+}
+
+const CATALOGUES: Record<Locale, Record<MessageKey, string>> = { en, id, zh, ja, es }
 
 export type MessageParams = Record<string, string | number>
 
 export function isLocale(value: string | null): value is Locale {
-  return value === 'id' || value === 'en'
+  return (
+    value === 'en' || value === 'id' || value === 'zh' || value === 'ja' || value === 'es'
+  )
 }
 
 function lookup(locale: Locale, key: MessageKey, params?: MessageParams): string {
@@ -35,6 +55,16 @@ function lookup(locale: Locale, key: MessageKey, params?: MessageParams): string
   }
 
   if (template === undefined) template = catalogue[key]
+  if (template === undefined && locale !== DEFAULT_LOCALE) {
+    // A translation can lag behind the catalogue. English is the source of
+    // truth, so a missing key shows English instead of the raw key.
+    const fallback = CATALOGUES[DEFAULT_LOCALE]
+    if (params && typeof params.count === 'number') {
+      const pluralKey = `${key}${params.count === 1 ? '_one' : '_other'}` as MessageKey
+      if (pluralKey in fallback) template = fallback[pluralKey]
+    }
+    if (template === undefined) template = fallback[key]
+  }
   if (template === undefined) {
     // Never throw from a translation lookup: a missing key must not take down
     // the render. The key itself is the most useful thing to show.
@@ -70,5 +100,11 @@ export function formatDateTime(locale: Locale, value: string | number | Date): s
   return date.toLocaleString(LOCALE_TAGS[locale] ?? LOCALE_TAGS[DEFAULT_LOCALE])
 }
 
-export { id as messagesId, en as messagesEn }
+export {
+  id as messagesId,
+  en as messagesEn,
+  zh as messagesZh,
+  ja as messagesJa,
+  es as messagesEs
+}
 export type { MessageKey }

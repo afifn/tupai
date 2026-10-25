@@ -52,6 +52,10 @@ nsis:
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.icns
+  # Electron 45 runs Chromium 156, which dropped macOS 12. Declaring the floor
+  # makes the DMG refuse to install on an unsupported system instead of crashing
+  # after launch.
+  minimumSystemVersion: '13.0'
   # No arch list here: an arch inside the target overrides the --arm64/--x64
   # flag, so `dist:mac:arm64` used to build both arches. The scripts pass the
   # arch explicitly instead.

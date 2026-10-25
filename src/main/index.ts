@@ -5,6 +5,7 @@ import { registerDbHandlers, disposeDbHandlers } from './ipc/dbHandlers'
 import { refreshApplicationMenu } from './menu'
 import { initUpdater, scheduleStartupCheck } from './update/updater'
 import { log } from './logger'
+import { IPC } from '@shared/ipc-contract'
 // electron-vite copies the file into out/ and hands back the runtime path. The
 // packaged exe already embeds build/icon.png through electron-builder, but the
 // dev window and the Linux build need it explicitly or they show the default
@@ -79,6 +80,13 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Tupai',
+    // The toolbar is the title bar on macOS: hiding the native one puts the
+    // traffic lights on the toolbar row and gives back the 28px the title used
+    // to occupy. `hiddenInset` keeps the lights at their standard offset, which
+    // lines up with a 44px toolbar. Other platforms keep the native frame,
+    // because a custom title bar there would have to draw minimise, maximise,
+    // and close buttons itself.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     // Windows takes the taskbar icon from the exe, but dev runs electron.exe and
     // macOS/Linux use the window icon. Keep both paths on the same mark.
     icon: appIcon,
@@ -91,6 +99,15 @@ function createWindow(): void {
   })
 
   win.on('ready-to-show', () => win.show())
+
+  // In fullscreen macOS hides the traffic lights, so the toolbar must stop
+  // reserving room for them. The renderer cannot see native fullscreen itself.
+  const sendWindowState = (): void => {
+    if (win.isDestroyed()) return
+    win.webContents.send(IPC.windowState, { fullscreen: win.isFullScreen() })
+  }
+  win.on('enter-full-screen', sendWindowState)
+  win.on('leave-full-screen', sendWindowState)
 
   win.webContents.on('render-process-gone', (_event, details) => {
     log('error', 'render-process-gone', details)

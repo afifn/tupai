@@ -9,6 +9,11 @@
   "compilerOptions": {
     "composite": true,
     "types": ["electron-vite/node"],
+    // Vite 8 ships its types through the "exports" map only, so the Node10
+    // resolver that @electron-toolkit's base config uses cannot see them. Every
+    // package here resolves through package.json "exports", so bundler
+    // resolution is the accurate mode, not a workaround.
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"]

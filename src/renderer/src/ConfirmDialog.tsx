@@ -36,13 +36,17 @@ export function ConfirmDialog({
   const { tr } = useLocale()
   const dialogRef = useRef<HTMLDivElement>(null)
   const initialRef = useRef<HTMLButtonElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   useFocusTrap(dialogRef, true)
 
   useEffect(() => {
-    // Prefer the safe action, so pressing Enter does not delete anything.
+    // Prefer the safe action, so pressing Enter does not delete anything. A
+    // caller that offers only destructive actions has no safe button in the
+    // list; Cancel is added below, so that is the one to land on.
     const target =
       initialRef.current ??
+      cancelRef.current ??
       (dialogRef.current?.querySelector('button') as HTMLButtonElement | null)
     target?.focus()
   }, [])
@@ -59,20 +63,19 @@ export function ConfirmDialog({
   }, [onClose])
 
   const safeIndex = actions.findIndex((a) => !a.danger)
-  const focusIndex = safeIndex >= 0 ? safeIndex : actions.length - 1
+  // A list of only destructive actions has no safe entry, so nothing in it gets
+  // initial focus: the Cancel button added below is the safe landing spot.
+  const focusIndex = safeIndex
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-title"
-      aria-describedby="confirm-message"
-      onClick={onClose}
-    >
+    <div className="modal-backdrop" onClick={onClose}>
       <div
         ref={dialogRef}
         className="modal modal--confirm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal__head">
@@ -100,7 +103,7 @@ export function ConfirmDialog({
                 include one (a three-way choice such as Commit/Rollback/Cancel)
                 must not end up with two. */}
             {!actions.some((action) => action.label === tr('common.cancel')) && (
-              <button className="btn btn--ghost" onClick={onClose}>
+              <button ref={cancelRef} className="btn btn--ghost" onClick={onClose}>
                 {tr('common.cancel')}
               </button>
             )}

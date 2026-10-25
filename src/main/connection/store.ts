@@ -1,8 +1,9 @@
-import { app, safeStorage } from 'electron'
+import { app } from 'electron'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { writeJsonAtomic } from '../storage/atomicWrite'
 import type { ConnectionConfig, StoredConnection } from '@shared/types'
+import { decryptSecret, encryptSecret } from './secrets'
 
 interface StoredRecord extends Omit<ConnectionConfig, 'password' | 'ssh'> {
   passwordCipher?: string
@@ -35,32 +36,11 @@ async function writeAll(records: StoredRecord[]): Promise<void> {
 
 // Storing an empty string when encryption is unavailable used to look like a
 // saved password that silently failed to decrypt, so the user only saw "access
-// denied" later. Fail at save time with a message that names the cause.
-function encrypt(password: string): string {
-  if (!password) return ''
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error(
-      'Penyimpanan aman OS tidak tersedia, jadi kata sandi tidak bisa disimpan. ' +
-        'Di Linux pastikan keyring (gnome-keyring/kwallet) berjalan.'
-    )
-  }
-  try {
-    return safeStorage.encryptString(password).toString('base64')
-  } catch (err) {
-    throw new Error(
-      `Kata sandi tidak bisa dienkripsi: ${err instanceof Error ? err.message : String(err)}`
-    )
-  }
-}
-
-function decrypt(cipher: string | undefined): string {
-  if (!cipher) return ''
-  try {
-    return safeStorage.decryptString(Buffer.from(cipher, 'base64'))
-  } catch {
-    return ''
-  }
-}
+// denied" later. encryptSecret fails at save time with a message naming the
+// cause instead.
+const SUBJECT_PASSWORD = 'Kata sandi'
+const SUBJECT_SSH_PASSWORD = 'Kata sandi SSH'
+const SUBJECT_SSH_PASSPHRASE = 'Passphrase SSH'
 
 export async function listConnections(): Promise<StoredConnection[]> {
   const records = await readAll()
@@ -100,11 +80,11 @@ export async function getConnectionConfig(id: string): Promise<ConnectionConfig 
         authType: ssh.authType,
         privateKeyPath: ssh.privateKeyPath,
         strictHostKey: ssh.strictHostKey,
-        password: decrypt(ssh.passwordCipher),
-        passphrase: decrypt(ssh.passphraseCipher)
+        password: await decryptSecret(ssh.passwordCipher),
+        passphrase: await decryptSecret(ssh.passphraseCipher)
       }
     : undefined
-  return { ...rest, ssh: sshConfig, password: decrypt(passwordCipher) }
+  return { ...rest, ssh: sshConfig, password: await decryptSecret(passwordCipher) }
 }
 
 export async function saveConnection(cfg: ConnectionConfig): Promise<StoredConnection> {
@@ -113,7 +93,7 @@ export async function saveConnection(cfg: ConnectionConfig): Promise<StoredConne
   const previous = records.find((r) => r.id === cfg.id)
 
   const next: StoredRecord = { ...rest }
-  if (password) next.passwordCipher = encrypt(password)
+  if (password) next.passwordCipher = await encryptSecret(password, SUBJECT_PASSWORD)
   else if (previous?.passwordCipher) next.passwordCipher = previous.passwordCipher
 
   if (ssh) {
@@ -128,10 +108,10 @@ export async function saveConnection(cfg: ConnectionConfig): Promise<StoredConne
       strictHostKey: ssh.strictHostKey,
       // Keep the stored secret when the form left the field blank.
       passwordCipher: ssh.password
-        ? encrypt(ssh.password)
+        ? await encryptSecret(ssh.password, SUBJECT_SSH_PASSWORD)
         : previousSsh?.passwordCipher,
       passphraseCipher: ssh.passphrase
-        ? encrypt(ssh.passphrase)
+        ? await encryptSecret(ssh.passphrase, SUBJECT_SSH_PASSPHRASE)
         : previousSsh?.passphraseCipher
     }
   }

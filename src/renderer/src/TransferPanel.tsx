@@ -507,7 +507,7 @@ export function TransferPanel({
             <h3>{tr('transfer.columnMapping')}</h3>
             <span className="muted">
               {preview.sourceEngine} → {preview.targetEngine} | {included.length}/
-              {mapping.length} kolom
+              {tr('transfer.columnCount', { count: mapping.length })}
             </span>
           </div>
           {preview.warnings.length > 0 && (
@@ -570,7 +570,7 @@ export function TransferPanel({
                       <td className="muted">
                         {targetColumn?.dataType ??
                           preview.plannedTypes[row.target] ??
-                          '(baru)'}
+                          tr('transfer.newType')}
                       </td>
                     </tr>
                   )

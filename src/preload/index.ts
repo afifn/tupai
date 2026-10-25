@@ -12,6 +12,7 @@ import type {
   TransactionInfo,
   TransactionRef,
   UpdateState,
+  WindowState,
   AiSettingsInput,
   BackupEntry,
   BackupOptions,
@@ -76,6 +77,18 @@ const dbApi = {
   // macOS, Ctrl elsewhere). process.platform is readable in a sandboxed
   // preload; the full process object is not exposed.
   platform: process.platform,
+  // True when the window has no native title bar, so the renderer adds the
+  // traffic-light inset itself.
+  usesCustomTitleBar: process.platform === 'darwin',
+  getWindowState(): Promise<IpcResult<WindowState>> {
+    return ipcRenderer.invoke(IPC.windowState)
+  },
+  onWindowState(listener: (state: WindowState) => void): () => void {
+    const wrapped = (_e: Electron.IpcRendererEvent, payload: WindowState): void =>
+      listener(payload)
+    ipcRenderer.on(IPC.windowStateEvent, wrapped)
+    return () => ipcRenderer.removeListener(IPC.windowStateEvent, wrapped)
+  },
   ping(message: string): Promise<IpcResult<{ echo: string }>> {
     return ipcRenderer.invoke(IPC.ping, { message })
   },
@@ -481,6 +494,10 @@ const dbApi = {
       listener(action)
     ipcRenderer.on(IPC.menuAction, wrapped)
     return () => ipcRenderer.removeListener(IPC.menuAction, wrapped)
+  },
+  // Translated labels for the native menu, which lives in main.
+  setMenuLabels(labels: Record<string, string>): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.menuLabels, labels)
   },
   // Tells main which menu items make sense, so none of them is a dead control.
   setMenuState(state: MenuState): Promise<IpcResult<boolean>> {

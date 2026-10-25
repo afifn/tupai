@@ -93,7 +93,7 @@ export function ObjectsPanel({
             {schema ? ` / ${schema}` : ''}
           </button>
           <span className="objects__counts">
-            {tableCount} tabel · {viewCount} view
+            {tr('objects.tableCounts', { tables: tableCount, views: viewCount })}
           </span>
         </div>
 

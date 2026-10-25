@@ -69,6 +69,10 @@ interface Props {
   onContextRoutine: (target: RoutineTarget, x: number, y: number) => void
   // Clicking a routine shows its CREATE statement.
   onOpenDefinition: (target: RoutineTarget) => void
+  // The database or schema the user just clicked. Opening a query tab uses it
+  // as the default scope, so the editor follows the tree instead of the server's
+  // first user database.
+  onFocusScope?: (target: { database: string; schema?: string }) => void
   version: number
   queryVersion: number
   // Sidebar filter term. Empty means no filtering. Matching is client-side over
@@ -96,6 +100,7 @@ export function ExplorerTree({
   onContextTable,
   onContextRoutine,
   onOpenDefinition,
+  onFocusScope,
   version,
   queryVersion,
   filter,
@@ -623,7 +628,10 @@ export function ExplorerTree({
               className={`tree__row tree__row--db${isDbOpen ? ' is-open' : ''}${
                 isDbActive ? ' is-active' : ''
               }`}
-              onClick={() => toggleDatabase(db)}
+              onClick={() => {
+                onFocusScope?.({ database: db })
+                toggleDatabase(db)
+              }}
               onContextMenu={(e) => {
                 e.preventDefault()
                 onContextDatabase(
@@ -665,7 +673,10 @@ export function ExplorerTree({
                             className={`tree__row tree__row--schema${
                               isSchemaActive ? ' is-active' : ''
                             }`}
-                            onClick={() => void toggleSchema(db, schema)}
+                            onClick={() => {
+                              onFocusScope?.({ database: db, schema })
+                              void toggleSchema(db, schema)
+                            }}
                             onContextMenu={(e) => {
                               e.preventDefault()
                               onContextSchema(

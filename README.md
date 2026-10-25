@@ -22,11 +22,12 @@ penyimpanan aman OS, dan setiap channel IPC divalidasi sebelum menyentuh driver.
 
 **Menjelajah objek**
 
-- Tree Database → Schema → Tabel/View → Kolom, plus grup Queries dan
-  Programmable (function, procedure, trigger, event).
+- Tree Database → Schema → Tabel/View, plus grup Saved queries dan Routines
+  (function, procedure, trigger, event). Kolom tampil di panel Detail, bukan di
+  tree.
 - Browser objek dengan jumlah baris, ukuran, komentar, dan engine.
-- Pencarian lintas objek (tabel, view, kolom, routine).
-- Filter cepat di sidebar untuk semua koneksi (`Mod+F`), tanpa menutup tree.
+- Pencarian cepat lintas objek yang sudah dimuat (tabel, view, routine, dan
+  query tersimpan) lewat `Mod+F`; pencarian kolom belum termasuk.
 - Context menu lengkap untuk koneksi, database, schema, tabel, view, dan routine.
 
 **Data**
@@ -71,8 +72,8 @@ penyimpanan aman OS, dan setiap channel IPC divalidasi sebelum menyentuh driver.
   dan MongoDB).
 - Monitor sesi dengan kemampuan menghentikan sesi lain (semua engine kecuali
   SQLite, yang tidak punya sesi server).
-- Import/Export CSV, JSON, SQL; backup & restore SQL dengan riwayat (backup
-  tidak tersedia untuk MongoDB).
+- Import CSV dan SQL; ekspor CSV, JSON, dan SQL. Backup & restore SQL dengan
+  riwayat (backup tidak tersedia untuk MongoDB).
 - Data Transfer antar tabel, termasuk lintas engine, dengan pratinjau dan dry
   run.
 - Sinkronisasi struktur dan data antar database, dengan pratinjau diff sebelum
@@ -86,7 +87,8 @@ penyimpanan aman OS, dan setiap channel IPC divalidasi sebelum menyentuh driver.
   Asisten, Keymap, dan Tentang.
 - Lima tema (Terang, Gelap, Light Ocean, Dark Forest, Kustom) plus palet kustom
   terang/gelap yang diturunkan dari empat warna inti dan divalidasi kontras.
-- Bahasa Indonesia dan Inggris, dengan istilah teknis (nama engine, `NULL`,
+- Lima bahasa: English (utama), Bahasa Indonesia, 简体中文, 日本語, dan Español,
+  dipilih lewat dropdown di Setelan. Istilah teknis (nama engine, `NULL`,
   `BLOB`, kata kunci SQL) tidak diterjemahkan.
 - Keymap yang bisa diubah untuk sepuluh aksi shell.
 - Notifikasi desktop untuk hasil operasi, dengan hitungan waktu yang berhenti
@@ -158,7 +160,7 @@ GitHub. Koneksi database, kredensial, dan setelan Anda tidak pernah ikut.
 
 ## Kebutuhan sistem
 
-- macOS 10.15 atau lebih baru (Apple Silicon atau Intel), atau Windows 10/11 64-bit.
+- macOS 13 atau lebih baru (Apple Silicon atau Intel), atau Windows 10/11 64-bit.
 - Untuk Oracle, driver memerlukan Oracle Client sesuai aturan Oracle sendiri.
 - MongoDB tidak punya SQL editor, DDL, sync, backup, atau manajemen user.
 - SQLite tidak mendukung `ALTER COLUMN`, perubahan primary key, atau manajemen
@@ -181,9 +183,7 @@ query tersimpan, dan riwayat.
 
 ## Changelog
 
-Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md). Catatan untuk yang
-mengubah kode, termasuk cara merilis versi baru, ada di
-[DEVELOPING.md](DEVELOPING.md).
+Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).
 
 ## Lisensi
 

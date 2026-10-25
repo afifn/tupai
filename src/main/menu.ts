@@ -94,7 +94,25 @@ function sendMenuAction(action: MenuAction): void {
   win.webContents.send(IPC.menuAction, action)
 }
 
-export function installApplicationMenu(settings?: AppSettings): void {
+// Translated labels, sent by the renderer whenever the language changes.
+//
+// The catalogue is NOT imported here on purpose: bundling all five languages
+// into the main process produced a bundle that esbuild could not transpile
+// ("Unterminated string literal"), and main has no other reason to carry ~6500
+// strings. The renderer already has them loaded and sends just the labels this
+// menu needs.
+export type MenuLabels = Record<string, string>
+
+let menuLabels: MenuLabels = {}
+
+export function installApplicationMenu(
+  settings?: AppSettings,
+  labels?: MenuLabels
+): void {
+  if (labels) menuLabels = labels
+  // A missing label falls back to the English text the renderer would send, and
+  // then to the key itself, so a stale renderer cannot leave a blank menu.
+  const label = (key: string): string => menuLabels[key] ?? key
   const keymap = settings?.keymap
   const accelerator = (action: MenuAction, fallback?: string): string | undefined => {
     const id = KEYMAP_FOR_ACTION[action]
@@ -124,12 +142,15 @@ export function installApplicationMenu(settings?: AppSettings): void {
     ...(isMac
       ? [
           {
+            // macOS renders the application menu title from the running bundle
+            // (Electron.app in dev), so this label only matters on other
+            // platforms; a packaged build shows "Tupai" either way.
             label: app.name,
             submenu: [
               { role: 'about' as const },
               { type: 'separator' as const },
-              item('Setelan...', 'settings.open', 'Cmd+,'),
-              item('Periksa pembaruan...', 'update.check'),
+              item(label('appMenu.settings'), 'settings.open', 'Cmd+,'),
+              item(label('appMenu.checkUpdates'), 'update.check'),
               { type: 'separator' as const },
               { role: 'hide' as const },
               { role: 'hideOthers' as const },
@@ -141,23 +162,23 @@ export function installApplicationMenu(settings?: AppSettings): void {
         ]
       : []),
     {
-      label: 'File',
+      label: label('appMenu.file'),
       submenu: [
-        item('Koneksi baru...', 'connection.new', 'CmdOrCtrl+N'),
-        item('Impor koneksi (Navicat)...', 'connection.import'),
-        item('Ekspor koneksi...', 'connection.export'),
+        item(label('appMenu.newConnection'), 'connection.new', 'CmdOrCtrl+N'),
+        item(label('appMenu.importConnections'), 'connection.import'),
+        item(label('appMenu.exportConnections'), 'connection.export'),
         { type: 'separator' },
-        item('Grup koneksi baru...', 'group.new'),
+        item(label('appMenu.newGroup'), 'group.new'),
         { type: 'separator' },
-        item('Query baru', 'query.new', 'CmdOrCtrl+T'),
-        item('Impor query dari file .sql...', 'query.import'),
-        item('Riwayat query', 'query.history'),
+        item(label('appMenu.newQuery'), 'query.new', 'CmdOrCtrl+T'),
+        item(label('appMenu.importQuery'), 'query.import'),
+        item(label('appMenu.queryHistory'), 'query.history'),
         { type: 'separator' },
         ...(isMac ? [] : [{ role: 'quit' as const }])
       ]
     },
     {
-      label: 'Edit',
+      label: label('appMenu.edit'),
       submenu: [
         { role: 'undo' },
         { role: 'redo' },
@@ -167,18 +188,18 @@ export function installApplicationMenu(settings?: AppSettings): void {
         { role: 'paste' },
         { role: 'selectAll' },
         { type: 'separator' },
-        item('Cari objek', 'sidebar.filter', 'CmdOrCtrl+F')
+        item(label('appMenu.findObjects'), 'sidebar.filter', 'CmdOrCtrl+F')
       ]
     },
     {
-      label: 'View',
+      label: label('appMenu.view'),
       submenu: [
         ...devItems,
-        item('Jelajahi tabel', 'table.browse'),
-        item('Diagram', 'diagram.open'),
+        item(label('appMenu.browseTables'), 'table.browse'),
+        item(label('appMenu.diagram'), 'diagram.open'),
         { type: 'separator' },
-        item('Panel asisten', 'assistant.toggle', 'CmdOrCtrl+Shift+A'),
-        item('Muat ulang pohon objek', 'app.reloadTree'),
+        item(label('appMenu.assistantPanel'), 'assistant.toggle', 'CmdOrCtrl+Shift+A'),
+        item(label('appMenu.reloadTree'), 'app.reloadTree'),
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -188,20 +209,20 @@ export function installApplicationMenu(settings?: AppSettings): void {
       ]
     },
     {
-      label: 'Tools',
+      label: label('appMenu.tools'),
       submenu: [
-        item('Data Transfer', 'transfer.open'),
-        item('Sinkronisasi', 'sync.open'),
-        item('Backup & restore', 'backup.open'),
+        item(label('appMenu.transfer'), 'transfer.open'),
+        item(label('appMenu.sync'), 'sync.open'),
+        item(label('appMenu.backup'), 'backup.open'),
         { type: 'separator' },
-        item('Sesi aktif', 'sessions.open'),
-        item('Users', 'users.open'),
+        item(label('appMenu.sessions'), 'sessions.open'),
+        item(label('appMenu.users'), 'users.open'),
         { type: 'separator' },
-        item('Periksa pembaruan...', 'update.check')
+        item(label('appMenu.checkUpdates'), 'update.check')
       ]
     },
     {
-      label: 'Window',
+      label: label('appMenu.window'),
       submenu: [
         { role: 'minimize' },
         { role: 'zoom' },
@@ -221,4 +242,10 @@ export function installApplicationMenu(settings?: AppSettings): void {
  */
 export async function refreshApplicationMenu(): Promise<void> {
   installApplicationMenu(await readSettings())
+}
+
+/** Called by the renderer with the translated labels for the current locale. */
+export function setMenuLabels(labels: MenuLabels): void {
+  menuLabels = labels
+  void refreshApplicationMenu()
 }

@@ -8,7 +8,124 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
-Belum ada perubahan setelah `0.1.0`.
+### Ditambahkan
+
+- Tab query baru mengikuti database dan schema yang terakhir dibuka di sidebar.
+  Sebelumnya tombol `+` (juga `⌘1` dan menu Query) memilih database non-sistem
+  pertama di server, bukan database yang sedang ditelusuri. Klik database atau
+  schema di tree sekarang juga menjadi sorotan sidebar saat tidak ada tab yang
+  menunjuk ke sana.
+
+### Diubah
+
+- Ikon engine di sidebar kini memakai warna mereknya meskipun koneksi belum
+  tersambung, dengan opasitas sebagai pembeda (0.85 vs 1). Sebelumnya ikon
+  di-desaturasi total sehingga MySQL, MariaDB, Oracle, dan MongoDB tampak sama
+  abu-abu. Badge 20px juga diberi garis tepi tipis agar tidak menyatu dengan
+  latar sidebar, dan empat warna engine yang gagal 3:1 di badge digelapkan
+  (MariaDB, SQLite, Oracle, MongoDB).
+- Panel Asisten di dock kanan tidak lagi mengulang judulnya sendiri: tab
+  "Assistant" di atas sudah menyebutnya, jadi baris judul di dalam panel
+  dihapus dan tombol Setelan/Bersihkan pindah ke baris konteks. Tiga badge
+  (model, "active schema context", "N tabel dirujuk") diganti satu baris teks
+  redup berisi engine · database · schema, dengan nama model di kanan.
+- Sisa teks Indonesia yang masih hardcode di panel Asisten (label peran
+  Kamu/Asisten, "Sisipkan SQL", pesan gagal memuat tabel, keterangan kolom,
+  pesan hentikan, batas rujukan) kini lewat katalog locale. Placeholder dan
+  hint tidak lagi mengulang kalimat yang sama.
+- Bulatan status di kanan setiap baris koneksi dihapus. Status tersambung sudah
+  dibaca dari ikon engine yang menyala dengan warna brand-nya, jadi bulatan itu
+  hanya menambah kolom yang selalu terlihat, termasuk abu-abu untuk koneksi
+  yang belum tersambung.
+- `@vitejs/plugin-react` naik ke 6.1.2 agar mengikuti Vite 8 (rolldown).
+  Sebelumnya plugin v4 mengirim opsi `esbuild`/`jsx` yang sudah deprecated,
+  sehingga `npm run dev` mencetak peringatan dan rolldown menolak opsi JSX-nya.
+
+### Diperbaiki
+
+- Pemisah statement tidak lagi membuang komentar blok yang dieksekusi server.
+  `/*!40101 SET NAMES utf8 */;` (bentuk yang ditulis mysqldump) tetap dikirim
+  saat import atau restore, alih-alih dianggap komentar kosong.
+- Tombol hapus di baris koneksi langsung menghapus tanpa bertanya, padahal menu
+  klik-kanan untuk aksi yang sama meminta konfirmasi. Sekarang keduanya memakai
+  dialog yang sama, dengan judul, pesan, dan detail dari katalog locale.
+- Fokus awal dialog konfirmasi jatuh ke tombol berbahaya ketika semua aksi
+  bersifat destruktif, sehingga menekan Enter menghapus. Kini Cancel yang
+  mendapat fokus.
+- Tab editor dan tab panel kanan (Asisten/Detail) kini sama tinggi (28px) dan
+  duduk di sumbu yang sama di dalam bar 38px. Sebelumnya tab editor 30.75px
+  sehingga strip meluber 2.75px melewati garis bawah tab bar, sementara tab
+  panel kanan hanya 26px.
+
+## [0.2.0] - 2026-10-25
+
+### Ditambahkan
+
+- Tiga bahasa baru: 简体中文, 日本語, dan Español. Pemilih bahasa kini berupa
+  dropdown di Setelan, dan setiap label ditulis dalam bahasanya sendiri.
+- **English menjadi bahasa utama** dan default untuk profil baru.
+
+### Diubah
+
+- Di macOS, toolbar kini menempati baris title bar: judul jendela bawaan
+  dihapus (`titleBarStyle: hiddenInset`), traffic lights duduk di baris yang
+  sama, dan toolbar bisa dipakai untuk menggeser jendela. Ruang untuk traffic
+  lights dilepas otomatis saat fullscreen. Platform lain tetap memakai frame
+  bawaan.
+- Tab Data/Form/Structure/Import-Export dibuat lebih padat (teks 12px, padding
+  5px/10px) dan judul tabel turun dari 16px ke 13px, sehingga lebih banyak
+  baris terlihat.
+- Filter tabel dipindah ke baris tab: tombol **Filter** di kanan tab membuka
+  panel kondisi. Saat tertutup, tidak ada baris filter yang memakan tempat.
+- Filter tabel disederhanakan menjadi satu daftar kondisi. Panel langsung
+  menyediakan satu baris kosong, dengan pemilih AND/OR, jumlah kondisi aktif,
+  tombol **Add a condition**, dan **Reset to default**.
+- Label menu aplikasi, isi footer, dan puluhan teks yang masih hardcode
+  (konfirmasi hapus, aria-label, catatan tabel tanpa primary key, dsb.) kini
+  berasal dari katalog locale. Sebelumnya menu dan footer tetap berbahasa
+  Indonesia walau antarmuka sudah diganti.
+- Nama engine (MySQL, MariaDB, PostgreSQL, Oracle, SQLite, MongoDB) tetap
+  tidak diterjemahkan.
+
+### Diperbaiki
+
+- Tab yang baru dibuka tidak terlihat saat tab bar sudah penuh: strip tab kini
+  otomatis menggulir ke tab aktif, dan kembali saat tab di kiri dipilih.
+- Tabel berkedip saat pertama kali dibuka: peringatan "tanpa primary key"
+  sempat muncul lalu hilang, dan kotak tabel baru terbentuk setelah data tiba
+  sehingga tata letak melompat. Peringatan kini menunggu data, dan rangka tabel
+  plus pager sudah ada sejak awal.
+- Bundel main gagal dibangun setelah katalog bertambah banyak
+  ("Unterminated string literal"). Penyebabnya katalog locale ikut ter-bundle ke
+  proses main lewat `menu.ts`; menu native kini menerima label dari renderer
+  lewat IPC, sehingga main tidak lagi membawa ~6.500 string terjemahan.
+
+## [0.1.1] - 2026-10-25
+
+### Diubah
+
+- Electron 32.3.3 -> **45.0.0** (Chromium 156, Node 24.22.0). Ini menutup
+  kerentanan Chromium yang tertinggal selama setahun di Electron 32.
+- Node host 22.14.0 -> **24.22.1** (LTS Krypton), di-pin lewat `.nvmrc`,
+  `.node-version`, dan `engines.node`.
+- `better-sqlite3` 11.10 -> **13.0.3**, yang memakai N-API. Satu binary kini
+  dipakai host dan Electron, sehingga siklus rebuild per-ABI (sumber error
+  `NODE_MODULE_VERSION` berulang) tidak diperlukan lagi.
+
+### Diperbaiki
+
+- Clipboard berhenti bekerja setelah Electron 44 mengubah `writeText`/`readText`
+  menjadi async: nilai promise ikut dikirim sehingga tempel menghasilkan
+  `[object Promise]`. Handler kini meng-`await`.
+- `safeStorage` dipindah ke API async (`encryptStringAsync`,
+  `decryptStringAsync`) karena API sinkron dihapus di Electron 46. Ciphertext
+  lama tetap terbaca, jadi tidak ada password yang perlu diisi ulang.
+
+### Catatan
+
+- Build macOS kini memerlukan **macOS 13 atau lebih baru**; Chromium di Electron
+  45 menghentikan dukungan macOS 12.
+- `better-sqlite3@13` mensyaratkan Electron 35+ karena butuh N-API versi 10.
 
 ## [0.1.0] - 2026-10-25
 

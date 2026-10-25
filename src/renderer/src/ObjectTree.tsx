@@ -53,6 +53,12 @@ interface Props {
   onContextTable: (target: TableTarget, x: number, y: number) => void
   onContextRoutine: (target: RoutineTarget, x: number, y: number) => void
   onOpenDefinition: (target: RoutineTarget) => void
+  // Last database/schema the user clicked, so a new query tab can default to it.
+  onFocusScope?: (target: {
+    connectionId: string
+    database: string
+    schema?: string
+  }) => void
   onNewConnection: () => void
   onRefresh: () => void
   onConnectionsChanged: () => void
@@ -93,6 +99,7 @@ export function ObjectTree({
   onContextTable,
   onContextRoutine,
   onOpenDefinition,
+  onFocusScope,
   onNewConnection,
   onRefresh,
   onImportConnections,
@@ -163,6 +170,18 @@ export function ObjectTree({
     } catch {
       // The list simply stays as it was; the prompt is already closed.
     }
+  }
+
+  async function deleteConnection(conn: StoredConnection): Promise<void> {
+    const proceed = await confirmDestructive(
+      tr('app.deleteConnectionMessage', { name: conn.name }),
+      {
+        title: tr('app.deleteConnectionTitle'),
+        detail: tr('app.deleteConnectionDetail')
+      }
+    )
+    if (!proceed) return
+    onDelete(conn.id)
   }
 
   async function deleteGroup(group: ConnectionGroup): Promise<void> {
@@ -392,12 +411,6 @@ export function ObjectTree({
           <span className="objtree__name" title={c.name}>
             {c.name}
           </span>
-          <span
-            className={`objtree__status${isOpen ? ' is-on' : ''}${
-              isConnecting ? ' is-busy' : failure ? ' is-failed' : ''
-            }`}
-            aria-hidden="true"
-          />
           <span className="objtree__actions">
             {isConnecting ? (
               <span className="objtree__busy" role="status">
@@ -432,7 +445,7 @@ export function ObjectTree({
             </button>
             <button
               className="icon-btn icon-btn--xs icon-btn--danger"
-              onClick={() => onDelete(c.id)}
+              onClick={() => void deleteConnection(c)}
               title={tr('tree.delete')}
               aria-label={tr('tree.delete')}
             >
@@ -455,6 +468,7 @@ export function ObjectTree({
               onContextTable={onContextTable}
               onContextRoutine={onContextRoutine}
               onOpenDefinition={onOpenDefinition}
+              onFocusScope={(target) => onFocusScope?.({ connectionId: c.id, ...target })}
               version={treeVersion}
               queryVersion={queryVersion}
               activeDatabase={c.id === activeId ? activeDatabase : undefined}
@@ -622,7 +636,9 @@ export function ObjectTree({
           }
           label={tr('app.groupName')}
           defaultValue={groupPrompt.mode === 'rename' ? groupPrompt.group.name : ''}
-          confirmLabel={groupPrompt.mode === 'create' ? 'Buat' : 'Simpan'}
+          confirmLabel={tr(
+            groupPrompt.mode === 'create' ? 'app.createGroup' : 'app.saveConnection'
+          )}
           onConfirm={(name) => void saveGroup(name)}
           onClose={() => setGroupPrompt(null)}
         />

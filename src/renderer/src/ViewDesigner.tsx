@@ -137,10 +137,13 @@ export function ViewDesigner(props: Props): JSX.Element {
 
   async function handleDrop(): Promise<void> {
     if (props.mode !== 'edit') return
-    const proceed = await confirmDestructive(`Hapus view "${props.view}"?`, {
-      title: tr('view.dropTitle'),
-      detail: tr('view.dropDetail')
-    })
+    const proceed = await confirmDestructive(
+      tr('view.deleteMessage', { name: props.view }),
+      {
+        title: tr('view.dropTitle'),
+        detail: tr('view.dropDetail')
+      }
+    )
     if (!proceed) return
     setBusy(true)
     setError(null)

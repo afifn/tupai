@@ -220,7 +220,7 @@ const typed = await ev(`(() => {
   const box = document.querySelector('.ai__input')
   if (!box) return false
   const setter = Object.getOwnPropertyDescriptor(box.constructor.prototype, 'value').set
-  setter.call(box, '__SQL__ tampilkan 3 baris dari tabel users')
+  setter.call(box, '__SQL__ show 3 rows from the users table')
   box.dispatchEvent(new Event('input', { bubbles: true }))
   return true
 })()`)
@@ -267,7 +267,7 @@ check(
 await ev(`(() => {
   const box = document.querySelector('.ai__input')
   const setter = Object.getOwnPropertyDescriptor(box.constructor.prototype, 'value').set
-  setter.call(box, '__SQL__ tampilkan 10 baris dari tabel users')
+  setter.call(box, '__SQL__ show 10 rows from the users table')
   box.dispatchEvent(new Event('input', { bubbles: true }))
   box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
   return true
@@ -347,7 +347,7 @@ check(
 // Refresh the tree the way the user does, then the same picker must list it.
 await ev(`(() => {
   const btn = [...document.querySelectorAll('.objtree__section-actions button')]
-    .find((b) => /Muat ulang/.test(b.getAttribute('title') || ''))
+    .find((b) => /Reload/.test(b.getAttribute('title') || ''))
   btn?.click()
   return Boolean(btn)
 })()`)
@@ -382,8 +382,10 @@ await ev(`(() => {
 // The assistant is told which engine and database it is looking at even with no
 // table tab open, so "which database is this" is answerable.
 const scopeLines = await ev(`(() => {
-  const badge = [...document.querySelectorAll('.ai__badge')].map((b) => b.textContent)
-  return badge
+  const scope = [...document.querySelectorAll('.ai__scope, .ai__model')].map(
+    (b) => b.textContent
+  )
+  return scope
 })()`)
 // The prompt itself has to name the database, not just a badge in the UI.
 const sentSystem = await fetch(`http://127.0.0.1:${AI_PORT}/v1/last-system`)
@@ -399,7 +401,7 @@ check(
 )
 check(
   'the assistant knows its database scope',
-  Array.isArray(scopeLines) && scopeLines.some((b) => /konteks|context/i.test(b)),
+  Array.isArray(scopeLines) && scopeLines.some((b) => /main/.test(b)),
   JSON.stringify(scopeLines)
 )
 
@@ -465,7 +467,7 @@ const beforeToggleAi = await ev(
 )
 const rendererAi = await ev(`(() => {
   const box = [...document.querySelectorAll('.settings__pane input[type="checkbox"]')]
-    .find((el) => el.closest('.settings__field')?.textContent?.includes('contoh baris'))
+    .find((el) => el.closest('.settings__field')?.textContent?.includes('sample rows'))
   const pane = document.querySelector('.settings__pane')
   const modelInput = pane?.querySelector('select, .settings__row input')
   return {
@@ -476,7 +478,7 @@ const rendererAi = await ev(`(() => {
 })()`)
 const toggled = await ev(`(() => {
   const box = [...document.querySelectorAll('.settings__pane input[type="checkbox"]')]
-    .find((el) => el.closest('.settings__field')?.textContent?.includes('contoh baris'))
+    .find((el) => el.closest('.settings__field')?.textContent?.includes('sample rows'))
   if (!box || !box.checked) return false
   box.click()
   return true
@@ -511,7 +513,7 @@ await ev(`(() => {
   const box = document.querySelector('.ai__input')
   if (!box) return false
   const setter = Object.getOwnPropertyDescriptor(box.constructor.prototype, 'value').set
-  setter.call(box, '__SQL__ tampilkan 3 baris dari tabel users')
+  setter.call(box, '__SQL__ show 3 rows from the users table')
   box.dispatchEvent(new Event('input', { bubbles: true }))
   box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
   return true

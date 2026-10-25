@@ -94,6 +94,43 @@ async function main(): Promise<void> {
   )
   check('window mounts', mounted)
 
+  // Menu labels come from the renderer's catalogue (the app sends them on mount
+  // and on a language change), so the harness has to send them before it can
+  // find items by label.
+  const labelsSent = await evaluate<boolean>(
+    win,
+    `(async () => {
+      const labels = {
+        'appMenu.settings': 'Settings...',
+        'appMenu.checkUpdates': 'Check for updates...',
+        'appMenu.file': 'File',
+        'appMenu.edit': 'Edit',
+        'appMenu.view': 'View',
+        'appMenu.tools': 'Tools',
+        'appMenu.window': 'Window',
+        'appMenu.newConnection': 'New connection...',
+        'appMenu.importConnections': 'Import connections (Navicat)...',
+        'appMenu.exportConnections': 'Export connections...',
+        'appMenu.newGroup': 'New connection group...',
+        'appMenu.newQuery': 'New query',
+        'appMenu.importQuery': 'Import query from .sql file...',
+        'appMenu.queryHistory': 'Query history',
+        'appMenu.findObjects': 'Find objects',
+        'appMenu.browseTables': 'Browse tables',
+        'appMenu.diagram': 'Diagram',
+        'appMenu.assistantPanel': 'Assistant panel',
+        'appMenu.reloadTree': 'Reload object tree',
+        'appMenu.transfer': 'Data Transfer',
+        'appMenu.sync': 'Sync',
+        'appMenu.backup': 'Backup & restore',
+        'appMenu.sessions': 'Active sessions',
+        'appMenu.users': 'Users'
+      }
+      return Boolean(await window.dbApi.setMenuLabels(labels))
+    })()`
+  )
+  check('menu labels are sent', labelsSent)
+
   // Configure the assistant and connect the seeded SQLite connection, so the
   // connection-scoped items have a target and the dock can render its composer.
   await evaluate<boolean>(
@@ -148,11 +185,11 @@ async function main(): Promise<void> {
     ),
     topLabels.join('|')
   )
-  check('settings item exists', findMenuItem('Setelan...') !== null)
-  check('a query item exists', findMenuItem('Query baru') !== null)
+  check('settings item exists', findMenuItem('Settings...') !== null)
+  check('a query item exists', findMenuItem('New query') !== null)
 
   // ---------- File > Query baru ----------
-  check('menu: query baru is clicked', clickMenu('Query baru'))
+  check('menu: query baru is clicked', clickMenu('New query'))
   check(
     'menu: a query tab opens',
     await waitFor(win, 'document.querySelector(".query__toolbar")'),
@@ -162,7 +199,7 @@ async function main(): Promise<void> {
   )
 
   // ---------- File > Koneksi baru ----------
-  check('menu: koneksi baru is clicked', clickMenu('Koneksi baru...'))
+  check('menu: koneksi baru is clicked', clickMenu('New connection...'))
   check(
     'menu: the connection dialog opens',
     await waitFor(win, 'document.querySelector(".conn-form, .modal, .dialog")'),
@@ -181,7 +218,7 @@ async function main(): Promise<void> {
   await sleep(300)
 
   // ---------- View > Panel asisten ----------
-  check('menu: panel asisten is clicked', clickMenu('Panel asisten'))
+  check('menu: panel asisten is clicked', clickMenu('Assistant panel'))
   const dockOpen = await waitFor(win, 'document.querySelector(".ai__composer")')
   check(
     'menu: the assistant dock opens',
@@ -195,14 +232,14 @@ async function main(): Promise<void> {
       })`
     )
   )
-  check('menu: panel asisten is clicked again', clickMenu('Panel asisten'))
+  check('menu: panel asisten is clicked again', clickMenu('Assistant panel'))
   check(
     'menu: the assistant dock closes',
     await waitFor(win, '!document.querySelector(".ai__composer")', 40)
   )
 
   // ---------- Edit > Cari objek ----------
-  check('menu: cari objek is clicked', clickMenu('Cari objek'))
+  check('menu: cari objek is clicked', clickMenu('Find objects'))
   check(
     'menu: the sidebar filter opens',
     await waitFor(win, 'document.querySelector(".sidebar__filter-input")'),
@@ -219,12 +256,12 @@ async function main(): Promise<void> {
   const appLabels = (appMenu?.submenu?.items ?? []).map((item) => item.label)
   check(
     'app menu has settings on mac',
-    process.platform !== 'darwin' || appLabels.includes('Setelan...'),
+    process.platform !== 'darwin' || appLabels.includes('Settings...'),
     appLabels.join('|')
   )
 
   // ---------- accelerators follow the keymap ----------
-  const filterItem = findMenuItem('Cari objek')
+  const filterItem = findMenuItem('Find objects')
   check(
     'menu: the filter shortcut comes from the keymap',
     filterItem?.accelerator === 'CmdOrCtrl+F',
@@ -240,7 +277,7 @@ async function main(): Promise<void> {
     })()`
   )
   await sleep(700)
-  const rebound = findMenuItem('Cari objek')
+  const rebound = findMenuItem('Find objects')
   check(
     'menu: a rebound shortcut reaches the menu',
     rebound?.accelerator === 'CmdOrCtrl+K',

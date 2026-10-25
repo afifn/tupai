@@ -339,7 +339,7 @@ export function TableQuickEdit({
         className="modal modal--tableedit"
         role="dialog"
         aria-modal="true"
-        aria-label={`Edit tabel ${target.table}`}
+        aria-label={tr('quick.editTableLabel', { table: target.table })}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="tableedit__head">
@@ -445,7 +445,9 @@ export function TableQuickEdit({
                         value={row.name}
                         onChange={(e) => updateRow(row.id, { name: e.target.value })}
                         spellCheck={false}
-                        aria-label={`Nama kolom ${row.name || 'baru'}`}
+                        aria-label={tr('quick.columnNameLabel', {
+                          name: row.name || tr('quick.newColumnName')
+                        })}
                       />
                     </td>
                     <td>
@@ -455,7 +457,9 @@ export function TableQuickEdit({
                         value={row.dataType}
                         onChange={(e) => updateRow(row.id, { dataType: e.target.value })}
                         spellCheck={false}
-                        aria-label={`Tipe data ${row.name || 'baru'}`}
+                        aria-label={tr('quick.columnTypeLabel', {
+                          name: row.name || tr('quick.unnamedColumn')
+                        })}
                       />
                     </td>
                     <td className="tableedit__cell-flag">
@@ -463,7 +467,9 @@ export function TableQuickEdit({
                         className={`tableedit__toggle${row.nullable ? '' : ' is-on'}`}
                         onClick={() => updateRow(row.id, { nullable: !row.nullable })}
                         aria-pressed={!row.nullable}
-                        title={row.nullable ? 'Boleh NULL' : tr('quick.notNull')}
+                        title={
+                          row.nullable ? tr('quick.nullableTitle') : tr('quick.notNull')
+                        }
                       >
                         {row.nullable ? 'YES' : 'NO'}
                       </button>
@@ -475,7 +481,9 @@ export function TableQuickEdit({
                         onChange={(e) =>
                           updateRow(row.id, { primaryKey: e.target.checked })
                         }
-                        aria-label={`Primary key ${row.name || 'baru'}`}
+                        aria-label={tr('quick.columnPkLabel', {
+                          name: row.name || tr('quick.unnamedColumn')
+                        })}
                       />
                     </td>
                     <td>
@@ -487,7 +495,9 @@ export function TableQuickEdit({
                         }
                         placeholder="NULL"
                         spellCheck={false}
-                        aria-label={`Default ${row.name || 'baru'}`}
+                        aria-label={tr('quick.columnDefaultLabel', {
+                          name: row.name || tr('quick.unnamedColumn')
+                        })}
                       />
                     </td>
                     <td className="tableedit__cell-flag">
@@ -497,7 +507,9 @@ export function TableQuickEdit({
                         onChange={(e) =>
                           updateRow(row.id, { autoIncrement: e.target.checked })
                         }
-                        aria-label={`Auto increment ${row.name || 'baru'}`}
+                        aria-label={tr('quick.columnAiLabel', {
+                          name: row.name || tr('quick.unnamedColumn')
+                        })}
                       />
                     </td>
                   </tr>

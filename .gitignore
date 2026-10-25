@@ -2,6 +2,7 @@ node_modules/
 out/
 dist/
 release/
+rea/
 *.log
 run.err
 smoke-test.db
@@ -25,3 +26,9 @@ connections.ncx
 # Local agent scratch and CDP probe screenshots
 .playwright-mcp/
 tree-*.png
+
+# Codebase-memory index artifact (large, machine-local).
+.codebase-memory/
+
+# Local agent scratch state.
+.opencode/index/

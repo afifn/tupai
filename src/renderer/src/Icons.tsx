@@ -140,6 +140,14 @@ export function IconSearch({ size = 15 }: IconProps): JSX.Element {
   )
 }
 
+export function IconFilter({ size = 15 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M2.5 3.5h11L9.2 8.3v4.2l-2.4 1.3V8.3z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function IconKey({ size = 15 }: IconProps): JSX.Element {
   return (
     <svg {...svgProps(size)}>
