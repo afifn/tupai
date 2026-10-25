@@ -6,10 +6,13 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/) dan
 [Semantic Versioning](https://semver.org/lang/id/). Versi masih di jalur `0.x`,
 jadi antarmuka dan format file bisa berubah antar rilis minor.
 
-## [Unreleased]
+## [0.2.0] - 2026-10-25
 
 ### Ditambahkan
 
+- Tiga bahasa baru: 简体中文, 日本語, dan Español. Pemilih bahasa kini berupa
+  dropdown di Setelan, dan setiap label ditulis dalam bahasanya sendiri.
+- **English menjadi bahasa utama** dan default untuk profil baru.
 - Tab query baru mengikuti database dan schema yang terakhir dibuka di sidebar.
   Sebelumnya tombol `+` (juga `⌘1` dan menu Query) memilih database non-sistem
   pertama di server, bukan database yang sedang ditelusuri. Klik database atau
@@ -18,6 +21,25 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ### Diubah
 
+- Di macOS, toolbar kini menempati baris title bar: judul jendela bawaan
+  dihapus (`titleBarStyle: hiddenInset`), traffic lights duduk di baris yang
+  sama, dan toolbar bisa dipakai untuk menggeser jendela. Ruang untuk traffic
+  lights dilepas otomatis saat fullscreen. Platform lain tetap memakai frame
+  bawaan.
+- Tab Data/Form/Structure/Import-Export dibuat lebih padat (teks 12px, padding
+  5px/10px) dan judul tabel turun dari 16px ke 13px, sehingga lebih banyak
+  baris terlihat.
+- Filter tabel dipindah ke baris tab: tombol **Filter** di kanan tab membuka
+  panel kondisi. Saat tertutup, tidak ada baris filter yang memakan tempat.
+- Filter tabel disederhanakan menjadi satu daftar kondisi. Panel langsung
+  menyediakan satu baris kosong, dengan pemilih AND/OR, jumlah kondisi aktif,
+  tombol **Add a condition**, dan **Reset to default**.
+- Label menu aplikasi, isi footer, dan puluhan teks yang masih hardcode
+  (konfirmasi hapus, aria-label, catatan tabel tanpa primary key, dsb.) kini
+  berasal dari katalog locale. Sebelumnya menu dan footer tetap berbahasa
+  Indonesia walau antarmuka sudah diganti.
+- Nama engine (MySQL, MariaDB, PostgreSQL, Oracle, SQLite, MongoDB) tetap
+  tidak diterjemahkan.
 - Ikon engine di sidebar kini memakai warna mereknya meskipun koneksi belum
   tersambung, dengan opasitas sebagai pembeda (0.85 vs 1). Sebelumnya ikon
   di-desaturasi total sehingga MySQL, MariaDB, Oracle, dan MongoDB tampak sama
@@ -43,6 +65,16 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ### Diperbaiki
 
+- Tab yang baru dibuka tidak terlihat saat tab bar sudah penuh: strip tab kini
+  otomatis menggulir ke tab aktif, dan kembali saat tab di kiri dipilih.
+- Tabel berkedip saat pertama kali dibuka: peringatan "tanpa primary key"
+  sempat muncul lalu hilang, dan kotak tabel baru terbentuk setelah data tiba
+  sehingga tata letak melompat. Peringatan kini menunggu data, dan rangka tabel
+  plus pager sudah ada sejak awal.
+- Bundel main gagal dibangun setelah katalog bertambah banyak
+  ("Unterminated string literal"). Penyebabnya katalog locale ikut ter-bundle ke
+  proses main lewat `menu.ts`; menu native kini menerima label dari renderer
+  lewat IPC, sehingga main tidak lagi membawa ~6.500 string terjemahan.
 - Pemisah statement tidak lagi membuang komentar blok yang dieksekusi server.
   `/*!40101 SET NAMES utf8 */;` (bentuk yang ditulis mysqldump) tetap dikirim
   saat import atau restore, alih-alih dianggap komentar kosong.
@@ -56,49 +88,6 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
   duduk di sumbu yang sama di dalam bar 38px. Sebelumnya tab editor 30.75px
   sehingga strip meluber 2.75px melewati garis bawah tab bar, sementara tab
   panel kanan hanya 26px.
-
-## [0.2.0] - 2026-10-25
-
-### Ditambahkan
-
-- Tiga bahasa baru: 简体中文, 日本語, dan Español. Pemilih bahasa kini berupa
-  dropdown di Setelan, dan setiap label ditulis dalam bahasanya sendiri.
-- **English menjadi bahasa utama** dan default untuk profil baru.
-
-### Diubah
-
-- Di macOS, toolbar kini menempati baris title bar: judul jendela bawaan
-  dihapus (`titleBarStyle: hiddenInset`), traffic lights duduk di baris yang
-  sama, dan toolbar bisa dipakai untuk menggeser jendela. Ruang untuk traffic
-  lights dilepas otomatis saat fullscreen. Platform lain tetap memakai frame
-  bawaan.
-- Tab Data/Form/Structure/Import-Export dibuat lebih padat (teks 12px, padding
-  5px/10px) dan judul tabel turun dari 16px ke 13px, sehingga lebih banyak
-  baris terlihat.
-- Filter tabel dipindah ke baris tab: tombol **Filter** di kanan tab membuka
-  panel kondisi. Saat tertutup, tidak ada baris filter yang memakan tempat.
-- Filter tabel disederhanakan menjadi satu daftar kondisi. Panel langsung
-  menyediakan satu baris kosong, dengan pemilih AND/OR, jumlah kondisi aktif,
-  tombol **Add a condition**, dan **Reset to default**.
-- Label menu aplikasi, isi footer, dan puluhan teks yang masih hardcode
-  (konfirmasi hapus, aria-label, catatan tabel tanpa primary key, dsb.) kini
-  berasal dari katalog locale. Sebelumnya menu dan footer tetap berbahasa
-  Indonesia walau antarmuka sudah diganti.
-- Nama engine (MySQL, MariaDB, PostgreSQL, Oracle, SQLite, MongoDB) tetap
-  tidak diterjemahkan.
-
-### Diperbaiki
-
-- Tab yang baru dibuka tidak terlihat saat tab bar sudah penuh: strip tab kini
-  otomatis menggulir ke tab aktif, dan kembali saat tab di kiri dipilih.
-- Tabel berkedip saat pertama kali dibuka: peringatan "tanpa primary key"
-  sempat muncul lalu hilang, dan kotak tabel baru terbentuk setelah data tiba
-  sehingga tata letak melompat. Peringatan kini menunggu data, dan rangka tabel
-  plus pager sudah ada sejak awal.
-- Bundel main gagal dibangun setelah katalog bertambah banyak
-  ("Unterminated string literal"). Penyebabnya katalog locale ikut ter-bundle ke
-  proses main lewat `menu.ts`; menu native kini menerima label dari renderer
-  lewat IPC, sehingga main tidak lagi membawa ~6.500 string terjemahan.
 
 ## [0.1.1] - 2026-10-25
 
@@ -324,6 +313,6 @@ ditandatangani.
 - SQLite tidak mendukung `ALTER COLUMN`, perubahan primary key, atau manajemen
   user; perubahan seperti itu dilaporkan `unsupported`.
 
-Belum ada tag rilis di repositori; `0.0.1` adalah versi yang tertulis di
-`package.json`. Bagian `Unreleased` akan menjadi rilis berikutnya, dan tautan
-perbandingan ditambahkan setelah tag pertama dibuat.
+Setiap versi di atas sudah punya tag dan GitHub Release. Naikkan `version` di
+`package.json` dan tambahkan bagian baru di file ini sebelum merilis; lihat
+`DEVELOPING.md` untuk urutan build dan publikasinya.
