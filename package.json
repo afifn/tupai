@@ -57,8 +57,6 @@
     "fast-xml-parser": "^5.11.2",
     "mongodb": "^6.10.0",
     "mysql2": "^3.11.3",
-    "open-codebase-index": "^0.38.0",
-    "opencode-codebase-index": "^0.38.0",
     "oracledb": "^6.6.0",
     "pg": "^8.13.1",
     "pg-cursor": "^2.22.1",
