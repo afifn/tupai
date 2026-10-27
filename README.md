@@ -187,4 +187,4 @@ Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).
 
 ## Lisensi
 
-Belum ditentukan. Tambahkan file `LICENSE` sebelum distribusi publik.
+Tupai dirilis dengan lisensi [MIT](LICENSE). Copyright (c) 2026 Tupai.

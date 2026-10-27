@@ -8,6 +8,11 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+### Ditambahkan
+
+- Lisensi MIT (`LICENSE`), plus metadata `license` di `package.json` dan
+  tautan lisensi di README.
+
 ### Diperbaiki
 
 - Ketika proses database berhenti, aplikasi kini memberi tahu. Sebelumnya semua

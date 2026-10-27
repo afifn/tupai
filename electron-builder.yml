@@ -27,6 +27,9 @@ npmRebuild: true
 extraResources:
   - from: build/worker-package.json
     to: app.asar.unpacked/out/main/package.json
+  # The MIT notice must travel with every distributed copy of the app.
+  - from: LICENSE
+    to: LICENSE
 # Update feed. electron-builder writes latest.yml / latest-mac.yml next to the
 # artifacts, and electron-updater reads them from the matching GitHub release, so
 # a Windows install only ever sees the Windows installer and a mac install only
