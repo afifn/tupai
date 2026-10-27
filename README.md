@@ -1,176 +1,254 @@
+<div align="center">
+
+<img src="build/icon.png" alt="Ikon Tupai" width="96" />
+
 # Tupai
 
-Aplikasi desktop untuk mengelola beberapa database sekaligus: MySQL, MariaDB,
-PostgreSQL, Oracle, SQLite, dan MongoDB. Dibangun dengan Electron, React, dan
-TypeScript.
+### Satu aplikasi desktop untuk enam engine database.
 
-Semua operasi database berjalan di worker thread, kredensial disimpan lewat
-penyimpanan aman OS, dan setiap channel IPC divalidasi sebelum menyentuh driver.
+**MySQL · MariaDB · PostgreSQL · Oracle · SQLite · MongoDB**
+
+Jelajahi objek, edit data, tulis query, dan pindahkan data tanpa berpindah alat.
+
+[![Rilis terbaru](https://img.shields.io/github/v/release/afifn/tupai?style=flat-square)](https://github.com/afifn/tupai/releases)
+[![Lisensi MIT](https://img.shields.io/github/license/afifn/tupai?style=flat-square)](LICENSE)
+[![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=flat-square&logo=apple)](https://github.com/afifn/tupai/releases)
+[![Electron 45](https://img.shields.io/badge/Electron-45-47848F?style=flat-square&logo=electron)](https://www.electronjs.org/)
+
+[Unduh](#memasang) · [Fitur](#fitur) · [Dukungan engine](#dukungan-engine) · [Mulai cepat](#mulai-cepat) · [Pembaruan](#pembaruan) · [FAQ](#faq) · [Lisensi](#lisensi)
+
+</div>
+
+> [!IMPORTANT]
+> Unduh Tupai hanya dari [halaman rilis resmi](https://github.com/afifn/tupai/releases).
+> Build macOS saat ini belum ditandatangani dan belum dinotarisasi, jadi macOS
+> menolak pembukaan pertama sampai Anda membukanya lewat klik kanan → **Open**.
+> Repositori dengan nama mirip atau README salinan tidak menjamin unduhan resmi.
+
+---
+
+Tupai menyatukan pekerjaan sehari-hari seorang pengguna database ke satu jendela:
+membuka koneksi, menelusuri database dan schema, mengedit baris, menulis SQL,
+membandingkan struktur, memindahkan data, dan membaca rencana query. Tidak ada
+server perantara dan tidak ada akun cloud.
+
+Semua operasi database berjalan di **worker thread** terpisah dari antarmuka.
+Kredensial dienkripsi oleh penyimpanan aman OS dan tidak pernah dikirim balik ke
+tampilan. Setiap channel IPC divalidasi sebelum menyentuh driver.
 
 ## Fitur
 
-**Koneksi**
+### Koneksi
 
-- Enam engine: MySQL, MariaDB, PostgreSQL, Oracle, SQLite, MongoDB.
-- Port dan opsi bawaan per engine, mengikuti port saat engine diganti.
-- Grup koneksi dengan warna penanda, drag & drop antar grup.
-- SSH tunnel (MySQL/MariaDB, PostgreSQL) dengan verifikasi host key.
-- SSL/TLS dengan CA, client cert, dan key.
-- Test connection sebelum menyimpan.
+- Enam engine: MySQL, MariaDB, PostgreSQL, Oracle, SQLite, dan MongoDB.
+- Port serta opsi bawaan per engine; port mengikuti saat engine diganti.
+- Grup koneksi dengan warna penanda dan drag & drop antar grup.
+- SSH tunnel untuk MySQL/MariaDB dan PostgreSQL, dengan verifikasi host key.
+- SSL/TLS dengan CA, client certificate, dan private key (MySQL/MariaDB,
+  PostgreSQL).
+- Tombol **Test** sebelum koneksi disimpan.
 - Impor dan ekspor koneksi Navicat (`.ncx`). Password tidak pernah didekripsi
   atau ikut diekspor.
 
-**Menjelajah objek**
+### Menjelajah objek
 
-- Tree Database → Schema → Tabel/View, plus grup Saved queries dan Routines
-  (function, procedure, trigger, event). Kolom tampil di panel Detail, bukan di
-  tree.
-- Browser objek dengan jumlah baris, ukuran, komentar, dan engine.
-- Pencarian cepat lintas objek yang sudah dimuat (tabel, view, routine, dan
-  query tersimpan) lewat `Mod+F`; pencarian kolom belum termasuk.
-- Context menu lengkap untuk koneksi, database, schema, tabel, view, dan routine.
+- Tree Database → Schema → Tabel/View, plus Routines (function, procedure,
+  trigger, event) dan Saved queries.
+- Kolom tampil di panel Detail, bukan memenuhi tree.
+- Informasi tabel: jumlah baris, ukuran, komentar, dan engine.
+- Pencarian cepat lintas objek yang sudah dimuat lewat `Mod+F`.
+- Menu konteks untuk koneksi, database, schema, tabel, view, dan routine.
+- Fokus sidebar mengikuti database/schema yang Anda klik, sehingga tab query
+  baru selalu terbuka pada scope yang terlihat.
 
-**Data**
+### Data
 
 - Grid dengan paging, sorting, filter cepat, dan filter multi-kondisi (AND/OR).
-- Edit sel sesuai tipe data, tambah baris inline, hapus banyak baris dalam satu
-  transaksi.
+- Edit sel sesuai tipe kolom, tambah baris inline, dan hapus banyak baris dalam
+  satu transaksi.
 - Preview BLOB: gambar, teks, atau hex dump.
 - Form view untuk melihat satu record per halaman.
-- Tampilan diagram tabel dan relasi (ER) dengan edit langsung.
+- Diagram tabel dan relasi (ER) dengan penyuntingan langsung.
 
-**Query**
+### Query dan asisten
 
 - Editor Monaco dengan autocomplete tabel/kolom, multi-tab, dan riwayat query.
-- Batas baris ditegakkan di sisi driver, jadi `SELECT *` pada tabel besar tidak
+- Batas baris ditegakkan di driver, jadi `SELECT *` pada tabel besar tidak
   memuat seluruh hasil ke memori.
 - Hentikan query yang sedang berjalan (PostgreSQL, MySQL, Oracle).
-- Workspace hasil: satu tab per statement, tab Messages, dan query plan
-  (EXPLAIN) di area hasil yang sama.
-- Jalankan hanya bagian yang diseleksi.
+- Area hasil berisi satu tab per statement, tab Messages, dan query plan
+  (EXPLAIN).
+- Jalankan seluruh isi editor atau hanya bagian yang dipilih.
 - Transaksi manual (MySQL, MariaDB, PostgreSQL, Oracle): mulai transaksi,
-  jalankan beberapa statement, lalu **Commit** atau **Rollback**. Perubahan
-  belum terlihat oleh sesi lain sampai di-commit, dan menutup tab atau memutus
-  koneksi akan menanyakan nasib transaksi itu.
-- Beautify lokal memakai `sql-formatter`.
+  jalankan beberapa statement, lalu **Commit** atau **Rollback**. Menutup tab
+  atau memutus koneksi akan menanyakan nasib transaksi.
+- Beautify lokal dengan `sql-formatter`.
 - Query Builder visual untuk SELECT.
-- Asisten AI (endpoint OpenAI-compatible) dengan streaming dan tombol berhenti,
-  rujukan tabel via `@nama_tabel`, serta aksi SQL (optimize, explain, komentar,
+- Asisten AI dengan endpoint OpenAI-compatible: streaming, tombol berhenti,
+  rujukan tabel lewat `@nama_tabel`, dan aksi SQL (optimize, explain, komentar,
   konversi dialek).
-- Jawaban asisten yang berisi satu `SELECT` menampilkan maksimal lima baris
-  sebagai pratinjau. Permintaan lebih dari lima baris hanya menampilkan query,
-  dan pratinjau bisa dimatikan di Setelan.
-- Asisten selalu menerima konteks engine dan database yang sedang dibuka, dan
-  perannya dikunci ke urusan database: instruksi pengguna tidak bisa
-  mengubahnya menjadi chatbot umum.
+- Jawaban `SELECT` menampilkan pratinjau maksimal lima baris; permintaan lebih
+  dari lima baris hanya menampilkan query. Pratinjau bisa dimatikan di Setelan.
+- Asisten selalu menerima konteks engine dan database yang terbuka, dan perannya
+  dikunci ke urusan database.
 
-**Struktur dan administrasi**
+### Struktur dan administrasi
 
-- Table Designer: kolom, index, foreign key, komentar, info & DDL.
+- Table Designer: kolom, index, foreign key, komentar, info, dan DDL.
 - View Designer.
-- User dan permission (MySQL, MariaDB, PostgreSQL, Oracle; tidak untuk SQLite
-  dan MongoDB).
-- Monitor sesi dengan kemampuan menghentikan sesi lain (semua engine kecuali
-  SQLite, yang tidak punya sesi server).
+- User dan permission (MySQL, MariaDB, PostgreSQL, Oracle).
+- Monitor sesi dan hentikan sesi lain (semua engine kecuali SQLite).
 - Import CSV dan SQL; ekspor CSV, JSON, dan SQL. Backup & restore SQL dengan
-  riwayat (backup tidak tersedia untuk MongoDB).
+  riwayat.
 - Data Transfer antar tabel, termasuk lintas engine, dengan pratinjau dan dry
   run.
-- Sinkronisasi struktur dan data antar database, dengan pratinjau diff sebelum
-  deploy. Tabel tanpa primary key ditolak untuk sinkronisasi data.
+- Sinkronisasi struktur dan data antar database dengan pratinjau diff sebelum
+  deploy. Sinkronisasi data menolak tabel tanpa primary key.
 
-**Antarmuka dan preferensi**
+### Antarmuka dan preferensi
 
-- Menu aplikasi native (File, Edit, View, Tools, Window). Item yang tidak punya
-  target dinonaktifkan, dan shortcut-nya mengikuti keymap yang tersimpan.
-- Satu dialog Setelan dengan tujuh bagian: Umum, Tampilan, Editor, Grid,
-  Asisten, Keymap, dan Tentang.
-- Lima tema (Terang, Gelap, Light Ocean, Dark Forest, Kustom) plus palet kustom
-  terang/gelap yang diturunkan dari empat warna inti dan divalidasi kontras.
-- Lima bahasa: English (utama), Bahasa Indonesia, 简体中文, 日本語, dan Español,
-  dipilih lewat dropdown di Setelan. Istilah teknis (nama engine, `NULL`,
-  `BLOB`, kata kunci SQL) tidak diterjemahkan.
+- Menu aplikasi native yang mengikuti keymap tersimpan dan menonaktifkan item
+  tanpa target.
+- Setelan dengan delapan bagian: Umum, Tampilan, Editor, Grid, Oracle, Asisten,
+  Keymap, dan Tentang.
+- Lima tema: Terang, Gelap, Light Ocean, Dark Forest, dan Kustom. Palet kustom
+  diturunkan dari empat warna inti dan divalidasi kontrasnya.
+- Lima bahasa: English (utama), Bahasa Indonesia, 简体中文, 日本語, dan Español.
+  Nama engine, `NULL`, `BLOB`, dan kata kunci SQL tidak diterjemahkan.
 - Keymap yang bisa diubah untuk sepuluh aksi shell.
-- Notifikasi desktop untuk hasil operasi, dengan hitungan waktu yang berhenti
-  saat kursor berada di atasnya.
-- Pemeriksaan pembaruan otomatis saat aplikasi dibuka. Lihat
-  [Pembaruan](#pembaruan).
+- Notifikasi hasil operasi di dalam aplikasi, dengan hitungan waktu yang
+  berhenti saat kursor berada di atasnya.
+- Pemeriksaan pembaruan saat aplikasi dibuka.
+
+## Dukungan engine
+
+Semua engine memiliki grid data, filter, dan penyuntingan sel. Kemampuan yang
+berbeda per engine:
+
+| Kemampuan          | MySQL | MariaDB | PostgreSQL | Oracle |  SQLite  | MongoDB |
+| ------------------ | :---: | :-----: | :--------: | :----: | :------: | :-----: |
+| SQL editor         |  Ya   |   Ya    |     Ya     |   Ya   |    Ya    |    —    |
+| Struktur & DDL     |  Ya   |   Ya    |     Ya     |   Ya   | Terbatas |    —    |
+| User & permission  |  Ya   |   Ya    |     Ya     |   Ya   |    —     |    —    |
+| Monitor sesi       |  Ya   |   Ya    |     Ya     |   Ya   |    —     |   Ya    |
+| Backup/restore SQL |  Ya   |   Ya    |     Ya     |   Ya   |    Ya    |    —    |
+| Sinkronisasi       |  Ya   |   Ya    |     Ya     |   Ya   |    Ya    |    —    |
+| Transaksi manual   |  Ya   |   Ya    |     Ya     |   Ya   |    —     |    —    |
+| Diagram ER         |  Ya   |   Ya    |     Ya     |   Ya   |    Ya    |    —    |
+
+- **MongoDB** adalah document store: tanpa SQL editor, DDL, sinkronisasi,
+  backup SQL, atau manajemen user.
+- **SQLite** tidak bisa `ALTER COLUMN` atau mengganti primary key. Perubahan
+  seperti itu dilaporkan `unsupported`, bukan diterapkan diam-diam.
+- Sinkronisasi data memerlukan primary key, termasuk primary key komposit.
 
 ## Memasang
 
-Unduh dari halaman [rilis](https://github.com/afifn/tupai/releases).
+### macOS
 
-**macOS**: buka `Tupai-<versi>-arm64.dmg` (Apple Silicon) atau
-`Tupai-<versi>-x64.dmg` (Intel), lalu seret Tupai ke Applications.
+Unduh dari [halaman rilis](https://github.com/afifn/tupai/releases):
 
-**Windows**: jalankan `Tupai Setup <versi>.exe`.
+- `Tupai-<versi>-arm64.dmg` untuk Apple Silicon
+- `Tupai-<versi>-x64.dmg` untuk Intel
 
-Build macOS belum ditandatangani dan belum dinotarisasi, jadi Gatekeeper
-menolak pembukaan pertama. Buka lewat klik kanan → **Open** sekali, atau
-jalankan:
+Buka DMG, lalu seret Tupai ke Applications. Build belum ditandatangani, jadi
+Gatekeeper menolak pembukaan pertama. Buka lewat klik kanan → **Open** sekali,
+atau jalankan:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Tupai.app
 ```
 
-## Menggunakan
+### Windows
 
-1. **Buat koneksi.** Klik **Koneksi** di toolbar, pilih engine, isi host, port,
-   user, dan password. Untuk SQLite pilih file database. Tab SSL dan SSH
+Target build Windows sudah ada di repositori (`npm run dist:win`), tetapi
+installer Windows belum dipublikasikan di halaman rilis. Bagian ini akan
+diperbarui saat build Windows tersedia.
+
+### Dari sumber
+
+Butuh Node.js 22.12+ (disarankan 24.x LTS) dan npm.
+
+```bash
+npm install
+npm run rebuild
+npm run dev
+```
+
+Membuat build macOS tanpa tanda tangan:
+
+```bash
+npm run dist:mac:unsigned
+```
+
+## Mulai cepat
+
+1. **Buat koneksi.** Klik **Koneksi baru** di toolbar, pilih engine, lalu isi host,
+   port, user, dan password. Untuk SQLite pilih file database. Tab SSL dan SSH
    opsional. Tekan **Test** sebelum menyimpan.
-2. **Buka objek.** Klik dua kali koneksi di sidebar untuk menyambung, lalu
-   bentangkan database dan schema. Klik nama tabel untuk membuka datanya.
-3. **Jelajahi dan edit data.** Grid punya paging, sorting, filter, dan edit sel
-   sesuai tipe kolom. Tambah baris lewat tombol di pager; hapus banyak baris
-   sekaligus dengan multi-select. Tabel tanpa primary key bersifat read-only.
+2. **Buka objek.** Klik dua kali koneksi di sidebar, bentangkan database dan
+   schema, lalu klik nama tabel untuk membuka datanya.
+3. **Jelajahi dan edit.** Gunakan paging, sorting, dan filter. Tambah baris lewat
+   tombol di pager; pilih beberapa baris untuk menghapus sekaligus. Tabel tanpa
+   primary key bersifat read-only.
 4. **Tulis query.** Buka tab Query (`Mod+1`), pilih database dan schema di bar
    atas, lalu jalankan dengan `Mod+Enter`. Pilih sebagian teks untuk menjalankan
-   hanya bagian itu. Hasil muncul per statement, bersama tab Messages dan plan.
-5. **Pakai asisten.** Buka panel asisten dari toolbar, lalu tanyakan soal skema
-   atau data. Ketik `@` untuk merujuk tabel tertentu beserta kolomnya. Blok SQL
-   di jawaban bisa disisipkan ke editor, dan jawaban `SELECT` menampilkan
-   pratinjau baris.
-6. **Pindahkan atau cadangkan.** Gunakan **Transfer** untuk memindahkan data
-   antar tabel (termasuk lintas engine), **Sync** untuk menyamakan struktur/data
-   antar database, dan **Backup** untuk dump SQL.
+   bagian itu saja.
+5. **Pakai asisten.** Buka panel asisten, lalu tanyakan soal skema atau data.
+   Ketik `@` untuk merujuk tabel beserta kolomnya. Blok SQL di jawaban bisa
+   disisipkan ke editor.
+6. **Pindahkan atau cadangkan.** Gunakan **Transfer** untuk memindahkan data,
+   **Sync** untuk menyamakan struktur/data, dan **Backup** untuk dump SQL.
 7. **Atur aplikasi.** `Mod+,` membuka Setelan: bahasa, tema, font editor, ukuran
    grid, konfigurasi asisten, keymap, dan info versi.
 
-Shortcut yang sering dipakai: `Mod+1` query baru, `Mod+Enter` jalankan,
-`Mod+W` tutup tab, `Mod+F` cari objek, `Mod+,` setelan. Semua bisa diubah di
-Setelan → Keymap.
+### Pintasan
+
+| Aksi              | macOS | Windows/Linux |
+| ----------------- | ----- | ------------- |
+| Tab query baru    | `⌘1`  | `Ctrl+1`      |
+| Jalankan query    | `⌘↩`  | `Ctrl+Enter`  |
+| Tutup tab         | `⌘W`  | `Ctrl+W`      |
+| Cari objek        | `⌘F`  | `Ctrl+F`      |
+| Buka Setelan      | `⌘,`  | `Ctrl+,`      |
+| Buka tab Users    | `⌘2`  | `Ctrl+2`      |
+| Buka tab Sessions | `⌘6`  | `Ctrl+6`      |
+
+Semua pintasan bisa diubah di **Setelan → Keymap**.
 
 ## Pembaruan
 
 Aplikasi memeriksa rilis baru saat dibuka dan menampilkan notifikasi bila ada
-versi lebih baru. Pemeriksaan juga bisa dijalankan manual dari
-**Setelan → Tentang → Periksa pembaruan**, atau dari menu aplikasi.
+versi lebih baru. Pemeriksaan manual ada di **Setelan → Tentang → Periksa
+pembaruan**, atau di menu aplikasi.
 
-- **Windows**: pembaruan diunduh di latar belakang lalu dipasang saat Anda
-  menekan **Pasang dan mulai ulang**. Installer yang diunduh selalu cocok dengan
-  Windows dan arsitektur yang terpasang.
-- **macOS**: build saat ini belum ditandatangani, sehingga macOS tidak
-  mengizinkan aplikasi mengganti dirinya sendiri. Panel menampilkan versi baru
-  dan tombol **Buka halaman unduhan**; unduh DMG lalu pasang seperti biasa.
-  Begitu build ditandatangani dengan Developer ID, pembaruan macOS memasang
-  sendiri tanpa perubahan kode.
+- **Windows** (bila build tersedia): pembaruan diunduh di latar belakang lalu
+  dipasang saat Anda menekan **Pasang dan mulai ulang**.
+- **macOS**: build belum ditandatangani, sehingga macOS tidak mengizinkan
+  aplikasi mengganti dirinya sendiri. Panel menampilkan versi baru dan tombol
+  **Buka halaman unduhan**; unduh DMG lalu pasang seperti biasa.
 
-Tidak ada data yang dikirim saat memeriksa pembaruan selain permintaan versi ke
-GitHub. Koneksi database, kredensial, dan setelan Anda tidak pernah ikut.
+Saat memeriksa pembaruan, Tupai hanya mengirim permintaan versi ke GitHub.
+Koneksi database, kredensial, dan setelan tidak pernah ikut.
 
 ## Kebutuhan sistem
 
-- macOS 13 atau lebih baru (Apple Silicon atau Intel), atau Windows 10/11 64-bit.
-- Untuk Oracle, driver memerlukan Oracle Client sesuai aturan Oracle sendiri.
-- MongoDB tidak punya SQL editor, DDL, sync, backup, atau manajemen user.
-- SQLite tidak mendukung `ALTER COLUMN`, perubahan primary key, atau manajemen
-  user; perubahan seperti itu dilaporkan `unsupported`.
+- **macOS 13 atau lebih baru**, Apple Silicon atau Intel.
+- **Windows 10/11 64-bit**: target build tersedia, installer publik belum
+  diterbitkan.
+- **Oracle**: server 12.1+ berjalan dengan mode thin. Server yang lebih lama
+  memerlukan Oracle Instant Client dan mode thick, yang diatur di
+  **Setelan → Oracle**.
+- **MongoDB**: tanpa SQL editor, DDL, sinkronisasi, backup SQL, atau manajemen
+  user.
+- **SQLite**: tanpa manajemen user dan tanpa `ALTER COLUMN`/perubahan primary
+  key.
 
 ## Data dan privasi
 
-Semua data tersimpan lokal di folder data aplikasi, yang lokasinya bisa dibuka
-dari **Setelan → Tentang → Folder data**. Isinya antara lain koneksi, setelan,
-query tersimpan, dan riwayat.
+Semua data tersimpan lokal di folder data aplikasi. Lokasinya bisa dibuka dari
+**Setelan → Tentang → Folder data**. Isinya antara lain koneksi, setelan, query
+tersimpan, dan riwayat.
 
 - Password database, passphrase SSH, dan API key AI dienkripsi dengan
   penyimpanan aman OS (`safeStorage`). Bila OS tidak menyediakannya,
@@ -178,13 +256,100 @@ query tersimpan, dan riwayat.
 - Kredensial tidak pernah dikirim ke tampilan.
 - Host key SSH diverifikasi: koneksi pertama dicatat, dan perubahan sidik jari
   memblokir koneksi sebelum autentikasi.
-- Setelan bisa diekspor dan diimpor. API key tidak pernah ikut karena tinggal di
-  file terpisah di balik `safeStorage`.
+- Setelan bisa diekspor dan diimpor. API key tidak ikut karena tinggal di file
+  terpisah di balik `safeStorage`.
 
-## Changelog
+## FAQ
 
-Riwayat perubahan ada di [CHANGELOG.md](CHANGELOG.md).
+<details>
+<summary><strong>Apakah Tupai gratis?</strong></summary>
+
+Ya. Kode dan build Tupai dirilis dengan lisensi [MIT](LICENSE). Tidak ada akun,
+langganan, atau server yang perlu dijalankan.
+</details>
+
+<details>
+<summary><strong>Apakah data database saya dikirim ke internet?</strong></summary>
+
+Tidak. Semua koneksi dan operasi berjalan langsung dari komputer Anda. Satu-satunya
+permintaan keluar adalah pemeriksaan versi saat aplikasi dibuka, dan permintaan
+ke endpoint AI bila Anda mengaktifkan Asisten.
+</details>
+
+<details>
+<summary><strong>Kenapa macOS menolak membuka Tupai?</strong></summary>
+
+Build saat ini belum ditandatangani dan dinotarisasi. Buka lewat klik kanan →
+**Open** sekali, atau jalankan `xattr -dr com.apple.quarantine /Applications/Tupai.app`.
+</details>
+
+<details>
+<summary><strong>Apakah sudah ada build Windows?</strong></summary>
+
+Belum. Target build Windows ada di repositori, tetapi installer belum
+dipublikasikan. Rilis saat ini berisi build macOS arm64 dan x64.
+</details>
+
+<details>
+<summary><strong>Engine mana yang mendukung transaksi manual?</strong></summary>
+
+MySQL, MariaDB, PostgreSQL, dan Oracle. SQLite menjalankan setiap statement
+langsung. MongoDB tidak memakai transaksi SQL.
+</details>
+
+<details>
+<summary><strong>Apakah aman menyambung ke database produksi?</strong></summary>
+
+Tupai bisa menyambung ke server mana pun yang kredensialnya Anda masukkan, tetapi
+edit data, DDL, dan sinkronisasi langsung mengubah target. Uji dulu pada salinan
+atau database pengembangan, dan pastikan backup tersedia. Tabel tanpa primary key
+otomatis read-only.
+</details>
+
+<details>
+<summary><strong>Di mana setelan dan koneksi disimpan?</strong></summary>
+
+Di folder data aplikasi, yang bisa dibuka dari **Setelan → Tentang → Folder
+data**. Tidak ada data yang disimpan di server.
+</details>
+
+<details>
+<summary><strong>Bagaimana melaporkan bug atau meminta fitur?</strong></summary>
+
+Buka [issue](https://github.com/afifn/tupai/issues) dengan versi Tupai, engine
+dan versi server, langkah reproduksi, serta pesan error. Log dan lokasi folder
+data ada di **Setelan → Tentang**.
+</details>
+
+## Changelog dan dokumentasi
+
+- [CHANGELOG.md](CHANGELOG.md) — riwayat perubahan per rilis.
+- [Halaman rilis](https://github.com/afifn/tupai/releases) — installer, ZIP, dan
+  catatan rilis.
+- [Issues](https://github.com/afifn/tupai/issues) — laporan bug dan permintaan
+  fitur.
+- [LICENSE](LICENSE) — teks lisensi MIT.
+
+## Kontribusi
+
+Issue dan pull request terbuka. Sebelum mengirim perubahan, jalankan:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+```
+
+Untuk perubahan yang menyentuh driver, IPC, atau sinkronisasi, jalankan juga
+smoke test yang sesuai. Sertakan langkah verifikasi di deskripsi pull request.
 
 ## Lisensi
 
-Tupai dirilis dengan lisensi [MIT](LICENSE). Copyright (c) 2026 Tupai.
+[MIT](LICENSE). Copyright (c) 2026 Tupai.
+
+## Catatan penggunaan
+
+Tupai adalah alat administrasi database. Perintah yang Anda jalankan, termasuk
+`DROP`, `TRUNCATE`, perubahan struktur, dan sinkronisasi, berlaku langsung pada
+database tujuan. Pastikan Anda berhak mengubah target tersebut dan memiliki
+backup sebelum menjalankan operasi yang merusak.
