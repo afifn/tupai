@@ -1046,7 +1046,9 @@ export type MenuAction =
   | 'assistant.toggle'
   | 'sidebar.filter'
   | 'settings.open'
+  | 'edit.selectAll'
   | 'update.check'
+  | 'about.open'
   | 'app.reloadTree'
 
 // Which menu items make sense right now. The renderer owns this knowledge (it

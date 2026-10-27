@@ -122,6 +122,7 @@ export const id = {
   'settings.ai.noModels': 'Server tidak mengembalikan model apa pun.',
   'settings.ai.modelsFound': '{count} model ditemukan.',
 
+  'settings.keymap.shortcut': 'Pintasan',
   'settings.keymap.hint':
     'Klik rekam, lalu tekan kombinasi. Pintasan internal editor tetap milik editor.',
   'settings.keymap.record': 'Rekam',
@@ -299,6 +300,8 @@ export const id = {
   'menu.disconnect': 'Putuskan',
   'menu.editConnection': 'Ubah koneksi',
   'menu.newDatabase': 'Database baru',
+  'appMenu.about': 'Tentang Tupai',
+  'appMenu.selectAll': 'Pilih semua',
   'appMenu.settings': 'Setelan...',
   'appMenu.checkUpdates': 'Periksa pembaruan...',
   'appMenu.file': 'File',
@@ -522,6 +525,7 @@ export const id = {
   'designer.pkFor': 'Primary key untuk {name}',
   'designer.aiFor': 'Auto increment untuk {name}',
   'designer.namePlaceholder': 'nama_kolom',
+  'designer.name': 'Nama',
   'designer.nameLabel': 'Nama kolom',
   'designer.typeLabel': 'Tipe kolom',
   'designer.defaultPlaceholder': 'literal SQL',
@@ -1119,6 +1123,7 @@ export const id = {
   // Detail panel
   'detail.selectedRow': 'Baris terpilih',
   'detail.loading': 'Memuat detail...',
+  'detail.columns': 'Kolom',
   'detail.noColumns': 'Tidak ada kolom yang bisa dibaca.',
   'detail.primaryKey': 'Primary key',
   'detail.notNull': 'NOT NULL',

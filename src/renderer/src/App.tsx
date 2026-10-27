@@ -2141,6 +2141,8 @@ export function App(): JSX.Element {
   // Send the translated labels whenever the language changes.
   useEffect(() => {
     const keys = [
+      'appMenu.about',
+      'appMenu.selectAll',
       'appMenu.settings',
       'appMenu.checkUpdates',
       'appMenu.file',
@@ -2240,6 +2242,24 @@ export function App(): JSX.Element {
         case 'sidebar.filter':
           setFilterOpen(true)
           requestAnimationFrame(() => filterInputRef.current?.select())
+          break
+        case 'edit.selectAll': {
+          // The page itself is not a document (body is user-select: none), so
+          // Select All belongs to the focused field or the SQL editor. Doing
+          // nothing anywhere else keeps the chrome from turning into a block of
+          // highlighted text.
+          const el = document.activeElement
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.select()
+          } else if (el instanceof HTMLElement && el.closest('.monaco-editor')) {
+            const editor = activeTabId ? queryEditors.current.get(activeTabId) : undefined
+            editor?.selectAll()
+          }
+          break
+        }
+        case 'about.open':
+          setSettingsSection('about')
+          setSettingsOpen(true)
           break
         case 'settings.open':
           setSettingsSection('general')
@@ -3108,7 +3128,11 @@ export function App(): JSX.Element {
               onContextSchema={(target, x, y) => setSchemaMenu({ target, x, y })}
               onContextTable={(target, x, y) => setTableMenu({ target, x, y })}
               onContextRoutine={(target, x, y) => setRoutineMenu({ target, x, y })}
-              onFocusScope={(target) =>
+              onFocusScope={(target) => {
+                // Expanding a database or schema is also a selection: the tree
+                // highlight, the menus, and a new query tab must follow it even
+                // when another connection was focused a moment ago.
+                setActiveId(target.connectionId)
                 setTreeFocus((prev) => {
                   const current = prev[target.connectionId]
                   if (
@@ -3125,7 +3149,7 @@ export function App(): JSX.Element {
                     }
                   }
                 })
-              }
+              }}
               onOpenDefinition={(target) =>
                 openDefinition({
                   connectionId: target.connectionId,

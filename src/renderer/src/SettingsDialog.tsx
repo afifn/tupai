@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AiSettings, AiSettingsInput, AppInfo, UpdateState } from '@shared/types'
 import type { AppSettings } from '@shared/settings'
 import { MONO_FONTS } from '@shared/settings'
-import { DEFAULT_KEYMAP, KEYMAP_ACTIONS, type ActionId } from '@shared/keymap'
+import {
+  DEFAULT_KEYMAP,
+  KEYMAP_ACTIONS,
+  formatBindingLabel,
+  type ActionId
+} from '@shared/keymap'
 import {
   CHROME_GROUPS,
   CORE_TOKENS,
@@ -1009,7 +1014,7 @@ function KeymapSection({ settings, update }: SectionProps): JSX.Element {
         <thead>
           <tr>
             <th>{tr('settings.section.keymap')}</th>
-            <th>Shortcut</th>
+            <th>{tr('settings.keymap.shortcut')}</th>
             <th />
           </tr>
         </thead>
@@ -1025,7 +1030,9 @@ function KeymapSection({ settings, update }: SectionProps): JSX.Element {
                 <td>{tr(`settings.keymap.action.${action}` as MessageKey)}</td>
                 <td>
                   <code className="settings__binding">
-                    {recording === action ? tr('settings.keymap.recording') : value}
+                    {recording === action
+                      ? tr('settings.keymap.recording')
+                      : formatBindingLabel(value, window.dbApi.platform)}
                   </code>
                   {conflict && (
                     <span className="settings__conflict">

@@ -111,6 +111,7 @@ export const en: Record<MessageKey, string> = {
   'settings.ai.noModels': 'The server returned no model.',
   'settings.ai.modelsFound': '{count} models found.',
 
+  'settings.keymap.shortcut': 'Shortcut',
   'settings.keymap.hint':
     'Click record, then press a combination. The editor keeps its own internal shortcuts.',
   'settings.keymap.record': 'Record',
@@ -284,6 +285,8 @@ export const en: Record<MessageKey, string> = {
   'menu.disconnect': 'Disconnect',
   'menu.editConnection': 'Edit connection',
   'menu.newDatabase': 'New database',
+  'appMenu.about': 'About Tupai',
+  'appMenu.selectAll': 'Select All',
   'appMenu.settings': 'Settings...',
   'appMenu.checkUpdates': 'Check for updates...',
   'appMenu.file': 'File',
@@ -495,6 +498,7 @@ export const en: Record<MessageKey, string> = {
   'designer.pkFor': 'Primary key for {name}',
   'designer.aiFor': 'Auto increment for {name}',
   'designer.namePlaceholder': 'column_name',
+  'designer.name': 'Name',
   'designer.nameLabel': 'Column name',
   'designer.typeLabel': 'Column type',
   'designer.defaultPlaceholder': 'SQL literal',
@@ -1074,6 +1078,7 @@ export const en: Record<MessageKey, string> = {
 
   'detail.selectedRow': 'Selected row',
   'detail.loading': 'Loading detail...',
+  'detail.columns': 'Columns',
   'detail.noColumns': 'No readable columns.',
   'detail.primaryKey': 'Primary key',
   'detail.notNull': 'NOT NULL',

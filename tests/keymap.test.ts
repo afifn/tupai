@@ -6,6 +6,7 @@ import {
   DEFAULT_KEYMAP,
   findConflicts,
   formatBinding,
+  formatBindingLabel,
   matchesBinding,
   parseBinding,
   type Keymap
@@ -42,6 +43,28 @@ describe('parseBinding', () => {
   it('rejects an empty binding', () => {
     expect(parseBinding('')).toBeNull()
     expect(parseBinding('   ')).toBeNull()
+  })
+})
+
+describe('formatBindingLabel', () => {
+  it('uses macOS glyphs', () => {
+    expect(formatBindingLabel('Mod+,', 'darwin')).toBe('⌘,')
+    expect(formatBindingLabel('Mod+Shift+F', 'darwin')).toBe('⌘⇧F')
+    expect(formatBindingLabel('Mod+Enter', 'darwin')).toBe('⌘↩')
+  })
+
+  it('spells modifiers on Windows and Linux', () => {
+    expect(formatBindingLabel('Mod+,', 'win32')).toBe('Ctrl+,')
+    expect(formatBindingLabel('Mod+Shift+F', 'win32')).toBe('Ctrl+Shift+F')
+    expect(formatBindingLabel('Mod+Enter', 'linux')).toBe('Ctrl+Enter')
+  })
+
+  it('uppercases a single letter key', () => {
+    expect(formatBindingLabel('Mod+w', 'win32')).toBe('Ctrl+W')
+  })
+
+  it('keeps unparseable text as it is', () => {
+    expect(formatBindingLabel('Hyper+F', 'darwin')).toBe('Hyper+F')
   })
 })
 

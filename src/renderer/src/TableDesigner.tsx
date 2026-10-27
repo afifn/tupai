@@ -1215,8 +1215,8 @@ export function TableDesigner(props: Props): JSX.Element {
             <table className="designer__list">
               <thead>
                 <tr>
-                  <th>Nama</th>
-                  <th>Kolom</th>
+                  <th>{tr('designer.name')}</th>
+                  <th>{tr('designer.colColumns')}</th>
                   <th>{tr('designer.reference')}</th>
                   <th>{tr('designer.onUpdateDelete')}</th>
                   <th aria-label={tr('designer.actions')} />

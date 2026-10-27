@@ -32,9 +32,11 @@ export const ja: Record<MessageKey, string> = {
   'settings.oracle.browse': 'フォルダーを選択',
   'settings.oracle.download': 'Instant Client をダウンロード',
   'settings.oracle.downloadHint':
-    'ブラウザーで Oracle のダウンロードページを開きます。アプリと同じ OS とアーキテクチャの Basic パッケージを選び、展開してそのフォルダーを上で指定してください。',  'settings.oracle.clear': 'クリア',
+    'ブラウザーで Oracle のダウンロードページを開きます。アプリと同じ OS とアーキテクチャの Basic パッケージを選び、展開してそのフォルダーを上で指定してください。',
+  'settings.oracle.clear': 'クリア',
   'settings.oracle.modeHint':
-    '空欄は thin モードです。フォルダーにはアプリと同じアーキテクチャの oci.dll（Windows）または libclntsh（macOS/Linux）が必要です。',  'settings.section.ai': 'AI',
+    '空欄は thin モードです。フォルダーにはアプリと同じアーキテクチャの oci.dll（Windows）または libclntsh（macOS/Linux）が必要です。',
+  'settings.section.ai': 'AI',
   'settings.section.keymap': 'キーマップ',
   'settings.section.about': 'このアプリについて',
   'settings.sectionNav': '設定セクション',
@@ -100,6 +102,7 @@ export const ja: Record<MessageKey, string> = {
   'settings.ai.saved': 'AI 設定を保存しました。',
   'settings.ai.noModels': 'サーバーはモデルを返しませんでした。',
   'settings.ai.modelsFound': '{count} 件のモデルが見つかりました。',
+  'settings.keymap.shortcut': 'ショートカット',
   'settings.keymap.hint':
     '記録を押してからキーの組み合わせを押します。エディターは独自のショートカットを保持します。',
   'settings.keymap.record': '記録',
@@ -269,6 +272,8 @@ export const ja: Record<MessageKey, string> = {
   'menu.disconnect': '切断',
   'menu.editConnection': '接続を編集',
   'menu.newDatabase': '新しいデータベース',
+  'appMenu.about': 'Tupai について',
+  'appMenu.selectAll': 'すべて選択',
   'appMenu.settings': '設定...',
   'appMenu.checkUpdates': '更新を確認...',
   'appMenu.file': 'ファイル',
@@ -380,7 +385,8 @@ export const ja: Record<MessageKey, string> = {
   'query.selectAllLabel': 'すべての行を取得',
   'error.notConnected': 'サーバーへの接続は既に有効ではありません。',
   'error.connectionLost':
-    'この接続は開かれていましたが、現在は存在しません。再接続してから操作をやり直してください。',  'error.noStatement': '実行する SQL がありません。',
+    'この接続は開かれていましたが、現在は存在しません。再接続してから操作をやり直してください。',
+  'error.noStatement': '実行する SQL がありません。',
   'error.noStatementToExplain': '説明する SQL がありません。',
   'error.noValues': '保存する値がありません。',
   'error.primaryKeyRequired': 'この操作には主キーが必要です。',
@@ -469,6 +475,7 @@ export const ja: Record<MessageKey, string> = {
   'designer.pkFor': '{name} を主キーにする',
   'designer.aiFor': '{name} を自動増分にする',
   'designer.namePlaceholder': 'column_name',
+  'designer.name': '名前',
   'designer.nameLabel': '列名',
   'designer.typeLabel': '列の型',
   'designer.defaultPlaceholder': 'SQL リテラル',
@@ -797,7 +804,8 @@ export const ja: Record<MessageKey, string> = {
   'app.loadingConnections': '接続を読み込み中...',
   'app.workerLost':
     'データベースプロセスが停止したため（{message}）、すべての接続が失われました。開いていた接続に再接続してください。',
-  'app.workerLostLastOp': '最後の操作: {op}。',  'app.newQueryTab': '新しいクエリタブ',
+  'app.workerLostLastOp': '最後の操作: {op}。',
+  'app.newQueryTab': '新しいクエリタブ',
   'app.viewDefinition': 'CREATE ビュー定義を表示',
   'app.create': '作成',
   'app.exportDatabase': 'データベースをエクスポート',
@@ -1028,6 +1036,7 @@ export const ja: Record<MessageKey, string> = {
   'sessions.colActions': '操作',
   'detail.selectedRow': '選択中の行',
   'detail.loading': '詳細を読み込み中...',
+  'detail.columns': '列',
   'detail.noColumns': '読み取れる列がありません。',
   'detail.primaryKey': '主キー',
   'detail.notNull': 'NOT NULL',
@@ -1453,7 +1462,8 @@ export const ja: Record<MessageKey, string> = {
     'thin モードは Oracle 12.1 以降のみ対応です。それより古いサーバーでは、設定で Oracle Instant Client のフォルダーを指定してから再試行してください。',
   'connErr.oracleClientTitle': 'Oracle Instant Client を使用できません',
   'connErr.oracleClientHint':
-    '設定の Instant Client フォルダーを確認してください。oci.dll（Windows）または libclntsh（macOS/Linux）が必要で、アプリと同じアーキテクチャである必要があります。詳細: {detail}',  'connErr.tlsTitle': 'TLS/SSL に失敗しました',
+    '設定の Instant Client フォルダーを確認してください。oci.dll（Windows）または libclntsh（macOS/Linux）が必要で、アプリと同じアーキテクチャである必要があります。詳細: {detail}',
+  'connErr.tlsTitle': 'TLS/SSL に失敗しました',
   'connErr.tlsHint':
     'サーバー証明書が SSL 設定と一致しません。接続の SSL モードを確認してください。',
   'connErr.sshTitle': 'SSH トンネルに失敗しました',

@@ -6,7 +6,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/) dan
 [Semantic Versioning](https://semver.org/lang/id/). Versi masih di jalur `0.x`,
 jadi antarmuka dan format file bisa berubah antar rilis minor.
 
-## [Unreleased]
+## [0.2.1] - 2026-10-27
 
 ### Ditambahkan
 
@@ -15,6 +15,23 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ### Diperbaiki
 
+- Tabel Oracle bernama quoted-lowercase (misalnya `"orders"`) kini menampilkan
+  data. Driver meng-uppercase nama tabel saat membaca kolom, primary key,
+  index, foreign key, komentar, dan DDL, sehingga katalog tidak menemukannya
+  dan grid terbuka tanpa kolom. Nama kini dipakai persis seperti yang
+  dikembalikan katalog, termasuk schema quoted; pencarian objek memakai
+  `UPPER(...)` agar tetap tidak peka huruf besar/kecil.
+- Label **Kolom** di panel Detail, header tabel foreign key, dan header tabel
+  pintasan di Setelan kini mengikuti bahasa antarmuka. Sebelumnya teksnya
+  hardcode "Kolom"/"Nama"/"Shortcut".
+- Memilih database atau schema di sidebar kini juga memindahkan fokus ke
+  koneksinya. Sebelumnya, setelah membuka koneksi lain, memperluas database
+  pada koneksi pertama tetap meninggalkan fokus di koneksi kedua, sehingga
+  toolbar dan tab query baru memakai server yang salah.
+- Item **Tentang Tupai** di menu bar macOS kini membuka panel Tentang yang sama
+  dengan Setelan. Sebelumnya ia memakai panel bawaan Electron, sehingga versi,
+  build, dan pemeriksaan pembaruan tidak terlihat, dan di mode dev nama
+  aplikasinya tertulis "Electron".
 - Ketika proses database berhenti, aplikasi kini memberi tahu. Sebelumnya semua
   koneksi hilang bersama thread itu tanpa pemberitahuan, dan UI tetap
   menampilkannya sebagai terbuka sampai operasi berikutnya gagal dengan pesan
@@ -37,6 +54,16 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ### Diubah
 
+- Label pintasan di Setelan kini mengikuti platform: `⌘⇧F` di macOS dan
+  `Ctrl+Shift+F` di Windows/Linux, bukan teks mentah `Mod+Shift+F`.
+- Dialog Setelan menyesuaikan lebar/tinggi jendela, dan kontrolnya sedikit
+  lebih lega di Windows agar tidak terasa sempit. Di layar sempit, kolom
+  navigasi menyempit dan padding berkurang.
+- Chrome aplikasi kini bersikap seperti jendela desktop, bukan halaman web:
+  drag tidak lagi menyorot label, tab, toolbar, tree, atau status bar. Yang
+  tetap bisa dipilih hanya isian, editor SQL, tabel hasil, teks SQL/DDL, pesan,
+  dan balasan Asisten. Menu Edit > Select All kini memilih isi field atau
+  seluruh buffer editor yang sedang fokus, bukan seluruh halaman.
 - Asisten AI tidak lagi menampilkan blok tool call palsu. Prompt kini menyatakan
   bahwa asisten tidak punya akses database dan tidak boleh menulis
   `<function_calls>`; balasan yang tetap memuatnya dibersihkan sebelum ditampilkan

@@ -32,9 +32,11 @@ export const es: Record<MessageKey, string> = {
   'settings.oracle.browse': 'Elegir carpeta',
   'settings.oracle.download': 'Descargar Instant Client',
   'settings.oracle.downloadHint':
-    'Abre la página de descargas de Oracle en el navegador. Elige el paquete Basic para el mismo sistema operativo y arquitectura que la aplicación, extráelo y selecciona esa carpeta arriba.',  'settings.oracle.clear': 'Vaciar',
+    'Abre la página de descargas de Oracle en el navegador. Elige el paquete Basic para el mismo sistema operativo y arquitectura que la aplicación, extráelo y selecciona esa carpeta arriba.',
+  'settings.oracle.clear': 'Vaciar',
   'settings.oracle.modeHint':
-    'Vacío significa modo thin. La carpeta debe contener oci.dll (Windows) o libclntsh (macOS/Linux) con la misma arquitectura que la aplicación.',  'settings.section.ai': 'IA',
+    'Vacío significa modo thin. La carpeta debe contener oci.dll (Windows) o libclntsh (macOS/Linux) con la misma arquitectura que la aplicación.',
+  'settings.section.ai': 'IA',
   'settings.section.keymap': 'Atajos',
   'settings.section.about': 'Acerca de',
   'settings.sectionNav': 'Secciones de ajustes',
@@ -105,6 +107,7 @@ export const es: Record<MessageKey, string> = {
   'settings.ai.saved': 'Ajustes de IA guardados.',
   'settings.ai.noModels': 'El servidor no devolvió ningún modelo.',
   'settings.ai.modelsFound': '{count} modelos encontrados.',
+  'settings.keymap.shortcut': 'Atajo',
   'settings.keymap.hint':
     'Haz clic en grabar y pulsa una combinación. El editor conserva sus propios atajos internos.',
   'settings.keymap.record': 'Grabar',
@@ -274,6 +277,8 @@ export const es: Record<MessageKey, string> = {
   'menu.disconnect': 'Desconectar',
   'menu.editConnection': 'Editar conexión',
   'menu.newDatabase': 'Nueva base de datos',
+  'appMenu.about': 'Acerca de Tupai',
+  'appMenu.selectAll': 'Seleccionar todo',
   'appMenu.settings': 'Ajustes...',
   'appMenu.checkUpdates': 'Buscar actualizaciones...',
   'appMenu.file': 'Archivo',
@@ -385,7 +390,8 @@ export const es: Record<MessageKey, string> = {
   'query.selectAllLabel': 'Obtener todas las filas',
   'error.notConnected': 'La conexión con el servidor ya no está activa.',
   'error.connectionLost':
-    'Esta conexión estaba abierta pero ya no existe. Vuelve a conectarla y ejecuta la operación otra vez.',  'error.noStatement': 'No hay SQL para ejecutar.',
+    'Esta conexión estaba abierta pero ya no existe. Vuelve a conectarla y ejecuta la operación otra vez.',
+  'error.noStatement': 'No hay SQL para ejecutar.',
   'error.noStatementToExplain': 'No hay SQL para explicar.',
   'error.noValues': 'No hay valores para guardar.',
   'error.primaryKeyRequired': 'Esta operación necesita una clave primaria.',
@@ -477,6 +483,7 @@ export const es: Record<MessageKey, string> = {
   'designer.pkFor': 'Clave primaria para {name}',
   'designer.aiFor': 'Autonumérico para {name}',
   'designer.namePlaceholder': 'column_name',
+  'designer.name': 'Nombre',
   'designer.nameLabel': 'Nombre de la columna',
   'designer.typeLabel': 'Tipo de columna',
   'designer.defaultPlaceholder': 'literal SQL',
@@ -809,7 +816,8 @@ export const es: Record<MessageKey, string> = {
   'app.loadingConnections': 'Cargando conexiones...',
   'app.workerLost':
     'El proceso de base de datos se detuvo ({message}), así que todas las conexiones se perdieron. Vuelve a conectar las que tenías abiertas.',
-  'app.workerLostLastOp': 'Última operación: {op}.',  'app.newQueryTab': 'Nueva pestaña de consulta',
+  'app.workerLostLastOp': 'Última operación: {op}.',
+  'app.newQueryTab': 'Nueva pestaña de consulta',
   'app.viewDefinition': 'Ver la definición CREATE de la vista',
   'app.create': 'Crear',
   'app.exportDatabase': 'Exportar base de datos',
@@ -1044,6 +1052,7 @@ export const es: Record<MessageKey, string> = {
   'sessions.colActions': 'Acciones',
   'detail.selectedRow': 'Fila seleccionada',
   'detail.loading': 'Cargando detalle...',
+  'detail.columns': 'Columnas',
   'detail.noColumns': 'No hay columnas legibles.',
   'detail.primaryKey': 'Clave primaria',
   'detail.notNull': 'NOT NULL',
@@ -1481,7 +1490,8 @@ export const es: Record<MessageKey, string> = {
     'El modo thin solo admite Oracle 12.1 y posteriores. Para un servidor anterior, indica la carpeta de Oracle Instant Client en Ajustes y vuelve a intentarlo.',
   'connErr.oracleClientTitle': 'No se puede usar Oracle Instant Client',
   'connErr.oracleClientHint':
-    'Revisa la carpeta de Instant Client en Ajustes: debe contener oci.dll (Windows) o libclntsh (macOS/Linux), y su arquitectura debe coincidir con la aplicación. Detalle: {detail}',  'connErr.tlsTitle': 'TLS/SSL falló',
+    'Revisa la carpeta de Instant Client en Ajustes: debe contener oci.dll (Windows) o libclntsh (macOS/Linux), y su arquitectura debe coincidir con la aplicación. Detalle: {detail}',
+  'connErr.tlsTitle': 'TLS/SSL falló',
   'connErr.tlsHint':
     'El certificado del servidor no coincide con los ajustes de SSL. Revisa el modo SSL de la conexión.',
   'connErr.sshTitle': 'El túnel SSH falló',

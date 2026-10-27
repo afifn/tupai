@@ -56,6 +56,38 @@ body {
     sans-serif;
   font-size: 14px;
   line-height: 1.5;
+  /* Desktop chrome: labels, tabs, toolbars, and tree rows are not a document,
+     so dragging across them must not paint a text selection. Surfaces whose
+     text is worth copying or editing opt back in below. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable='true'],
+pre,
+code,
+.data-table,
+.data-table *,
+.tableedit__grid,
+.tableedit__grid *,
+.designer__grid,
+.designer__grid *,
+.qmsg__table,
+.qmsg__table *,
+.ai__preview-table,
+.ai__preview-table *,
+.ai__content,
+.ai__content *,
+.notice,
+.notice *,
+.toast__body,
+.toast__body *,
+.settings__path {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 button {
@@ -1478,10 +1510,32 @@ button {
 /* Settings dialog. A sidebar keeps seven sections reachable without scrolling,
    and the body scrolls on its own so the section list never moves. */
 .modal--settings {
+  width: min(880px, 100%);
   max-width: 880px;
   height: min(680px, 88vh);
   padding: 0;
   overflow: hidden;
+}
+
+/* Windows controls sit a little taller than macOS ones. The same pane should
+   not feel cramped next to Explorer or a native dialog on either platform. */
+:root[data-platform='win32'] .settings__nav-item {
+  padding: 7px 9px;
+  font-size: 13px;
+}
+
+:root[data-platform='win32'] .settings__pane {
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .settings {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+
+  .settings__nav {
+    padding: 12px 6px;
+  }
 }
 
 .settings {

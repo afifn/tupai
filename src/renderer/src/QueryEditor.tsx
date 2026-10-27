@@ -128,6 +128,8 @@ export interface QueryEditorHandle {
   saveDirty: () => Promise<boolean>
   // Opens the history side panel, used by the native View menu.
   openHistory: () => void
+  // Selects the whole buffer, used by the native Edit > Select All item.
+  selectAll: () => void
   // A manual transaction is open, so the shell must ask before closing the tab
   // or disconnecting: an abrupt close would silently roll the work back.
   hasOpenTransaction: () => boolean
@@ -293,6 +295,9 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
     () => ({
       hasDirty: () => dirtyTabs.length > 0,
       openHistory: () => setPanels((prev) => ({ ...prev, history: true })),
+      selectAll: () => {
+        editorRef.current?.getAction('editor.action.selectAll')?.run()
+      },
       hasOpenTransaction: () => transactionIdRef.current !== null,
       rollbackTransaction,
       commitTransaction,

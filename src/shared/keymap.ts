@@ -75,6 +75,39 @@ export function parseBinding(text: string): Binding | null {
   return binding
 }
 
+// Keys whose name is shorter as a glyph on macOS. The stored form keeps the
+// DOM name so event matching stays platform-neutral; only the label changes.
+const MAC_KEY_GLYPHS: Record<string, string> = {
+  Enter: '↩',
+  Escape: '⎋',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  ArrowLeft: '←',
+  ArrowRight: '→'
+}
+
+/**
+ * Human label for a stored binding on the host platform: `⌘⇧F` on macOS,
+ * `Ctrl+Shift+F` on Windows/Linux. Settings used to print the raw stored form
+ * (`Mod+Shift+F`), which is not a key anyone can press.
+ */
+export function formatBindingLabel(text: string, platform: string): string {
+  const binding = parseBinding(text)
+  if (!binding) return text
+  const key = binding.key.length === 1 ? binding.key.toUpperCase() : binding.key
+  if (platform === 'darwin') {
+    return `${binding.mod ? '⌘' : ''}${binding.shift ? '⇧' : ''}${
+      binding.alt ? '⌥' : ''
+    }${MAC_KEY_GLYPHS[key] ?? key}`
+  }
+  const parts: string[] = []
+  if (binding.mod) parts.push('Ctrl')
+  if (binding.shift) parts.push('Shift')
+  if (binding.alt) parts.push('Alt')
+  parts.push(key)
+  return parts.join('+')
+}
+
 export function formatBinding(binding: Binding): string {
   const parts: string[] = []
   if (binding.mod) parts.push('Mod')

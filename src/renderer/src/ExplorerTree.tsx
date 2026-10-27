@@ -634,6 +634,9 @@ export function ExplorerTree({
               }}
               onContextMenu={(e) => {
                 e.preventDefault()
+                // A context menu acts on the row under the pointer, so the row
+                // must become the focused scope before the menu opens.
+                onFocusScope?.({ database: db })
                 onContextDatabase(
                   { connectionId, engine, database: db },
                   e.clientX,
@@ -679,6 +682,7 @@ export function ExplorerTree({
                             }}
                             onContextMenu={(e) => {
                               e.preventDefault()
+                              onFocusScope?.({ database: db, schema })
                               onContextSchema(
                                 { connectionId, engine, database: db, schema },
                                 e.clientX,

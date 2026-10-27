@@ -7,6 +7,10 @@ import { SettingsProvider } from './settingsStore'
 import './monacoSetup'
 import './styles.css'
 
+// Platform-specific density and control affordances hang off this attribute, so
+// the stylesheet can stay one file instead of two platform variants.
+document.documentElement.dataset.platform = window.dbApi.platform
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>

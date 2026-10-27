@@ -274,7 +274,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async listTables(database: string, schema?: string): Promise<TableInfo[]> {
-    const owner = (schema ?? database ?? this.schema()).toUpperCase()
+    const owner = schema ?? database ?? this.schema()
     const res = await this.require().execute(
       `SELECT table_name, 'TABLE' AS kind FROM all_tables WHERE owner = :owner
        UNION ALL
@@ -292,12 +292,17 @@ class OracleAdapter implements DatabaseAdapter {
     })
   }
 
+  // Oracle folds unquoted identifiers to upper case but keeps quoted ones
+  // exactly, so catalog lookups use the name the catalog returned. A blanket
+  // toUpperCase() made a quoted table such as "orders" invisible to the column
+  // and primary-key queries; the grid then opened with no columns, which looked
+  // like the data was missing.
   async getPrimaryKey(
     _database: string,
     table: string,
     schema?: string
   ): Promise<PrimaryKeyInfo | null> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT con.constraint_name, cc.column_name
        FROM all_constraints con
@@ -305,7 +310,7 @@ class OracleAdapter implements DatabaseAdapter {
          ON cc.owner = con.owner AND cc.constraint_name = con.constraint_name
        WHERE con.constraint_type = 'P' AND con.owner = :owner AND con.table_name = :tbl
        ORDER BY cc.position`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     const rows = (res.rows ?? []) as [string, string][]
     if (rows.length === 0) return null
@@ -317,7 +322,7 @@ class OracleAdapter implements DatabaseAdapter {
     table: string,
     schema?: string
   ): Promise<ColumnInfo[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     // data_type alone is "VARCHAR2"/"NUMBER" without the declared size, so a
     // structure diff saw every sized column as different from its target and a
     // Table Designer round-trip dropped the length. Rebuild the spelling the
@@ -345,7 +350,7 @@ class OracleAdapter implements DatabaseAdapter {
        ) pk ON pk.column_name = c.column_name
        WHERE c.owner = :owner AND c.table_name = :tbl
        ORDER BY c.column_id`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     return (res.rows ?? []).map((r) => {
       const [
@@ -446,7 +451,7 @@ class OracleAdapter implements DatabaseAdapter {
     total: number
   }> {
     const conn = this.require()
-    const owner = (query.schema ?? this.schema()).toUpperCase()
+    const owner = query.schema ?? this.schema()
     const table = qualifiedTable(this.engine, query.table, owner)
     let where = ''
     const binds: Record<string, unknown> = {}
@@ -501,7 +506,7 @@ class OracleAdapter implements DatabaseAdapter {
   async fetchBatch(query: PageQuery): Promise<Record<string, unknown>[]> {
     const oracledb = await loadOracle()
     const conn = this.require()
-    const owner = (query.schema ?? this.schema()).toUpperCase()
+    const owner = query.schema ?? this.schema()
     const table = qualifiedTable(this.engine, query.table, owner)
     const order = orderClause(
       this.engine,
@@ -520,7 +525,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async updateRow(update: RowUpdate): Promise<void> {
-    const owner = (update.schema ?? this.schema()).toUpperCase()
+    const owner = update.schema ?? this.schema()
     const table = qualifiedTable(this.engine, update.table, owner)
     const cols = Object.keys(update.changes)
     const now = update.nowColumns ?? []
@@ -547,7 +552,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async insertRow(insert: RowInsert): Promise<void> {
-    const owner = (insert.schema ?? this.schema()).toUpperCase()
+    const owner = insert.schema ?? this.schema()
     const table = qualifiedTable(this.engine, insert.table, owner)
     const cols = Object.keys(insert.values)
     if (cols.length === 0)
@@ -574,7 +579,7 @@ class OracleAdapter implements DatabaseAdapter {
     rows: Record<string, unknown>[]
   ): Promise<number> {
     if (rows.length === 0) return 0
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const target = qualifiedTable(this.engine, table, owner)
     const cols = Object.keys(rows[0])
     const colList = cols.map((k) => quoteIdent(this.engine, k)).join(', ')
@@ -595,7 +600,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async deleteRow(del: RowDelete): Promise<void> {
-    const owner = (del.schema ?? this.schema()).toUpperCase()
+    const owner = del.schema ?? this.schema()
     const table = qualifiedTable(this.engine, del.table, owner)
     const binds: Record<string, unknown> = {}
     const where = this.buildWhere(del.primaryKeys, binds, 'w')
@@ -611,7 +616,7 @@ class OracleAdapter implements DatabaseAdapter {
     try {
       let deleted = 0
       for (const del of dels) {
-        const owner = (del.schema ?? this.schema()).toUpperCase()
+        const owner = del.schema ?? this.schema()
         const table = qualifiedTable(this.engine, del.table, owner)
         const binds: Record<string, unknown> = {}
         const where = this.buildWhere(del.primaryKeys, binds, 'w')
@@ -637,7 +642,7 @@ class OracleAdapter implements DatabaseAdapter {
       return { deleted: 0, updated: 0, inserted: 0 }
     }
     const conn = this.require()
-    const owner = (changes.schema ?? this.schema()).toUpperCase()
+    const owner = changes.schema ?? this.schema()
     const target = qualifiedTable(this.engine, changes.table, owner)
     // autoCommit stays off until the explicit COMMIT, so any failure rolls the
     // whole table back.
@@ -908,18 +913,18 @@ class OracleAdapter implements DatabaseAdapter {
     table: string,
     schema?: string
   ): Promise<string | null> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const cols = await this.require().execute(
       `SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, data_default
        FROM all_tab_columns WHERE owner = :owner AND table_name = :tbl ORDER BY column_id`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     if (!cols.rows || cols.rows.length === 0) return null
     const pkRes = await this.require().execute(
       `SELECT cc.column_name FROM all_constraints con
        JOIN all_cons_columns cc ON cc.owner = con.owner AND cc.constraint_name = con.constraint_name
        WHERE con.constraint_type = 'P' AND con.owner = :owner AND con.table_name = :tbl`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     const pk = new Set((pkRes.rows ?? []).map((r) => String((r as unknown[])[0])))
     const defs = (cols.rows as unknown[][]).map((r) => {
@@ -953,14 +958,14 @@ class OracleAdapter implements DatabaseAdapter {
     table: string,
     schema?: string
   ): Promise<IndexInfo[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT i.index_name, i.uniqueness, i.index_type, ic.column_name, ic.column_position
        FROM all_indexes i
        JOIN all_ind_columns ic ON ic.index_owner = i.owner AND ic.index_name = i.index_name
        WHERE i.table_owner = :owner AND i.table_name = :tbl
        ORDER BY i.index_name, ic.column_position`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     const byName = new Map<string, IndexInfo>()
     for (const r of (res.rows ?? []) as [string, string, string, string, number][]) {
@@ -983,7 +988,7 @@ class OracleAdapter implements DatabaseAdapter {
     table: string,
     schema?: string
   ): Promise<ForeignKeyInfo[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT c.constraint_name, cc.column_name, r.owner AS ref_owner,
               rc.table_name AS ref_table, rcc.column_name AS ref_column,
@@ -998,7 +1003,7 @@ class OracleAdapter implements DatabaseAdapter {
         AND rcc.position = cc.position
        WHERE c.constraint_type = 'R' AND c.owner = :owner AND c.table_name = :tbl
        ORDER BY c.constraint_name, cc.position`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     const byName = new Map<string, ForeignKeyInfo>()
     for (const r of (res.rows ?? []) as [
@@ -1030,14 +1035,14 @@ class OracleAdapter implements DatabaseAdapter {
     table: string,
     schema?: string
   ): Promise<TableInfoDetail> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT num_rows, blocks, last_analyzed,
               (SELECT comments FROM all_tab_comments tc
                 WHERE tc.owner = t.owner AND tc.table_name = t.table_name) AS comments
        FROM all_tables t
        WHERE owner = :owner AND table_name = :tbl`,
-      { owner, tbl: table.toUpperCase() }
+      { owner, tbl: table }
     )
     const row = (res.rows ?? [])[0] as
       [number | null, number | null, Date | null, string | null] | undefined
@@ -1057,10 +1062,10 @@ class OracleAdapter implements DatabaseAdapter {
     view: string,
     schema?: string
   ): Promise<string | null> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT text FROM all_views WHERE owner = :owner AND view_name = :view`,
-      { owner, view: view.toUpperCase() }
+      { owner, view: view }
     )
     const row = (res.rows ?? [])[0] as [string] | undefined
     return row?.[0] ?? null
@@ -1072,8 +1077,8 @@ class OracleAdapter implements DatabaseAdapter {
     kind: RoutineKind,
     schema?: string
   ): Promise<string | null> {
-    const owner = (schema ?? this.schema()).toUpperCase()
-    const name = routine.toUpperCase()
+    const owner = schema ?? this.schema()
+    const name = routine
     // DBMS_METADATA is the supported way to rebuild a CREATE statement; the
     // source views only contain the body.
     const type =
@@ -1108,7 +1113,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async listRoutines(_database: string, schema?: string): Promise<RoutineInfo[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const out: RoutineInfo[] = []
     const res = await this.require().execute(
       `SELECT object_name, object_type FROM all_objects
@@ -1138,17 +1143,17 @@ class OracleAdapter implements DatabaseAdapter {
     term: string,
     schema?: string
   ): Promise<SearchResult[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const like = `%${term.toUpperCase()}%`
     const out: SearchResult[] = []
     const { modernPaging } = await this.serverCapabilities()
     const objs = await this.require().execute(
       oracleLimitSql(
         `SELECT table_name, 'TABLE' AS kind FROM all_tables
-         WHERE owner = :owner AND table_name LIKE :term
+         WHERE owner = :owner AND UPPER(table_name) LIKE :term
          UNION ALL
          SELECT view_name, 'VIEW' FROM all_views
-         WHERE owner = :owner AND view_name LIKE :term
+         WHERE owner = :owner AND UPPER(view_name) LIKE :term
          ORDER BY 1`,
         200,
         modernPaging
@@ -1165,7 +1170,7 @@ class OracleAdapter implements DatabaseAdapter {
     const cols = await this.require().execute(
       oracleLimitSql(
         `SELECT table_name, column_name, data_type FROM all_tab_columns
-         WHERE owner = :owner AND column_name LIKE :term
+         WHERE owner = :owner AND UPPER(column_name) LIKE :term
          ORDER BY table_name, column_id`,
         200,
         modernPaging
@@ -1178,7 +1183,8 @@ class OracleAdapter implements DatabaseAdapter {
     const routines = await this.require().execute(
       oracleLimitSql(
         `SELECT object_name, object_type FROM all_objects
-         WHERE owner = :owner AND object_type IN ('FUNCTION','PROCEDURE') AND object_name LIKE :term`,
+         WHERE owner = :owner AND object_type IN ('FUNCTION','PROCEDURE')
+           AND UPPER(object_name) LIKE :term`,
         100,
         modernPaging
       ),
@@ -1239,7 +1245,7 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async listTableStats(_database: string, schema?: string): Promise<TableStat[]> {
-    const owner = (schema ?? this.schema()).toUpperCase()
+    const owner = schema ?? this.schema()
     const res = await this.require().execute(
       `SELECT t.table_name, t.num_rows,
               t.blocks * 8192 AS size_bytes,

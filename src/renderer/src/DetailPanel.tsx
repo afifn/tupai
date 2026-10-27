@@ -250,7 +250,8 @@ export function DetailPanel({ selection, inspectedRow }: Props): JSX.Element {
 
           <div className="detail__section">
             <span className="detail__section-head">
-              Kolom <span className="detail__count">{columns.length}</span>
+              {tr('detail.columns')}{' '}
+              <span className="detail__count">{columns.length}</span>
             </span>
             {columns.length === 0 ? (
               <p className="muted detail__empty">{tr('detail.noColumns')}</p>

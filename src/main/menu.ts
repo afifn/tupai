@@ -40,7 +40,9 @@ const NEEDS_SQL: MenuAction[] = ['diagram.open', 'sync.open', 'backup.open']
 // only list the state pass needs.
 const MENU_ACTIONS: MenuAction[] = [
   'settings.open',
+  'edit.selectAll',
   'update.check',
+  'about.open',
   'connection.new',
   'connection.import',
   'connection.export',
@@ -147,7 +149,7 @@ export function installApplicationMenu(
             // platforms; a packaged build shows "Tupai" either way.
             label: app.name,
             submenu: [
-              { role: 'about' as const },
+              item(label('appMenu.about'), 'about.open'),
               { type: 'separator' as const },
               item(label('appMenu.settings'), 'settings.open', 'Cmd+,'),
               item(label('appMenu.checkUpdates'), 'update.check'),
@@ -186,7 +188,11 @@ export function installApplicationMenu(
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'selectAll' },
+        // A custom item instead of role: 'selectAll'. The role selects every
+        // selectable node in the page, which is exactly the web-page behaviour
+        // the renderer now avoids; this routes the command to the focused
+        // field or SQL editor instead.
+        item(label('appMenu.selectAll'), 'edit.selectAll', 'CmdOrCtrl+A'),
         { type: 'separator' },
         item(label('appMenu.findObjects'), 'sidebar.filter', 'CmdOrCtrl+F')
       ]
