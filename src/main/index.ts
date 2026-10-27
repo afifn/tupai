@@ -1,11 +1,23 @@
-import { app, BrowserWindow, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeImage, shell } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { registerDbHandlers, disposeDbHandlers } from './ipc/dbHandlers'
+import { supportsTitleBarOverlay } from './windowChrome'
 import { refreshApplicationMenu } from './menu'
 import { initUpdater, scheduleStartupCheck } from './update/updater'
 import { log } from './logger'
 import { IPC } from '@shared/ipc-contract'
+import { titleBarColorsSchema } from '@shared/schemas'
+import { toIpcResult } from './workers/dbWorkerClient'
+
+// Whether this window got `titleBarOverlay` at creation. Electron has no getter
+// for it, so the decision is made once and both the window state and the IPC
+// handler read it from here.
+let titleBarOverlayEnabled = false
+
+export function titleBarOverlayActive(): boolean {
+  return titleBarOverlayEnabled
+}
 // electron-vite copies the file into out/ and hands back the runtime path. The
 // packaged exe already embeds build/icon.png through electron-builder, but the
 // dev window and the Linux build need it explicitly or they show the default
@@ -69,6 +81,13 @@ process.on('unhandledRejection', (reason) => {
 })
 
 function createWindow(): void {
+  // Windows and Linux draw their own caption buttons, so the toolbar row can
+  // only become the title bar when the overlay puts those buttons inside it.
+  // `titleBarOverlay` is Windows 11+ and Linux (GTK); Windows 10 ignores it and
+  // would end up with no window controls at all, so the native frame stays there.
+  const usesTitleBarOverlay = supportsTitleBarOverlay()
+  titleBarOverlayEnabled = usesTitleBarOverlay
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -80,13 +99,23 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Tupai',
-    // The toolbar is the title bar on macOS: hiding the native one puts the
-    // traffic lights on the toolbar row and gives back the 28px the title used
-    // to occupy. `hiddenInset` keeps the lights at their standard offset, which
-    // lines up with a 44px toolbar. Other platforms keep the native frame,
-    // because a custom title bar there would have to draw minimise, maximise,
-    // and close buttons itself.
-    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
+    // The toolbar is the title bar: hiding the native one puts the window
+    // controls on the toolbar row and gives back the 28px the title used to
+    // occupy. macOS uses `hiddenInset` so the traffic lights keep their standard
+    // offset. Windows and Linux keep `frame: true` and use `titleBarOverlay`,
+    // which draws the caption buttons inside the toolbar while the OS still
+    // owns their behaviour (snap layout, resize border, system menu). The
+    // overlay colours are placeholder values: the renderer reports the real
+    // toolbar colour once the theme is known, because a CSS variable cannot
+    // reach the native overlay.
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const }
+      : usesTitleBarOverlay
+        ? {
+            titleBarStyle: 'hidden' as const,
+            titleBarOverlay: { color: '#ffffff', symbolColor: '#1b1f24', height: 44 }
+          }
+        : {}),
     // Windows takes the taskbar icon from the exe, but dev runs electron.exe and
     // macOS/Linux use the window icon. Keep both paths on the same mark.
     icon: appIcon,
@@ -100,11 +129,29 @@ function createWindow(): void {
 
   win.on('ready-to-show', () => win.show())
 
+  // The overlay is native, so it cannot follow the theme by itself. The renderer
+  // measures the toolbar and reports both colours whenever the theme changes.
+  if (usesTitleBarOverlay) {
+    ipcMain.handle(IPC.titleBarColors, (event, raw) => {
+      if (event.sender !== win.webContents) return { ok: true, data: true }
+      try {
+        const { color, symbolColor, height } = titleBarColorsSchema.parse(raw)
+        win.setTitleBarOverlay({ color, symbolColor, height })
+        return { ok: true, data: true }
+      } catch (err) {
+        return toIpcResult<boolean>(err)
+      }
+    })
+  }
+
   // In fullscreen macOS hides the traffic lights, so the toolbar must stop
   // reserving room for them. The renderer cannot see native fullscreen itself.
   const sendWindowState = (): void => {
     if (win.isDestroyed()) return
-    win.webContents.send(IPC.windowState, { fullscreen: win.isFullScreen() })
+    win.webContents.send(IPC.windowState, {
+      fullscreen: win.isFullScreen(),
+      titleBarOverlay: titleBarOverlayEnabled
+    })
   }
   win.on('enter-full-screen', sendWindowState)
   win.on('leave-full-screen', sendWindowState)

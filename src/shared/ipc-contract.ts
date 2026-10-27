@@ -99,6 +99,7 @@ export const IPC = {
   updateDownload: 'app:updateDownload',
   updateInstall: 'app:updateInstall',
   updateOpenPage: 'app:updateOpenPage',
+  openExternal: 'app:openExternal',
   updateState: 'app:updateState',
   updateStateEvent: 'app:updateStateEvent',
   // The native menu lives in main, so its items ask the renderer to act, and the
@@ -108,6 +109,9 @@ export const IPC = {
   menuLabels: 'app:menuLabels',
   windowState: 'app:windowState',
   windowStateEvent: 'app:windowStateEvent',
+  titleBarColors: 'app:titleBarColors',
+  workerLostEvent: 'app:workerLost',
+  debugCrashWorker: 'app:debugCrashWorker',
   trustSshHost: 'conn:trustSshHost',
   sshHostFingerprint: 'conn:sshHostFingerprint'
 } as const

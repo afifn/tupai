@@ -71,6 +71,7 @@ import {
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { shortcutLabel } from './platform'
 import { pickDefaultDatabase } from '@shared/databaseChoice'
+import { useSchemaContext } from './useSchemaContext'
 
 type TableView = 'data' | 'form' | 'struct' | 'io' | 'definition'
 
@@ -315,6 +316,11 @@ function TabIcon({ tab }: { tab: Tab }): JSX.Element {
   return <IconTable size={13} />
 }
 
+// Distance kept between the last toolbar control and the native caption buttons.
+// Zero makes the settings button read as part of the minimise/maximise/close
+// cluster instead of a separate control.
+const CAPTION_GAP = 10
+
 export function App(): JSX.Element {
   const [connections, setConnections] = useState<StoredConnection[]>([])
   const [loading, setLoading] = useState(true)
@@ -327,6 +333,13 @@ export function App(): JSX.Element {
   // the tree. Cleared as soon as the connection succeeds again.
   const [connectionErrors, setConnectionErrors] = useState<Map<string, string>>(new Map())
   const [connectingIds, setConnectingIds] = useState<Set<string>>(new Set())
+  // Set when the database worker thread dies: every adapter lives in that thread,
+  // so all connections are gone at once. Shown as a banner so the user knows to
+  // reconnect instead of blaming the server.
+  const [workerLost, setWorkerLost] = useState<{
+    message: string
+    lastOp: string | null
+  } | null>(null)
   const {
     toasts,
     push: pushToast,
@@ -364,22 +377,145 @@ export function App(): JSX.Element {
   // Table tabs whose filter panel is open. The toggle lives in the tab strip
   // (see the table tab below), so the shell owns it instead of the grid.
   const [openFilterTabs, setOpenFilterTabs] = useState<Set<string>>(new Set())
+  const { settings } = useSettings()
+  // Monaco only needs light vs dark; the accent presets are UI-only.
+  const theme: 'light' | 'dark' = settings.general.themeId.startsWith('dark')
+    ? 'dark'
+    : 'light'
   // macOS runs with `titleBarStyle: 'hiddenInset'`, so the toolbar is the title
   // bar: it needs room for the traffic lights, and none in fullscreen where
-  // macOS hides them. Every other platform keeps the native frame.
+  // macOS hides them. Windows 11 and Linux use `titleBarOverlay`, so the OS draws
+  // the caption buttons inside the same row and the renderer only has to keep
+  // them from overlapping the toolbar controls.
   const customTitleBar = window.dbApi.usesCustomTitleBar === true
   const [windowFullscreen, setWindowFullscreen] = useState(false)
+  // Chromium exposes the window-controls overlay directly, and it is the only
+  // source that reflects whether the OS actually drew the caption buttons. The
+  // IPC flag says the window was created with the option; this says it took
+  // effect. Reading it first also avoids one frame with the wrong padding.
+  const [titleBarOverlay, setTitleBarOverlay] = useState(
+    () =>
+      window.dbApi.usesCustomTitleBar !== true &&
+      navigator.windowControlsOverlay?.visible === true
+  )
+  // Right inset for the OS caption buttons, measured from the toolbar itself so
+  // a future width change cannot leave the buttons on top of a control.
+  const [captionInset, setCaptionInset] = useState(0)
+  const toolbarRef = useRef<HTMLElement>(null)
+
+  // The worker holds every adapter, so when its thread dies the app has no
+  // connections left even though the UI still lists them as open. Clearing the
+  // set makes the tree show "connect" again, which is the truth.
+  useEffect(() => {
+    return window.dbApi.onWorkerLost((event) => {
+      setOpenConnectionIds(new Set())
+      setConnectingIds(new Set())
+      clearSchemaCache()
+      setWorkerLost({ message: event.reason.message, lastOp: event.lastOp })
+    })
+  }, [])
 
   useEffect(() => {
-    if (!customTitleBar) return
-    void window.dbApi
-      .getWindowState()
-      .then((res) => {
-        if (res.ok && res.data) setWindowFullscreen(res.data.fullscreen)
-      })
-      .catch(() => undefined)
-    return window.dbApi.onWindowState((state) => setWindowFullscreen(state.fullscreen))
+    if (customTitleBar) {
+      // macOS: the traffic lights are hidden in fullscreen, so the toolbar has to
+      // stop reserving their inset. The renderer cannot see native fullscreen.
+      void window.dbApi
+        .getWindowState()
+        .then((res) => {
+          if (res.ok && res.data) setWindowFullscreen(res.data.fullscreen)
+        })
+        .catch(() => undefined)
+      return window.dbApi.onWindowState((state) => setWindowFullscreen(state.fullscreen))
+    }
+
+    const overlay = navigator.windowControlsOverlay
+    if (!overlay) return
+    const sync = (): void => setTitleBarOverlay(overlay.visible)
+    sync()
+    overlay.addEventListener('geometrychange', sync)
+    return () => overlay.removeEventListener('geometrychange', sync)
   }, [customTitleBar])
+
+  // The caption buttons are drawn by the OS, so their width is not in the DOM.
+  // `getTitlebarAreaRect()` reports the rectangle the OS kept for them, which is
+  // exact; the fallback measures what the toolbar content cannot use.
+  //
+  // The same pass also pushes the overlay colours and height, because a zoom
+  // change fires `resize` but leaves the toolbar's CSS height at 44px: the
+  // overlay is in DIP and would otherwise keep the old, mismatched height.
+  const syncOverlay = useCallback((): void => {
+    const node = toolbarRef.current
+    if (!node) return
+    const zoom = window.dbApi.getZoom() || 1
+    const height = Math.round(node.getBoundingClientRect().height * zoom)
+    // A transparent overlay lets the page paint under the caption buttons, so
+    // the toolbar's own divider runs unbroken to the window edge. The toolbar
+    // background already matches the theme, so nothing is lost by leaving the
+    // overlay colourless; only the symbols need a colour.
+    void window.dbApi
+      .setTitleBarColors('rgba(0,0,0,0)', getComputedStyle(document.body).color, height)
+      .catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    if (!titleBarOverlay) {
+      setCaptionInset(0)
+      return
+    }
+    function measure(): void {
+      const node = toolbarRef.current
+      if (!node) return
+      const overlay = navigator.windowControlsOverlay
+      const area = overlay?.visible ? overlay.getTitlebarAreaRect() : null
+      // The overlay rect is in page CSS pixels, the same coordinate space as the
+      // toolbar, so the two can be subtracted directly. Only the overlay's own
+      // height is in DIP and needs the zoom conversion.
+      if (area) {
+        // Leave a gap between the last control and the caption buttons: at zero
+        // the settings button sits flush against the minimise button and reads as
+        // one cluster.
+        setCaptionInset(
+          Math.max(0, Math.round(node.clientWidth - area.right) + CAPTION_GAP)
+        )
+      } else {
+        const scroll = node.querySelector('.menubar__scroll')
+        const contentWidth = scroll ? scroll.scrollWidth : 0
+        const free = node.clientWidth - contentWidth
+        setCaptionInset(free > 0 ? Math.max(0, Math.round(free)) : 0)
+      }
+      syncOverlay()
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (toolbarRef.current) observer.observe(toolbarRef.current)
+    const overlay = navigator.windowControlsOverlay
+    overlay?.addEventListener('geometrychange', measure)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      overlay?.removeEventListener('geometrychange', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [titleBarOverlay, syncOverlay])
+
+  // The overlay is native, so it cannot read a CSS variable. Re-send after a
+  // theme change: this effect belongs to the app shell, whose parent
+  // SettingsProvider applies the theme attribute in its own effect, and a child
+  // effect runs first. Reading in a microtask (after both have committed) avoids
+  // sending the previous theme's colours.
+  //
+  // No cancellation flag here on purpose: StrictMode mounts, cleans up, and
+  // mounts again in development, and a flag cleared by the first cleanup would
+  // swallow the only send. Sending twice is harmless.
+  useEffect(() => {
+    if (!titleBarOverlay) return
+    void Promise.resolve().then(syncOverlay)
+  }, [
+    titleBarOverlay,
+    settings.general.themeId,
+    settings.display.zoomFactor,
+    syncOverlay
+  ])
   // Inactive editors stay mounted so their state survives tab switches. Their
   // scope reports must be ignored, or the last mounted tab would win.
   const activeTabIdRef = useRef<string | null>(null)
@@ -451,11 +587,6 @@ export function App(): JSX.Element {
     onConfirm: (value: string) => void
   } | null>(null)
   const [groupPrompt, setGroupPrompt] = useState<{ mode: 'create' } | null>(null)
-  const { settings } = useSettings()
-  // Monaco only needs light vs dark; the accent presets are UI-only.
-  const theme: 'light' | 'dark' = settings.general.themeId.startsWith('dark')
-    ? 'dark'
-    : 'light'
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState<
     'general' | 'appearance' | 'editor' | 'grid' | 'ai' | 'keymap' | 'about'
@@ -586,9 +717,32 @@ export function App(): JSX.Element {
   // The assistant always knows which engine and database the user is looking at,
   // even when no table is open: answering "which database am I in" should not
   // require opening a table first. Table and column lines are added on top.
+  //
+  // The schema summary is loaded for the database in scope so a question like
+  // "analyse this database" has real table names to work with. When a table is
+  // open, its columns are already in `contextColumns`, so the summary drops that
+  // table to avoid sending the same definition twice.
+  //
+  // A table tab already knows its database, but a query tab or a freshly expanded
+  // tree may not; `activeDatabase`/`activeSchema` come from the sidebar selection
+  // and cover the case where the user has a database open without a table tab.
+  const assistantContextScope = detailSelection ??
+    assistantScopeResolved ?? {
+      connectionId: activeId ?? undefined,
+      database: treeActiveDatabase,
+      schema: treeActiveSchema
+    }
+  const schemaSummary = useSchemaContext(
+    assistantContextScope?.connectionId,
+    activeEngine,
+    assistantContextScope?.database,
+    assistantContextScope?.schema,
+    treeVersion
+  )
+
   const rightPanelSchemaContext = (() => {
     if (!activeEngine) return undefined
-    const scope = detailSelection ?? assistantScopeResolved
+    const scope = assistantContextScope
     const lines = [
       `Engine: ${activeEngine}`,
       scope?.database ? `Database: ${scope.database}` : '',
@@ -612,7 +766,28 @@ export function App(): JSX.Element {
             .join(', ')
       )
     }
-    return lines.join('\n')
+    const base = lines.join('\n')
+    if (!schemaSummary.context) return base
+    // Drop the open table from the summary: its full column list is already in
+    // the block above, and repeating it wastes prompt budget.
+    const filtered = detailSelection
+      ? schemaSummary.context
+          .split('\n')
+          .filter(
+            (line) =>
+              !line.startsWith(`- ${detailSelection.table}:`) &&
+              !line.startsWith(`- ${detailSelection.table} [view]:`)
+          )
+          .join('\n')
+      : schemaSummary.context
+    // The summary repeats "Engine:" and "Database:" so it can stand alone; here
+    // they are already in the header above, so only the table list is appended.
+    const tableList = filtered
+      .split('\n')
+      .filter((line) => !/^(Engine|Database):/.test(line))
+      .join('\n')
+      .trim()
+    return tableList ? `${base}\n\n${tableList}` : base
   })()
 
   // A clicked row belongs to one table; switching tabs must not keep showing a
@@ -2663,10 +2838,12 @@ export function App(): JSX.Element {
     <div className="app">
       <header
         className={`menubar${customTitleBar ? ' menubar--titlebar' : ''}${
-          windowFullscreen ? ' is-fullscreen' : ''
-        }`}
+          titleBarOverlay ? ' menubar--overlay' : ''
+        }${windowFullscreen ? ' is-fullscreen' : ''}`}
         role="toolbar"
         aria-label={tr('app.toolbar')}
+        style={captionInset > 0 ? { paddingRight: captionInset } : undefined}
+        ref={toolbarRef}
       >
         <div className="menubar__scroll">
           <div className="menubar__group">
@@ -2881,6 +3058,23 @@ export function App(): JSX.Element {
             <p className="notice notice--error" role="alert">
               {error}
             </p>
+          )}
+
+          {workerLost && (
+            <div className="notice notice--error" role="alert">
+              <p>
+                {tr('app.workerLost', { message: workerLost.message })}
+                {workerLost.lastOp
+                  ? ` ${tr('app.workerLostLastOp', { op: workerLost.lastOp })}`
+                  : ''}
+              </p>
+              <button
+                className="btn btn--small btn--ghost"
+                onClick={() => setWorkerLost(null)}
+              >
+                {tr('common.close')}
+              </button>
+            </div>
           )}
 
           {loading ? (

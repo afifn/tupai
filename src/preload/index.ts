@@ -13,6 +13,7 @@ import type {
   TransactionRef,
   UpdateState,
   WindowState,
+  WorkerLostEvent,
   AiSettingsInput,
   BackupEntry,
   BackupOptions,
@@ -80,6 +81,13 @@ const dbApi = {
   // True when the window has no native title bar, so the renderer adds the
   // traffic-light inset itself.
   usesCustomTitleBar: process.platform === 'darwin',
+  setTitleBarColors(
+    color: string,
+    symbolColor: string,
+    height: number
+  ): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.titleBarColors, { color, symbolColor, height })
+  },
   getWindowState(): Promise<IpcResult<WindowState>> {
     return ipcRenderer.invoke(IPC.windowState)
   },
@@ -88,6 +96,17 @@ const dbApi = {
       listener(payload)
     ipcRenderer.on(IPC.windowStateEvent, wrapped)
     return () => ipcRenderer.removeListener(IPC.windowStateEvent, wrapped)
+  },
+  // Fires when the worker thread dies. Every open connection died with it.
+  onWorkerLost(listener: (event: WorkerLostEvent) => void): () => void {
+    const wrapped = (_e: Electron.IpcRendererEvent, payload: WorkerLostEvent): void =>
+      listener(payload)
+    ipcRenderer.on(IPC.workerLostEvent, wrapped)
+    return () => ipcRenderer.removeListener(IPC.workerLostEvent, wrapped)
+  },
+  // Diagnostic only; the main process refuses unless TUPAI_DEBUG_CRASH=1.
+  debugCrashWorker(): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.debugCrashWorker)
   },
   ping(message: string): Promise<IpcResult<{ echo: string }>> {
     return ipcRenderer.invoke(IPC.ping, { message })
@@ -379,9 +398,13 @@ const dbApi = {
     return ipcRenderer.invoke(IPC.saveFileDialog, { defaultPath })
   },
   openFileDialog(
-    filters?: { name: string; extensions: string[] }[]
+    filters?: { name: string; extensions: string[] }[],
+    options?: { directory?: boolean }
   ): Promise<IpcResult<string | null>> {
-    return ipcRenderer.invoke(IPC.openFileDialog, { filters })
+    return ipcRenderer.invoke(IPC.openFileDialog, {
+      filters,
+      directory: options?.directory === true
+    })
   },
   clipboardWrite(text: string): Promise<IpcResult<boolean>> {
     return ipcRenderer.invoke(IPC.clipboardWrite, { text })
@@ -548,6 +571,10 @@ const dbApi = {
   },
   openUpdatePage(): Promise<IpcResult<boolean>> {
     return ipcRenderer.invoke(IPC.updateOpenPage)
+  },
+  // Opens a documentation or download page in the system browser.
+  openExternal(url: string): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.openExternal, { url })
   },
   getUpdateState(): Promise<IpcResult<UpdateState>> {
     return ipcRenderer.invoke(IPC.updateState)

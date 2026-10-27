@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AiChatMessage, AiSettings, DbEngine } from '@shared/types'
 import { unwrap } from './api'
 import { useLocale } from './i18n'
-import { extractSqlBlocks, renderInline, splitFences } from './aiFormat'
+import { extractSqlBlocks, renderInline, splitFences, stripToolCalls } from './aiFormat'
 import {
   MAX_MENTIONS,
   filterTables,
@@ -480,6 +480,12 @@ export function AiAssistant({
                           </p>
                         )
                       )}
+                      {turn.role === 'assistant' &&
+                        stripToolCalls(turn.content).strippedToolCalls && (
+                          <p className="ai__stripped" role="status">
+                            {tr('ai.toolCallStripped')}
+                          </p>
+                        )}
                     </div>
                     {preview && (
                       <AiPreviewTable

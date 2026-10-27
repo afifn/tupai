@@ -8,6 +8,7 @@ import { t, type Locale } from './i18n'
 // most useful part (the missing table, the syntax error position).
 const CODE_KEYS: Record<string, MessageKey> = {
   NOT_CONNECTED: 'error.notConnected',
+  CONNECTION_LOST: 'error.connectionLost',
   EMPTY: 'error.noStatement',
   EXPLAIN_EMPTY: 'error.explainEmpty',
   EXPLAIN_MULTI: 'error.explainMulti',

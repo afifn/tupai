@@ -109,6 +109,23 @@ export function describeConnectionError(
       retryable: true
     }
   }
+  // Thin mode speaks the wire protocol itself and only supports server 12.1+.
+  // An older server needs the OCI client through thick mode, which the user
+  // configures in Preferences; the raw NJS code alone does not say that.
+  if (has('NJS-138')) {
+    return {
+      title: tr('connErr.oracleThinTitle'),
+      hint: tr('connErr.oracleThinHint'),
+      retryable: false
+    }
+  }
+  if (has('NJS-', 'DPI-')) {
+    return {
+      title: tr('connErr.oracleClientTitle'),
+      hint: tr('connErr.oracleClientHint', { detail: text }),
+      retryable: false
+    }
+  }
   if (has('ORA-12514', 'SERVICE_NAME')) {
     return {
       title: tr('connErr.oracleServiceTitle'),

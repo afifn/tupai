@@ -31,11 +31,22 @@ interface WorkerResponse {
 
 const adapters = new Map<string, DatabaseAdapter>()
 
+// Every adapter this worker has ever opened. Used to tell "you never connected"
+// apart from "you were connected and the connection went away": both used to
+// raise the same NOT_CONNECTED, which blamed the user for a lost session.
+const knownConnections = new Set<string>()
+
 async function getConnected(connectionId: string): Promise<DatabaseAdapter> {
   const existing = adapters.get(connectionId)
-  if (!existing)
-    throw new DbError('NOT_CONNECTED', `No active connection: ${connectionId}`, 'sqlite')
-  return existing
+  if (existing) return existing
+  if (knownConnections.has(connectionId)) {
+    throw new DbError(
+      'CONNECTION_LOST',
+      `Connection ${connectionId} was open but is no longer available`,
+      'sqlite'
+    )
+  }
+  throw new DbError('NOT_CONNECTED', `No active connection: ${connectionId}`, 'sqlite')
 }
 
 function isBinaryLike(value: unknown): boolean {
@@ -82,12 +93,27 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       const factory = await getAdapterFactory(cfg.engine)
       return factory(cfg.engine).testConnection(cfg)
     }
+    // Diagnostic hook: crashes the thread on purpose so the crash-reporting path
+    // can be exercised without a real segfault. Only reachable when the env var
+    // is set, so a shipped build cannot trigger it.
+    case '__crash': {
+      if (process.env.TUPAI_DEBUG_CRASH !== '1') {
+        throw new DbError('UNKNOWN_OP', 'Unknown operation: __crash', 'sqlite')
+      }
+      process.exit(99)
+    }
+    // eslint-disable-next-line no-fallthrough -- process.exit never returns
     case 'connect': {
       const cfg = payload as ConnectionConfig
       const factory = await getAdapterFactory(cfg.engine)
       const adapter = factory(cfg.engine)
       await adapter.connect(cfg)
+      // Reconnecting over an existing adapter would leave the old connection open
+      // on the server until it times out; close it first.
+      const previous = adapters.get(cfg.id)
       adapters.set(cfg.id, adapter)
+      knownConnections.add(cfg.id)
+      if (previous) await previous.disconnect().catch(() => undefined)
       return true
     }
     case 'disconnect': {
@@ -95,6 +121,7 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       const adapter = adapters.get(connectionId)
       await adapter?.disconnect()
       adapters.delete(connectionId)
+      knownConnections.delete(connectionId)
       return true
     }
     case 'beginTransaction': {
@@ -380,7 +407,6 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       throw new DbError('UNKNOWN_OP', `Unknown operation: ${op}`, 'sqlite')
   }
 }
-
 // Node aggregates multi-address connection failures into an AggregateError whose
 // own message is empty. Without unwrapping it the renderer receives a blank
 // reason, which is useless for the user.

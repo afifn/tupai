@@ -73,6 +73,18 @@ export interface AppSettings {
   ai: AiSettingsShape
   keymap: Keymap
   customTheme: CustomTheme
+  oracle: OracleSettings
+}
+
+/**
+ * Oracle needs an extra step no other engine does: servers older than 12.1 are
+ * only reachable through the OCI client library, which the driver cannot ship.
+ * An empty directory keeps the driver in thin mode, which is correct for 12.1+
+ * and needs no client at all.
+ */
+export interface OracleSettings {
+  /** Folder holding oci.dll (Windows) or libclntsh (macOS/Linux). */
+  clientLibDir: string
 }
 
 export const MONO_FONTS = [
@@ -114,7 +126,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     previewRows: true
   },
   keymap: { ...DEFAULT_KEYMAP },
-  customTheme: { light: { tokens: {} }, dark: { tokens: {} } }
+  customTheme: { light: { tokens: {} }, dark: { tokens: {} } },
+  oracle: { clientLibDir: '' }
 }
 
 const paletteSchema = z.object({
@@ -171,6 +184,11 @@ export const appSettingsSchema = z.object({
   customTheme: z.object({
     light: paletteSchema,
     dark: paletteSchema
+  }),
+  oracle: z.object({
+    // Empty means thin mode. The path is only a folder; the driver resolves the
+    // library file itself and reports what it could not find.
+    clientLibDir: z.string().max(500)
   })
 })
 
@@ -195,7 +213,8 @@ export function mergeSettings(raw: unknown): AppSettings {
     customTheme: {
       light: { tokens: value.customTheme.light.tokens },
       dark: { tokens: value.customTheme.dark.tokens }
-    }
+    },
+    oracle: { ...DEFAULT_SETTINGS.oracle, ...value.oracle }
   }
 }
 
@@ -225,7 +244,8 @@ export function structuredCloneSettings(settings: AppSettings): AppSettings {
     customTheme: {
       light: { tokens: { ...settings.customTheme.light.tokens } },
       dark: { tokens: { ...settings.customTheme.dark.tokens } }
-    }
+    },
+    oracle: { ...settings.oracle }
   }
 }
 

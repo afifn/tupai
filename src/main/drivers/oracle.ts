@@ -41,8 +41,78 @@ import {
 } from './types'
 import { sslEnabled } from '../connection/ssl'
 import { sshEnabled } from '../connection/sshTunnel'
+import { resolveCjsDefault } from '@shared/cjsInterop'
+import { oracleLimitSql, oraclePageBinds, oraclePageSql } from '@shared/oracleSql'
 
 const QUERY_TIMEOUT_MS = 30000
+
+// `oracledb` is a CommonJS package: imported from an ES module its real API
+// arrives on `default`, so `(await import('oracledb')).getConnection` is
+// undefined and connecting fails with "(intermediate value).getConnection is not
+// a function". Every load in this file goes through one helper so the shape is
+// handled once.
+async function loadOracle(): Promise<typeof import('oracledb')> {
+  const mod = await import('oracledb')
+  return resolveCjsDefault(mod) as unknown as typeof import('oracledb')
+}
+
+// Thick mode is process-wide and can only be initialised once, so the outcome is
+// memoised. Keying it on the directory means changing the setting in Preferences
+// takes effect on the next attempt instead of requiring an app restart.
+let thickMode: { dir: string; error: string | null } | null = null
+
+/**
+ * Reads the Instant Client folder from the settings file.
+ *
+ * This module runs inside the database worker, where `electron` is unavailable,
+ * so it cannot import the settings store. The main process exports the same
+ * userData directory as TUPAI_USER_DATA for the SSH host key store, and the
+ * settings file lives there too. A missing or unreadable file simply means thin
+ * mode, which is the correct default.
+ */
+async function readOracleClientDir(): Promise<string> {
+  const dir = process.env.TUPAI_USER_DATA
+  if (!dir) return ''
+  try {
+    const { readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const raw = await readFile(join(dir, 'settings.json'), 'utf-8')
+    const parsed = JSON.parse(raw) as { oracle?: { clientLibDir?: unknown } }
+    const value = parsed?.oracle?.clientLibDir
+    return typeof value === 'string' ? value : ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Switches the driver to thick mode when an Instant Client folder is configured.
+ *
+ * Thin mode speaks the Oracle wire protocol directly and needs no client
+ * library, but it only supports server 12.1 and newer. A 10g/11g server rejects
+ * it with NJS-138, and the only way to reach it is the OCI client through thick
+ * mode. The driver refuses a second `initOracleClient` call, hence the memo.
+ *
+ * Returns null when thick mode is not configured, or an error message when it
+ * was configured but could not be loaded, so the caller can explain the problem
+ * instead of letting the raw NJS code through.
+ */
+async function ensureOracleMode(dir: string): Promise<string | null> {
+  const wanted = dir.trim()
+  if (!wanted) return null
+  if (thickMode?.dir === wanted) return thickMode.error
+  const oracledb = await loadOracle()
+  try {
+    // libDir is the folder holding oci.dll / libclntsh, not the library itself.
+    oracledb.initOracleClient({ libDir: wanted })
+    thickMode = { dir: wanted, error: null }
+    return null
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    thickMode = { dir: wanted, error: message }
+    return message
+  }
+}
 
 class OracleAdapter implements DatabaseAdapter {
   readonly engine: DbEngine = 'oracle'
@@ -51,6 +121,9 @@ class OracleAdapter implements DatabaseAdapter {
   // connection runs statements with autoCommit on.
   private transactions = new Map<string, { conn: Connection; info: TransactionInfo }>()
   private config: ConnectionConfig | null = null
+  // Whether all_tab_columns has identity_column (12c+) and whether the server
+  // accepts OFFSET/FETCH. null until probed.
+  private capabilities: { identityColumn: boolean; modernPaging: boolean } | null = null
 
   private buildConnectString(cfg: ConnectionConfig): string {
     if (sshEnabled(cfg.ssh)) {
@@ -75,7 +148,8 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async testConnection(cfg: ConnectionConfig): Promise<boolean> {
-    const oracledb = await import('oracledb')
+    await this.prepareMode()
+    const oracledb = await loadOracle()
     const conn = await oracledb.getConnection({
       user: cfg.user,
       password: cfg.password,
@@ -86,7 +160,8 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async connect(cfg: ConnectionConfig): Promise<void> {
-    const oracledb = await import('oracledb')
+    await this.prepareMode()
+    const oracledb = await loadOracle()
     this.config = cfg
     this.connection = await oracledb.getConnection({
       user: cfg.user,
@@ -94,6 +169,25 @@ class OracleAdapter implements DatabaseAdapter {
       connectString: this.buildConnectString(cfg)
     })
     this.connection.callTimeout = QUERY_TIMEOUT_MS
+  }
+
+  /**
+   * Applies the Oracle client setting before any connection attempt.
+   *
+   * A configured but unloadable client is reported here, because the alternative
+   * is the driver falling back to thin mode and failing later with NJS-138,
+   * which says nothing about the folder the user just typed.
+   */
+  private async prepareMode(): Promise<void> {
+    const dir = await readOracleClientDir()
+    const failure = await ensureOracleMode(dir)
+    if (failure) {
+      throw new DbError(
+        'ORACLE_CLIENT_FAILED',
+        `Oracle Instant Client di "${dir}" tidak bisa dipakai: ${failure}`,
+        this.engine
+      )
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -228,9 +322,15 @@ class OracleAdapter implements DatabaseAdapter {
     // structure diff saw every sized column as different from its target and a
     // Table Designer round-trip dropped the length. Rebuild the spelling the
     // user originally declared.
+    //
+    // `all_tab_columns.identity_column` only exists from 12c on, and referencing
+    // a missing column fails the whole query with ORA-00904: opening any table on
+    // an 11g server was impossible. The column list is probed first and the
+    // identity expression is chosen from what this server actually has.
+    const identity = await this.identityExpression()
     const res = await this.require().execute(
       `SELECT c.column_name, c.data_type, c.data_length, c.data_precision, c.data_scale,
-              c.nullable, c.data_default, c.identity_column,
+              c.nullable, c.data_default, ${identity} AS identity_column,
               (SELECT cc.comments FROM all_col_comments cc
                 WHERE cc.owner = c.owner AND cc.table_name = c.table_name
                   AND cc.column_name = c.column_name) AS comments,
@@ -291,6 +391,56 @@ class OracleAdapter implements DatabaseAdapter {
     })
   }
 
+  /**
+   * SQL for the identity flag, chosen from the columns this server actually has.
+   *
+   * `all_tab_columns.identity_column` was added in 12c. On 11g the reference
+   * fails with ORA-00904 and the whole table view breaks, so the feature has to
+   * degrade instead of being assumed. The probe result is cached per connection
+   * because the answer cannot change for a running server.
+   */
+  private async identityExpression(): Promise<string> {
+    return (await this.serverCapabilities()).identityColumn ? 'c.identity_column' : `'NO'`
+  }
+
+  /**
+   * Which SQL features this server has. Probed once per connection, because the
+   * answer cannot change while the server runs.
+   *
+   * 12c introduced `identity_column`, `OFFSET ... FETCH NEXT` and
+   * `FETCH FIRST`. On 11g each of those fails the whole statement, so they are
+   * checked instead of assumed: browsing a table on an old server is the common
+   * case, not an edge case.
+   */
+  private async serverCapabilities(): Promise<{
+    identityColumn: boolean
+    modernPaging: boolean
+  }> {
+    if (this.capabilities) return this.capabilities
+    const capabilities = { identityColumn: false, modernPaging: false }
+    try {
+      // `ALL_TAB_COLUMNS` has a row for every column of every table, so an empty
+      // result is not expected. `ROWNUM = 1` still validates the select list, so
+      // a missing column raises ORA-00904 even when the predicate matches nothing.
+      const probe = await this.require().execute(
+        `SELECT identity_column FROM all_tab_columns WHERE rownum <= 1`
+      )
+      capabilities.identityColumn = Array.isArray(probe.rows)
+    } catch {
+      capabilities.identityColumn = false
+    }
+    try {
+      await this.require().execute(
+        `SELECT 1 FROM dual OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY`
+      )
+      capabilities.modernPaging = true
+    } catch {
+      capabilities.modernPaging = false
+    }
+    this.capabilities = capabilities
+    return capabilities
+  }
+
   async selectRows(query: PageQuery): Promise<{
     rows: Record<string, unknown>[]
     total: number
@@ -322,9 +472,13 @@ class OracleAdapter implements DatabaseAdapter {
         Object.assign(binds, toOracleBinds(built.params))
       }
     }
+    // The count and the page are separate statements, so they get separate bind
+    // objects. Mutating one object meant the count query received the paging
+    // binds, which it never references, and Oracle rejects that with ORA-01036.
+    const countBinds = { ...binds }
     const countRes = await conn.execute(
       `SELECT COUNT(*) AS n FROM ${table}${where}`,
-      binds
+      countBinds
     )
     const total = Number((countRes.rows?.[0] as unknown[])?.[0] ?? 0)
     let order = ''
@@ -332,19 +486,20 @@ class OracleAdapter implements DatabaseAdapter {
       const dir = query.orderDir === 'desc' ? 'DESC' : 'ASC'
       order = ` ORDER BY ${quoteIdent(this.engine, query.orderBy)} ${dir}`
     }
-    binds.off = query.offset
-    binds.lim = query.limit
-    const oracledb = await import('oracledb')
+    const { modernPaging } = await this.serverCapabilities()
+    const paging = { offset: query.offset, limit: query.limit }
+    const pageBinds = { ...binds, ...oraclePageBinds(paging, modernPaging) }
+    const oracledb = await loadOracle()
     const res = await conn.execute(
-      `SELECT * FROM ${table}${where}${order} OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY`,
-      binds,
+      oraclePageSql(`SELECT * FROM ${table}${where}${order}`, paging, modernPaging),
+      pageBinds,
       this.fetchOptions(oracledb)
     )
     return { rows: (res.rows ?? []) as Record<string, unknown>[], total }
   }
 
   async fetchBatch(query: PageQuery): Promise<Record<string, unknown>[]> {
-    const oracledb = await import('oracledb')
+    const oracledb = await loadOracle()
     const conn = this.require()
     const owner = (query.schema ?? this.schema()).toUpperCase()
     const table = qualifiedTable(this.engine, query.table, owner)
@@ -354,9 +509,11 @@ class OracleAdapter implements DatabaseAdapter {
       query.orderDir,
       query.orderByColumns
     )
+    const { modernPaging } = await this.serverCapabilities()
+    const paging = { offset: query.offset, limit: query.limit }
     const res = await conn.execute(
-      `SELECT * FROM ${table}${order} OFFSET :off ROWS FETCH NEXT :lim ROWS ONLY`,
-      { off: query.offset, lim: query.limit },
+      oraclePageSql(`SELECT * FROM ${table}${order}`, paging, modernPaging),
+      oraclePageBinds(paging, modernPaging),
       this.fetchOptions(oracledb)
     )
     return (res.rows ?? []) as Record<string, unknown>[]
@@ -581,7 +738,7 @@ class OracleAdapter implements DatabaseAdapter {
   async cancelQuery(): Promise<boolean> {
     if (!this.runningSession) return false
     const session = this.runningSession
-    const oracledb = await import('oracledb')
+    const oracledb = await loadOracle()
     const cfg = this.config
     if (!cfg) return false
     const admin = await oracledb.getConnection({
@@ -603,7 +760,7 @@ class OracleAdapter implements DatabaseAdapter {
     context?: QueryContext,
     onSession?: (sessionId: string) => void
   ): Promise<QueryResultSet[]> {
-    const oracledb = await import('oracledb')
+    const oracledb = await loadOracle()
     const pinned = context?.transactionId
       ? this.transactions.get(context.transactionId)
       : undefined
@@ -984,13 +1141,18 @@ class OracleAdapter implements DatabaseAdapter {
     const owner = (schema ?? this.schema()).toUpperCase()
     const like = `%${term.toUpperCase()}%`
     const out: SearchResult[] = []
+    const { modernPaging } = await this.serverCapabilities()
     const objs = await this.require().execute(
-      `SELECT table_name, 'TABLE' AS kind FROM all_tables
-       WHERE owner = :owner AND table_name LIKE :term
-       UNION ALL
-       SELECT view_name, 'VIEW' FROM all_views
-       WHERE owner = :owner AND view_name LIKE :term
-       ORDER BY 1 FETCH FIRST 200 ROWS ONLY`,
+      oracleLimitSql(
+        `SELECT table_name, 'TABLE' AS kind FROM all_tables
+         WHERE owner = :owner AND table_name LIKE :term
+         UNION ALL
+         SELECT view_name, 'VIEW' FROM all_views
+         WHERE owner = :owner AND view_name LIKE :term
+         ORDER BY 1`,
+        200,
+        modernPaging
+      ),
       { owner, term: like }
     )
     for (const r of (objs.rows ?? []) as [string, string][]) {
@@ -1001,18 +1163,25 @@ class OracleAdapter implements DatabaseAdapter {
       })
     }
     const cols = await this.require().execute(
-      `SELECT table_name, column_name, data_type FROM all_tab_columns
-       WHERE owner = :owner AND column_name LIKE :term
-       ORDER BY table_name, column_id FETCH FIRST 200 ROWS ONLY`,
+      oracleLimitSql(
+        `SELECT table_name, column_name, data_type FROM all_tab_columns
+         WHERE owner = :owner AND column_name LIKE :term
+         ORDER BY table_name, column_id`,
+        200,
+        modernPaging
+      ),
       { owner, term: like }
     )
     for (const r of (cols.rows ?? []) as [string, string, string][]) {
       out.push({ kind: 'column', name: r[1], table: r[0], schema: owner, detail: r[2] })
     }
     const routines = await this.require().execute(
-      `SELECT object_name, object_type FROM all_objects
-       WHERE owner = :owner AND object_type IN ('FUNCTION','PROCEDURE') AND object_name LIKE :term
-       FETCH FIRST 100 ROWS ONLY`,
+      oracleLimitSql(
+        `SELECT object_name, object_type FROM all_objects
+         WHERE owner = :owner AND object_type IN ('FUNCTION','PROCEDURE') AND object_name LIKE :term`,
+        100,
+        modernPaging
+      ),
       { owner, term: like }
     )
     for (const r of (routines.rows ?? []) as [string, string][]) {
@@ -1133,7 +1302,7 @@ class OracleAdapter implements DatabaseAdapter {
       throw new DbError('TRANSACTION_EXISTS', 'Transaksi sudah terbuka.', this.engine)
     }
     if (!this.config) throw new DbError('NOT_CONNECTED', 'Not connected', this.engine)
-    const oracledb = await import('oracledb')
+    const oracledb = await loadOracle()
     const conn = await oracledb.getConnection({
       user: this.config.user,
       password: this.config.password,

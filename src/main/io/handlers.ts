@@ -70,7 +70,11 @@ export async function exportTable(
       if (req.format === 'csv') {
         let out = ''
         for (const row of batch) {
-          out += toCsvRow(columnNames.map((c) => row[c]), ',') + '\n'
+          out +=
+            toCsvRow(
+              columnNames.map((c) => row[c]),
+              ','
+            ) + '\n'
         }
         await writeChunk(stream, out)
       } else if (req.format === 'json') {
@@ -117,7 +121,11 @@ export async function exportResultSet(
       await writeChunk(stream, toCsvHeader(req.columns, ',') + '\n')
       let out = ''
       for (const row of req.rows) {
-        out += toCsvRow(req.columns.map((c) => row[c]), ',') + '\n'
+        out +=
+          toCsvRow(
+            req.columns.map((c) => row[c]),
+            ','
+          ) + '\n'
       }
       await writeChunk(stream, out)
     } else {
@@ -227,9 +235,7 @@ export async function importCsv(
       if (!sourceHeaders) {
         // The first physical row is either the header or, without one, real
         // data that must still be imported (it used to be dropped).
-        sourceHeaders = req.hasHeader
-          ? raw
-          : raw.map((_, i) => `column_${i + 1}`)
+        sourceHeaders = req.hasHeader ? raw : raw.map((_, i) => `column_${i + 1}`)
         headerIndex = {}
         sourceHeaders.forEach((h, i) => {
           headerIndex[h] = i
@@ -270,9 +276,7 @@ export async function importSql(
   return { statements: result.length }
 }
 
-export async function showSaveDialog(
-  defaultPath: string
-): Promise<string | null> {
+export async function showSaveDialog(defaultPath: string): Promise<string | null> {
   const win = BrowserWindow.getFocusedWindow()
   const result = await dialog.showSaveDialog(win ?? undefined!, { defaultPath })
   if (result.canceled || !result.filePath) return null
@@ -280,12 +284,16 @@ export async function showSaveDialog(
 }
 
 export async function showOpenDialog(
-  filters?: { name: string; extensions: string[] }[]
+  filters?: { name: string; extensions: string[] }[],
+  // Picking a folder (an Oracle Instant Client directory, for example) uses the
+  // same dialog with a different property; without it the dialog only accepts
+  // files and the user cannot select the client folder at all.
+  directory = false
 ): Promise<string | null> {
   const win = BrowserWindow.getFocusedWindow()
   const result = await dialog.showOpenDialog(win ?? undefined!, {
-    properties: ['openFile'],
-    filters
+    properties: directory ? ['openDirectory'] : ['openFile'],
+    filters: directory ? undefined : filters
   })
   if (result.canceled || result.filePaths.length === 0) return null
   return result.filePaths[0]

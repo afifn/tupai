@@ -6,6 +6,48 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/) dan
 [Semantic Versioning](https://semver.org/lang/id/). Versi masih di jalur `0.x`,
 jadi antarmuka dan format file bisa berubah antar rilis minor.
 
+## [Unreleased]
+
+### Diperbaiki
+
+- Ketika proses database berhenti, aplikasi kini memberi tahu. Sebelumnya semua
+  koneksi hilang bersama thread itu tanpa pemberitahuan, dan UI tetap
+  menampilkannya sebagai terbuka sampai operasi berikutnya gagal dengan pesan
+  "koneksi tidak aktif" yang menyalahkan server. Sekarang muncul banner berisi
+  alasan dan operasi terakhir, dan koneksi ditandai perlu disambung ulang.
+- Koneksi Oracle gagal dengan "getConnection is not a function" sebelum menyentuh
+  server. Paket `oracledb` adalah CommonJS, dan API-nya berada di `default` saat
+  diimpor dari ES module; driver kini membuka `default` lebih dulu. Pesan error
+  yang muncul sekarang adalah error jaringan atau TNS yang sebenarnya.
+- Server Oracle yang lebih lama dari 12.1 kini bisa dihubungkan lewat mode thick.  Bagian **Oracle** di Pengaturan menerima folder Oracle Instant Client, dan
+  pesan `NJS-138` diterjemahkan menjadi penjelasan yang mengarahkan ke setelan
+  tersebut. Folder kosong tetap memakai mode thin, jadi server 12.1+ tidak
+  berubah. Bagian itu juga punya tombol **Unduh Instant Client** yang membuka
+  halaman unduhan Oracle di browser.
+- Tabel pada Oracle 11g kini bisa dibuka. Driver memilih sintaks sesuai versi
+  server: `identity_column`, `OFFSET ... FETCH NEXT`, dan `FETCH FIRST` hanya
+  dipakai bila server mendukungnya (12c+), dan versi lama memakai pembungkus
+  `ROWNUM`. Sebelumnya membuka tabel gagal dengan `ORA-00904`, lalu `ORA-01036`
+  karena ada bind yang dikirim tanpa dipakai statement.
+
+### Diubah
+
+- Asisten AI tidak lagi menampilkan blok tool call palsu. Prompt kini menyatakan
+  bahwa asisten tidak punya akses database dan tidak boleh menulis
+  `<function_calls>`; balasan yang tetap memuatnya dibersihkan sebelum ditampilkan
+  dan diberi catatan singkat.
+- Asisten kini menerima ringkasan skema database yang sedang dibuka (daftar tabel
+  beserta kolomnya, dengan batas ukuran), sehingga pertanyaan seperti "analisa
+  database ini" bisa dijawab tanpa membuka tabel atau mengetik @mention lebih
+  dulu.
+
+- Di Windows 11 dan Linux, toolbar kini juga menjadi baris title bar
+  (`titleBarOverlay` 44px), sehingga tidak ada lagi baris judul terpisah di atas
+  toolbar dan tombol minimise/maximise/close digambar OS di dalam baris yang
+  sama. Perilaku OS seperti snap layout dan resize border tetap utuh. Warna
+  overlay mengikuti tema terang/gelap. Windows 10 tetap memakai frame bawaan
+  karena tidak mendukung overlay.
+
 ## [0.2.0] - 2026-10-25
 
 ### Ditambahkan

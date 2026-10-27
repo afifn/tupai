@@ -17,6 +17,14 @@ describe('buildSystemPrompt', () => {
     expect(CORE_RULES).toMatch(/resep masakan/)
   })
 
+  it('tells the model it has no database access and must not emit tool calls', () => {
+    // A model that assumes it can call tools writes <function_calls> blocks that
+    // nothing executes, and the reply ends without an answer.
+    expect(CORE_RULES).toMatch(/TIDAK punya akses ke database/)
+    expect(CORE_RULES).toMatch(/function_calls/)
+    expect(CORE_RULES).toMatch(/tidak bisa menjalankan SQL/)
+  })
+
   it('still applies the role when the user instruction is empty', () => {
     expect(buildSystemPrompt('')).toBe(CORE_RULES)
     expect(buildSystemPrompt('   ')).toBe(CORE_RULES)

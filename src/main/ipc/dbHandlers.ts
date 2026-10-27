@@ -72,7 +72,8 @@ import {
   clipboardWriteSchema,
   listAiModelsRequestSchema,
   trustSshHostSchema,
-  sshHostFingerprintSchema
+  sshHostFingerprintSchema,
+  openExternalSchema
 } from '@shared/schemas'
 import type {
   AiStreamEvent,
@@ -141,6 +142,8 @@ import { previewStructureSync, structureSync } from '../sync/structureSync'
 import { dataSync, previewDataSync } from '../sync/dataSync'
 import { deleteSyncProfile, listSyncProfiles, saveSyncProfile } from '../sync/profiles'
 import { forgetHostKey, storedFingerprint } from '../connection/knownHosts'
+import { supportsTitleBarOverlay } from '../windowChrome'
+import { log } from '../logger'
 
 let client: DbWorkerClient | null = null
 
@@ -163,7 +166,20 @@ function syncSender(event: Electron.IpcMainInvokeEvent): {
 }
 
 function getClient(): DbWorkerClient {
-  if (!client) client = new DbWorkerClient()
+  if (!client) {
+    client = new DbWorkerClient()
+    // The adapters live only inside the worker, so a crash silently destroys
+    // every open connection. Forward that to the window: without it the UI keeps
+    // showing a connection that cannot be used, and the next call fails with a
+    // "not connected" that looks like the user's fault.
+    client.setWorkerLostHandler((reason, lastOp) => {
+      log('error', 'worker-lost', { code: reason.code, message: reason.message, lastOp })
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed())
+          win.webContents.send(IPC.workerLostEvent, { reason, lastOp })
+      }
+    })
+  }
   return client
 }
 
@@ -196,6 +212,19 @@ export function registerDbHandlers(): void {
     run(async () => {
       const { message } = pingSchema.parse(raw)
       return { echo: message }
+    })
+  )
+
+  // Diagnostic only: forwards a deliberate worker crash when the app was started
+  // with TUPAI_DEBUG_CRASH=1. Used to verify that a dead worker is reported to
+  // the window instead of leaving a phantom connection behind.
+  ipcMain.handle(IPC.debugCrashWorker, () =>
+    run(async () => {
+      if (process.env.TUPAI_DEBUG_CRASH !== '1') {
+        throw new Error('Diagnostic crash is disabled.')
+      }
+      await getClient().call('__crash', {})
+      return true
     })
   )
 
@@ -668,7 +697,7 @@ export function registerDbHandlers(): void {
   ipcMain.handle(IPC.openFileDialog, (_e, raw) =>
     run(() => {
       const parsed = openFileDialogSchema.parse(raw ?? {})
-      return showOpenDialog(parsed.filters)
+      return showOpenDialog(parsed.filters, parsed.directory === true)
     })
   )
 
@@ -869,7 +898,10 @@ export function registerDbHandlers(): void {
   // The renderer owns the catalogue, so it sends the translated menu labels.
   ipcMain.handle(IPC.windowState, (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    return run(async () => ({ fullscreen: win?.isFullScreen() ?? false }))
+    return run(async () => ({
+      fullscreen: win?.isFullScreen() ?? false,
+      titleBarOverlay: supportsTitleBarOverlay()
+    }))
   })
 
   ipcMain.handle(IPC.menuLabels, (_e, raw) =>
@@ -915,6 +947,17 @@ export function registerDbHandlers(): void {
   ipcMain.handle(IPC.updateDownload, () => run(() => downloadUpdate()))
   ipcMain.handle(IPC.updateInstall, () => run(async () => installUpdate()))
   ipcMain.handle(IPC.updateOpenPage, () => run(() => openDownloadPage()))
+
+  // Opens a documentation or download page in the system browser. The URL is
+  // validated to http(s) so a compromised renderer cannot ask the shell to open
+  // a local file or a custom scheme.
+  ipcMain.handle(IPC.openExternal, (_e, raw) =>
+    run(async () => {
+      const { url } = openExternalSchema.parse(raw)
+      await shell.openExternal(url)
+      return true
+    })
+  )
   ipcMain.handle(IPC.updateState, () => run(async () => getUpdateState()))
 
   ipcMain.handle(IPC.openPath, (_e, raw) =>

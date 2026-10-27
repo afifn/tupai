@@ -24,7 +24,17 @@ export const ja: Record<MessageKey, string> = {
   'settings.section.appearance': '外観',
   'settings.section.editor': 'エディター',
   'settings.section.grid': 'データグリッド',
-  'settings.section.ai': 'AI',
+  'settings.section.oracle': 'Oracle',
+  'settings.oracle.hint':
+    'Oracle 12.1 以降は追加のライブラリなしで接続できます。それより古いサーバーは thin モード非対応です。下に Oracle Instant Client のフォルダーを指定すると thick モードで接続します。',
+  'settings.oracle.client': 'Oracle Instant Client フォルダー',
+  'settings.oracle.clientPlaceholder': '例: C:\\oracle\\instantclient_21_13',
+  'settings.oracle.browse': 'フォルダーを選択',
+  'settings.oracle.download': 'Instant Client をダウンロード',
+  'settings.oracle.downloadHint':
+    'ブラウザーで Oracle のダウンロードページを開きます。アプリと同じ OS とアーキテクチャの Basic パッケージを選び、展開してそのフォルダーを上で指定してください。',  'settings.oracle.clear': 'クリア',
+  'settings.oracle.modeHint':
+    '空欄は thin モードです。フォルダーにはアプリと同じアーキテクチャの oci.dll（Windows）または libclntsh（macOS/Linux）が必要です。',  'settings.section.ai': 'AI',
   'settings.section.keymap': 'キーマップ',
   'settings.section.about': 'このアプリについて',
   'settings.sectionNav': '設定セクション',
@@ -369,7 +379,8 @@ export const ja: Record<MessageKey, string> = {
   'detail.size': 'サイズ',
   'query.selectAllLabel': 'すべての行を取得',
   'error.notConnected': 'サーバーへの接続は既に有効ではありません。',
-  'error.noStatement': '実行する SQL がありません。',
+  'error.connectionLost':
+    'この接続は開かれていましたが、現在は存在しません。再接続してから操作をやり直してください。',  'error.noStatement': '実行する SQL がありません。',
   'error.noStatementToExplain': '説明する SQL がありません。',
   'error.noValues': '保存する値がありません。',
   'error.primaryKeyRequired': 'この操作には主キーが必要です。',
@@ -784,7 +795,9 @@ export const ja: Record<MessageKey, string> = {
   'app.sessions': 'セッション',
   'app.users': 'ユーザー',
   'app.loadingConnections': '接続を読み込み中...',
-  'app.newQueryTab': '新しいクエリタブ',
+  'app.workerLost':
+    'データベースプロセスが停止したため（{message}）、すべての接続が失われました。開いていた接続に再接続してください。',
+  'app.workerLostLastOp': '最後の操作: {op}。',  'app.newQueryTab': '新しいクエリタブ',
   'app.viewDefinition': 'CREATE ビュー定義を表示',
   'app.create': '作成',
   'app.exportDatabase': 'データベースをエクスポート',
@@ -910,6 +923,8 @@ export const ja: Record<MessageKey, string> = {
   'ai.messageLabel': 'アシスタントへのメッセージ',
   'ai.roleUser': 'あなた',
   'ai.roleAssistant': 'アシスタント',
+  'ai.toolCallStripped':
+    'モデルがこのアプリにないツールを呼び出そうとしました。その部分は非表示にしました。分析は SQL クエリとして依頼してください。',
   'ai.insertSql': 'SQL を挿入',
   'ai.insertSqlIndexed': 'SQL #{index} を挿入',
   'ai.stopped': '（停止しました）',
@@ -1433,7 +1448,12 @@ export const ja: Record<MessageKey, string> = {
   'connErr.oracleServiceTitle': '不明な Oracle サービス',
   'connErr.oracleServiceHint':
     'リスナーは稼働していますが、サービス名が登録されていません。接続設定のサービス名を確認してください。',
-  'connErr.tlsTitle': 'TLS/SSL に失敗しました',
+  'connErr.oracleThinTitle': 'Oracle サーバーが thin モードには古すぎます',
+  'connErr.oracleThinHint':
+    'thin モードは Oracle 12.1 以降のみ対応です。それより古いサーバーでは、設定で Oracle Instant Client のフォルダーを指定してから再試行してください。',
+  'connErr.oracleClientTitle': 'Oracle Instant Client を使用できません',
+  'connErr.oracleClientHint':
+    '設定の Instant Client フォルダーを確認してください。oci.dll（Windows）または libclntsh（macOS/Linux）が必要で、アプリと同じアーキテクチャである必要があります。詳細: {detail}',  'connErr.tlsTitle': 'TLS/SSL に失敗しました',
   'connErr.tlsHint':
     'サーバー証明書が SSL 設定と一致しません。接続の SSL モードを確認してください。',
   'connErr.sshTitle': 'SSH トンネルに失敗しました',

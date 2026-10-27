@@ -19,13 +19,17 @@ import { IconClose } from './Icons'
 import type { MessageKey } from '@shared/i18n'
 import brandMark from './assets/brand/tupai.png'
 
-type SectionId = 'general' | 'appearance' | 'editor' | 'grid' | 'ai' | 'keymap' | 'about'
+type SectionId =
+  'general' | 'appearance' | 'editor' | 'grid' | 'oracle' | 'ai' | 'keymap' | 'about'
 
 const SECTIONS: { id: SectionId; labelKey: MessageKey }[] = [
   { id: 'general', labelKey: 'settings.section.general' },
   { id: 'appearance', labelKey: 'settings.section.appearance' },
   { id: 'editor', labelKey: 'settings.section.editor' },
   { id: 'grid', labelKey: 'settings.section.grid' },
+  // Oracle is the only engine that may need a client library, so it gets its
+  // own section instead of a footnote in General.
+  { id: 'oracle', labelKey: 'settings.section.oracle' },
   { id: 'ai', labelKey: 'settings.section.ai' },
   { id: 'keymap', labelKey: 'settings.section.keymap' },
   { id: 'about', labelKey: 'settings.section.about' }
@@ -144,6 +148,9 @@ export function SettingsDialog({
               <EditorSection settings={settings} update={update} />
             )}
             {section === 'grid' && <GridSection settings={settings} update={update} />}
+            {section === 'oracle' && (
+              <OracleSection settings={settings} update={update} />
+            )}
             {section === 'ai' && <AiSection settings={settings} update={update} />}
             {section === 'keymap' && (
               <KeymapSection settings={settings} update={update} />
@@ -630,6 +637,81 @@ function GridSection({ settings, update }: SectionProps): JSX.Element {
         </select>
       </label>
       <p className="settings__hint">{tr('settings.grid.pageSizeHint')}</p>
+    </div>
+  )
+}
+
+const ORACLE_CLIENT_DOWNLOAD =
+  'https://www.oracle.com/database/technologies/instant-client/downloads.html'
+
+function OracleSection({ settings, update }: SectionProps): JSX.Element {
+  const { tr } = useLocale()
+  const oracle = settings.oracle
+  // The field is committed on blur rather than on every keystroke: each change
+  // is written to disk and the driver re-initialises on the next attempt, so
+  // typing a path one character at a time would retry a dozen broken folders.
+  const [draft, setDraft] = useState(oracle.clientLibDir)
+
+  useEffect(() => {
+    setDraft(oracle.clientLibDir)
+  }, [oracle.clientLibDir])
+
+  async function pickFolder(): Promise<void> {
+    try {
+      const chosen = await unwrap(
+        window.dbApi.openFileDialog(undefined, { directory: true })
+      )
+      if (!chosen) return
+      setDraft(chosen)
+      await update({ oracle: { ...oracle, clientLibDir: chosen } })
+    } catch {
+      // A cancelled dialog is not an error; the typed value stays.
+    }
+  }
+
+  return (
+    <div className="settings__pane">
+      <p className="settings__hint">{tr('settings.oracle.hint')}</p>
+      <label className="settings__field">
+        <span>{tr('settings.oracle.client')}</span>
+        <input
+          className="input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            if (draft === oracle.clientLibDir) return
+            void update({ oracle: { ...oracle, clientLibDir: draft } })
+          }}
+          placeholder={tr('settings.oracle.clientPlaceholder')}
+          spellCheck={false}
+        />
+      </label>
+      <div className="settings__actions">
+        <button className="btn btn--small btn--ghost" onClick={() => void pickFolder()}>
+          {tr('settings.oracle.browse')}
+        </button>
+        <button
+          className="btn btn--small btn--ghost"
+          onClick={() => {
+            void window.dbApi.openExternal(ORACLE_CLIENT_DOWNLOAD)
+          }}
+        >
+          {tr('settings.oracle.download')}
+        </button>
+        <span className="settings__spacer" />
+        <button
+          className="btn btn--small btn--ghost"
+          disabled={!oracle.clientLibDir && !draft}
+          onClick={() => {
+            setDraft('')
+            void update({ oracle: { ...oracle, clientLibDir: '' } })
+          }}
+        >
+          {tr('settings.oracle.clear')}
+        </button>
+      </div>
+      <p className="settings__hint">{tr('settings.oracle.downloadHint')}</p>
+      <p className="settings__hint">{tr('settings.oracle.modeHint')}</p>
     </div>
   )
 }

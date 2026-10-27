@@ -613,7 +613,9 @@ export const dumpDatabaseSchema = z.object({
 export const openFileDialogSchema = z.object({
   filters: z
     .array(z.object({ name: z.string(), extensions: z.array(z.string()) }))
-    .optional()
+    .optional(),
+  // Pick a folder instead of a file. Used for the Oracle Instant Client folder.
+  directory: z.boolean().optional()
 })
 
 // Only http(s) endpoints are accepted: the main process makes the request, so
@@ -815,6 +817,43 @@ export const aiChatCancelSchema = z.object({
 export const aiChatSchema = z.object({
   messages: z.array(aiChatMessageSchema).min(1).max(200),
   schemaContext: z.string().max(20000).optional()
+})
+
+// Colours and height for the native title-bar overlay on Windows and Linux. The
+// renderer reads them from the active theme and sends them here, because the
+// overlay is drawn by the OS and cannot resolve a CSS variable. Both colours must
+// be plain hex or rgb() colours: anything else would be rejected by the OS
+// silently. `height` is in device-independent pixels: the overlay does not scale
+// with the page zoom, so the renderer converts its toolbar height before sending.
+// Opening a URL in the system browser. Only http(s) is accepted: a renderer
+// that has been compromised must not be able to hand the shell a file:// path or
+// another scheme that runs something locally.
+export const openExternalSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine((value) => {
+      try {
+        const url = new URL(value)
+        return url.protocol === 'https:' || url.protocol === 'http:'
+      } catch {
+        return false
+      }
+    }, 'URL harus http:// atau https://')
+})
+
+export const titleBarColorsSchema = z.object({
+  color: z
+    .string()
+    .max(40)
+    .regex(/^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s%]+\))$/, 'warna tidak valid'),
+  symbolColor: z
+    .string()
+    .max(40)
+    .regex(/^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s%]+\))$/, 'warna tidak valid'),
+  height: z.number().int().min(20).max(120)
 })
 
 export type ConnectionConfigInput = z.infer<typeof connectionConfigSchema>

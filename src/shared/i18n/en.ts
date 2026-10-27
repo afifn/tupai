@@ -25,6 +25,18 @@ export const en: Record<MessageKey, string> = {
   'settings.section.appearance': 'Appearance',
   'settings.section.editor': 'Editor',
   'settings.section.grid': 'Data grid',
+  'settings.section.oracle': 'Oracle',
+  'settings.oracle.hint':
+    'Oracle 12.1 and newer connect without an extra library. Older servers are not supported by thin mode; set the Oracle Instant Client folder below so the app uses thick mode.',
+  'settings.oracle.client': 'Oracle Instant Client folder',
+  'settings.oracle.clientPlaceholder': 'For example C:\\oracle\\instantclient_21_13',
+  'settings.oracle.browse': 'Choose folder',
+  'settings.oracle.download': 'Download Instant Client',
+  'settings.oracle.downloadHint':
+    'Opens the Oracle download page in your browser. Pick the Basic package for the same operating system and architecture as the app, then extract it and point the folder above at it.',
+  'settings.oracle.clear': 'Clear',
+  'settings.oracle.modeHint':
+    'Empty means thin mode. The folder must contain oci.dll (Windows) or libclntsh (macOS/Linux) built for the same architecture as the app.',
   'settings.section.ai': 'AI',
   'settings.section.keymap': 'Keymap',
   'settings.section.about': 'About',
@@ -389,6 +401,8 @@ export const en: Record<MessageKey, string> = {
   'query.selectAllLabel': 'Fetch all rows',
 
   'error.notConnected': 'The connection to the server is no longer active.',
+  'error.connectionLost':
+    'This connection was open but no longer exists. Reconnect it and run the operation again.',
   'error.noStatement': 'There is no SQL to run.',
   'error.noStatementToExplain': 'There is no SQL to explain.',
   'error.noValues': 'There are no values to save.',
@@ -811,6 +825,9 @@ export const en: Record<MessageKey, string> = {
   'app.sessions': 'Sessions',
   'app.users': 'Users',
   'app.loadingConnections': 'Loading connections...',
+  'app.workerLost':
+    'The database process stopped ({message}), so every connection is gone. Reconnect the ones you had open.',
+  'app.workerLostLastOp': 'Last operation: {op}.',
   'app.newQueryTab': 'New query tab',
   'app.viewDefinition': 'Show the CREATE view definition',
   'app.create': 'Create',
@@ -942,6 +959,8 @@ export const en: Record<MessageKey, string> = {
   'ai.messageLabel': 'Message for the assistant',
   'ai.roleUser': 'You',
   'ai.roleAssistant': 'Assistant',
+  'ai.toolCallStripped':
+    'The model tried to call a tool this app does not provide. That part was hidden; ask for the analysis as a SQL query instead.',
   'ai.insertSql': 'Insert SQL',
   'ai.insertSqlIndexed': 'Insert SQL #{index}',
   'ai.stopped': '(stopped)',
@@ -1507,6 +1526,12 @@ export const en: Record<MessageKey, string> = {
   'connErr.oracleServiceTitle': 'Unknown Oracle service',
   'connErr.oracleServiceHint':
     'The listener is up, but the service name is not registered. Check the service name in the connection settings.',
+  'connErr.oracleThinTitle': 'Oracle server too old for thin mode',
+  'connErr.oracleThinHint':
+    'Thin mode only supports Oracle 12.1 and newer. For an older server, set the Oracle Instant Client folder in Settings, then try again.',
+  'connErr.oracleClientTitle': 'Oracle Instant Client cannot be used',
+  'connErr.oracleClientHint':
+    'Check the Instant Client folder in Settings: it must contain oci.dll (Windows) or libclntsh (macOS/Linux), and its architecture must match the app. Detail: {detail}',
   'connErr.tlsTitle': 'TLS/SSL failed',
   'connErr.tlsHint':
     'The server certificate does not match the SSL settings. Check the SSL mode on the connection.',

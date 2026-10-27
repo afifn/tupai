@@ -1055,6 +1055,19 @@ export type MenuAction =
 // Native window facts the renderer needs to lay out its own title bar row.
 export interface WindowState {
   fullscreen: boolean
+  // The OS draws caption buttons inside the toolbar (Windows 11, Linux). The
+  // renderer reserves room for them and keeps the overlay colours in sync.
+  titleBarOverlay: boolean
+}
+
+// Sent when the database worker thread dies. Every adapter lives in that thread,
+// so all open connections are gone; the renderer must stop showing them as
+// connected instead of failing later with a misleading "not connected".
+export interface WorkerLostEvent {
+  reason: { code: string; message: string; engine: string }
+  // The operation that was running when the thread died, with its duration.
+  // Without it a crash report only has an exit code, which identifies nothing.
+  lastOp: string | null
 }
 
 export interface MenuState {

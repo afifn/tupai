@@ -120,6 +120,8 @@ button {
   border-bottom: 1px solid var(--border);
   z-index: 10;
   min-width: 0;
+  /* The overlay divider is positioned against this row. */
+  position: relative;
 }
 
 /* On macOS the window has no native title bar, so this row is the title bar.
@@ -142,6 +144,36 @@ button {
 /* Fullscreen hides the traffic lights, so the inset would be dead space. */
 .menubar--titlebar.is-fullscreen {
   padding-left: 10px;
+}
+
+/* Windows 11 and Linux draw their caption buttons inside this row through
+   `titleBarOverlay`. The row must stay draggable between the controls, and the
+   padding that keeps the buttons clear of them is set inline from the measured
+   overlay width, because the OS owns that width. */
+.menubar--overlay {
+  -webkit-app-region: drag;
+  /* The native overlay paints over the toolbar's own border-bottom on the right
+     side, so the divider is drawn inside the row instead of on its edge. */
+  border-bottom-color: transparent;
+}
+
+.menubar--overlay::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.menubar--overlay button,
+.menubar--overlay input,
+.menubar--overlay select,
+.menubar--overlay a,
+.menubar--overlay [role='button'] {
+  -webkit-app-region: no-drag;
 }
 
 /* Only the menu groups scroll. The dock and theme buttons stay pinned on the
@@ -4726,6 +4758,16 @@ body.is-row-resizing {
 
 .ai__para:last-child {
   margin-bottom: 0;
+}
+
+/* Explains why a reply stopped early: the model emitted tool-call markup that
+   this app never executes. Muted, because it is a note, not an answer. */
+.ai__stripped {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-left: 2px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
 .ai__code {

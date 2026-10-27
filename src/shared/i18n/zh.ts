@@ -24,7 +24,17 @@ export const zh: Record<MessageKey, string> = {
   'settings.section.appearance': '外观',
   'settings.section.editor': '编辑器',
   'settings.section.grid': '数据表格',
-  'settings.section.ai': 'AI',
+  'settings.section.oracle': 'Oracle',
+  'settings.oracle.hint':
+    'Oracle 12.1 及以上无需额外库即可连接。更早的服务器不支持 thin 模式；在下方指定 Oracle Instant Client 文件夹即可使用 thick 模式。',
+  'settings.oracle.client': 'Oracle Instant Client 文件夹',
+  'settings.oracle.clientPlaceholder': '例如 C:\\oracle\\instantclient_21_13',
+  'settings.oracle.browse': '选择文件夹',
+  'settings.oracle.download': '下载 Instant Client',
+  'settings.oracle.downloadHint':
+    '在浏览器中打开 Oracle 下载页面。选择与应用相同操作系统和架构的 Basic 包，解压后在上方指定该文件夹。',  'settings.oracle.clear': '清空',
+  'settings.oracle.modeHint':
+    '留空表示 thin 模式。文件夹必须包含与应用架构一致的 oci.dll（Windows）或 libclntsh（macOS/Linux）。',  'settings.section.ai': 'AI',
   'settings.section.keymap': '快捷键',
   'settings.section.about': '关于',
   'settings.sectionNav': '设置分区',
@@ -356,7 +366,8 @@ export const zh: Record<MessageKey, string> = {
   'detail.size': '大小',
   'query.selectAllLabel': '获取所有行',
   'error.notConnected': '与服务器的连接已失效。',
-  'error.noStatement': '没有可运行的 SQL。',
+  'error.connectionLost':
+    '此连接曾经打开，但现在已不存在。请重新连接后再次执行该操作。',  'error.noStatement': '没有可运行的 SQL。',
   'error.noStatementToExplain': '没有可解释的 SQL。',
   'error.noValues': '没有可保存的值。',
   'error.primaryKeyRequired': '此操作需要主键。',
@@ -754,7 +765,9 @@ export const zh: Record<MessageKey, string> = {
   'app.sessions': '会话',
   'app.users': '用户',
   'app.loadingConnections': '正在加载连接...',
-  'app.newQueryTab': '新建查询标签页',
+  'app.workerLost':
+    '数据库进程已停止（{message}），所有连接均已丢失。请重新连接之前打开的连接。',
+  'app.workerLostLastOp': '最后一个操作：{op}。',  'app.newQueryTab': '新建查询标签页',
   'app.viewDefinition': '显示 CREATE 视图定义',
   'app.create': '创建',
   'app.exportDatabase': '导出数据库',
@@ -877,6 +890,8 @@ export const zh: Record<MessageKey, string> = {
   'ai.messageLabel': '发给助手的消息',
   'ai.roleUser': '你',
   'ai.roleAssistant': '助手',
+  'ai.toolCallStripped':
+    '模型尝试调用此应用未提供的工具。该部分已隐藏；请让它以 SQL 查询的形式给出分析。',
   'ai.insertSql': '插入 SQL',
   'ai.insertSqlIndexed': '插入 SQL #{index}',
   'ai.stopped': '（已停止）',
@@ -1382,7 +1397,12 @@ export const zh: Record<MessageKey, string> = {
     '该主机和端口上没有监听器响应。请启动 Oracle 监听器或检查端口。',
   'connErr.oracleServiceTitle': '未知的 Oracle 服务',
   'connErr.oracleServiceHint': '监听器已启动，但服务名未注册。请检查连接设置中的服务名。',
-  'connErr.tlsTitle': 'TLS/SSL 失败',
+  'connErr.oracleThinTitle': 'Oracle 服务器版本过低，无法使用 thin 模式',
+  'connErr.oracleThinHint':
+    'thin 模式仅支持 Oracle 12.1 及以上。对于更早的服务器，请在设置中指定 Oracle Instant Client 文件夹后重试。',
+  'connErr.oracleClientTitle': '无法使用 Oracle Instant Client',
+  'connErr.oracleClientHint':
+    '请检查设置中的 Instant Client 文件夹：其中必须包含 oci.dll（Windows）或 libclntsh（macOS/Linux），且架构必须与应用一致。详情：{detail}',  'connErr.tlsTitle': 'TLS/SSL 失败',
   'connErr.tlsHint': '服务器证书与 SSL 设置不匹配。请检查连接上的 SSL 模式。',
   'connErr.sshTitle': 'SSH 隧道失败',
   'connErr.sshHint': 'SSH 无法打开隧道。请检查主机、用户和 SSH 密钥。',

@@ -35,6 +35,18 @@ export const id = {
   'settings.section.appearance': 'Tampilan',
   'settings.section.editor': 'Editor',
   'settings.section.grid': 'Data grid',
+  'settings.section.oracle': 'Oracle',
+  'settings.oracle.hint':
+    'Oracle 12.1 ke atas bisa dihubungkan tanpa library tambahan. Untuk server yang lebih lama, mode thin tidak didukung; isi folder Oracle Instant Client di bawah agar aplikasi memakai mode thick.',
+  'settings.oracle.client': 'Folder Oracle Instant Client',
+  'settings.oracle.clientPlaceholder': 'Contoh: C:\\oracle\\instantclient_21_13',
+  'settings.oracle.browse': 'Pilih folder',
+  'settings.oracle.download': 'Unduh Instant Client',
+  'settings.oracle.downloadHint':
+    'Membuka halaman unduhan Oracle di browser. Pilih paket Basic untuk sistem operasi dan arsitektur yang sama dengan aplikasi, lalu ekstrak dan tunjuk foldernya di atas.',
+  'settings.oracle.clear': 'Kosongkan',
+  'settings.oracle.modeHint':
+    'Kosong berarti mode thin. Folder harus berisi oci.dll (Windows) atau libclntsh (macOS/Linux) dengan arsitektur yang sama seperti aplikasi.',
   'settings.section.ai': 'AI',
   'settings.section.keymap': 'Keymap',
   'settings.section.about': 'Tentang',
@@ -412,6 +424,8 @@ export const id = {
   // Driver error text. The driver reports a code; the renderer picks the
   // wording, so an English driver message never lands in an Indonesian screen.
   'error.notConnected': 'Koneksi ke server sudah tidak aktif.',
+  'error.connectionLost':
+    'Koneksi ini tadinya terbuka, tetapi sekarang sudah tidak ada. Sambungkan ulang lalu jalankan lagi.',
   'error.noStatement': 'Tidak ada SQL untuk dijalankan.',
   'error.noStatementToExplain': 'Tidak ada SQL untuk dijelaskan.',
   'error.noValues': 'Tidak ada nilai untuk disimpan.',
@@ -843,6 +857,9 @@ export const id = {
   'app.sessions': 'Sesi',
   'app.users': 'User',
   'app.loadingConnections': 'Memuat koneksi...',
+  'app.workerLost':
+    'Proses database berhenti ({message}), jadi semua koneksi ikut hilang. Sambungkan ulang koneksi yang tadi terbuka.',
+  'app.workerLostLastOp': 'Operasi terakhir: {op}.',
   'app.newQueryTab': 'Tab query baru',
   'app.viewDefinition': 'Lihat definisi CREATE view',
   'app.create': 'Buat',
@@ -977,6 +994,8 @@ export const id = {
   'ai.messageLabel': 'Pesan untuk asisten',
   'ai.roleUser': 'Kamu',
   'ai.roleAssistant': 'Asisten',
+  'ai.toolCallStripped':
+    'Model mencoba memanggil tool yang tidak tersedia di aplikasi ini. Bagian itu disembunyikan; minta analisisnya sebagai query SQL.',
   'ai.insertSql': 'Sisipkan SQL',
   'ai.insertSqlIndexed': 'Sisipkan SQL #{index}',
   'ai.stopped': '(dihentikan)',
@@ -1577,6 +1596,12 @@ export const id = {
   'connErr.oracleServiceTitle': 'Service Oracle tidak dikenal',
   'connErr.oracleServiceHint':
     'Listener aktif, tetapi nama service tidak terdaftar. Periksa nama service pada pengaturan koneksi.',
+  'connErr.oracleThinTitle': 'Server Oracle terlalu lama untuk mode thin',
+  'connErr.oracleThinHint':
+    'Mode thin hanya mendukung Oracle 12.1 ke atas. Untuk server versi lama, isi folder Oracle Instant Client di Pengaturan, lalu coba lagi.',
+  'connErr.oracleClientTitle': 'Oracle Instant Client tidak bisa dipakai',
+  'connErr.oracleClientHint':
+    'Periksa folder Instant Client di Pengaturan: folder harus berisi oci.dll (Windows) atau libclntsh (macOS/Linux), dan arsitekturnya harus sama dengan aplikasi. Detail: {detail}',
   'connErr.tlsTitle': 'TLS/SSL gagal',
   'connErr.tlsHint':
     'Sertifikat server tidak cocok dengan pengaturan SSL. Periksa mode SSL pada koneksi.',

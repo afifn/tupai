@@ -35,6 +35,16 @@ export class DbWorkerClient {
   // Why the worker stopped. Kept so a later call reports the real cause instead
   // of a generic "already stopped" line that hides an ABI mismatch or a crash.
   private deadReason: DbErrorShape | null = null
+  // The operation in flight when the worker died, and how long it had been
+  // running. A crash report without this is untraceable: the exit code alone
+  // does not say which statement took the thread down.
+  private inFlight: { op: string; startedAt: number } | null = null
+  // Called whenever the worker dies, with the reason and the last operation.
+  // Adapters only exist inside the worker, so their loss has to reach the
+  // renderer; otherwise the UI keeps showing a connection that cannot be used
+  // and every later call fails with a misleading "not connected".
+  private onWorkerLost: ((reason: DbErrorShape, lastOp: string | null) => void) | null =
+    null
   // Resolves when the worker is online. A message posted before that is dropped
   // by Node, which used to leave the caller waiting for the timeout.
   private ready: Promise<void> = Promise.resolve()
@@ -86,9 +96,22 @@ export class DbWorkerClient {
           engine: 'sqlite'
         }
       }
+      const lastOp = this.inFlight
+        ? `${this.inFlight.op} (${Math.round((Date.now() - this.inFlight.startedAt) / 1000)}s)`
+        : null
+      this.inFlight = null
       this.failAll(this.deadReason.message, this.deadReason.code)
+      // Tell the main process that every adapter died with the thread.
+      this.onWorkerLost?.(this.deadReason, lastOp)
     })
     return worker
+  }
+
+  /** Registers the crash reporter. Only one consumer exists: the IPC layer. */
+  setWorkerLostHandler(
+    handler: (reason: DbErrorShape, lastOp: string | null) => void
+  ): void {
+    this.onWorkerLost = handler
   }
 
   // A stopped worker is recoverable: the adapters only live in the worker, so
@@ -125,6 +148,7 @@ export class DbWorkerClient {
     }
     const id = ++this.seq
     const timeout = LONG_OPERATIONS.has(op) ? LONG_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
+    this.inFlight = { op, startedAt: Date.now() }
     return new Promise<T>((resolve, reject) => {
       const entry: Pending = {
         resolve: resolve as (v: unknown) => void,
@@ -134,6 +158,7 @@ export class DbWorkerClient {
         // The driver call cannot be cancelled from here, so the entry is
         // removed and the caller gets an error instead of waiting forever.
         this.pending.delete(id)
+        if (this.inFlight?.op === op) this.inFlight = null
         reject({
           code: 'TIMEOUT',
           message: `Operasi ${op} melebihi ${Math.round(timeout / 1000)} detik.`,
@@ -142,6 +167,9 @@ export class DbWorkerClient {
       }, timeout)
       this.pending.set(id, entry)
       this.worker.postMessage({ id, op, payload })
+    }).finally(() => {
+      // The call settled (result, driver error, or timeout): nothing is in flight.
+      if (this.inFlight?.op === op) this.inFlight = null
     })
   }
 

@@ -24,7 +24,17 @@ export const es: Record<MessageKey, string> = {
   'settings.section.appearance': 'Apariencia',
   'settings.section.editor': 'Editor',
   'settings.section.grid': 'Cuadrícula de datos',
-  'settings.section.ai': 'IA',
+  'settings.section.oracle': 'Oracle',
+  'settings.oracle.hint':
+    'Oracle 12.1 y posteriores se conectan sin librería adicional. Los servidores anteriores no son compatibles con el modo thin; indica la carpeta de Oracle Instant Client abajo para usar el modo thick.',
+  'settings.oracle.client': 'Carpeta de Oracle Instant Client',
+  'settings.oracle.clientPlaceholder': 'Por ejemplo C:\\oracle\\instantclient_21_13',
+  'settings.oracle.browse': 'Elegir carpeta',
+  'settings.oracle.download': 'Descargar Instant Client',
+  'settings.oracle.downloadHint':
+    'Abre la página de descargas de Oracle en el navegador. Elige el paquete Basic para el mismo sistema operativo y arquitectura que la aplicación, extráelo y selecciona esa carpeta arriba.',  'settings.oracle.clear': 'Vaciar',
+  'settings.oracle.modeHint':
+    'Vacío significa modo thin. La carpeta debe contener oci.dll (Windows) o libclntsh (macOS/Linux) con la misma arquitectura que la aplicación.',  'settings.section.ai': 'IA',
   'settings.section.keymap': 'Atajos',
   'settings.section.about': 'Acerca de',
   'settings.sectionNav': 'Secciones de ajustes',
@@ -374,7 +384,8 @@ export const es: Record<MessageKey, string> = {
   'detail.size': 'Tamaño',
   'query.selectAllLabel': 'Obtener todas las filas',
   'error.notConnected': 'La conexión con el servidor ya no está activa.',
-  'error.noStatement': 'No hay SQL para ejecutar.',
+  'error.connectionLost':
+    'Esta conexión estaba abierta pero ya no existe. Vuelve a conectarla y ejecuta la operación otra vez.',  'error.noStatement': 'No hay SQL para ejecutar.',
   'error.noStatementToExplain': 'No hay SQL para explicar.',
   'error.noValues': 'No hay valores para guardar.',
   'error.primaryKeyRequired': 'Esta operación necesita una clave primaria.',
@@ -796,7 +807,9 @@ export const es: Record<MessageKey, string> = {
   'app.sessions': 'Sesiones',
   'app.users': 'Usuarios',
   'app.loadingConnections': 'Cargando conexiones...',
-  'app.newQueryTab': 'Nueva pestaña de consulta',
+  'app.workerLost':
+    'El proceso de base de datos se detuvo ({message}), así que todas las conexiones se perdieron. Vuelve a conectar las que tenías abiertas.',
+  'app.workerLostLastOp': 'Última operación: {op}.',  'app.newQueryTab': 'Nueva pestaña de consulta',
   'app.viewDefinition': 'Ver la definición CREATE de la vista',
   'app.create': 'Crear',
   'app.exportDatabase': 'Exportar base de datos',
@@ -927,6 +940,8 @@ export const es: Record<MessageKey, string> = {
   'ai.messageLabel': 'Mensaje para el asistente',
   'ai.roleUser': 'Tú',
   'ai.roleAssistant': 'Asistente',
+  'ai.toolCallStripped':
+    'El modelo intentó llamar a una herramienta que esta app no ofrece. Esa parte se ocultó; pide el análisis como consulta SQL.',
   'ai.insertSql': 'Insertar SQL',
   'ai.insertSqlIndexed': 'Insertar SQL n.º {index}',
   'ai.stopped': '(detenido)',
@@ -1461,7 +1476,12 @@ export const es: Record<MessageKey, string> = {
   'connErr.oracleServiceTitle': 'Servicio de Oracle desconocido',
   'connErr.oracleServiceHint':
     'El listener está activo, pero el nombre del servicio no está registrado. Revisa el nombre del servicio en los ajustes de la conexión.',
-  'connErr.tlsTitle': 'TLS/SSL falló',
+  'connErr.oracleThinTitle': 'Servidor Oracle demasiado antiguo para el modo thin',
+  'connErr.oracleThinHint':
+    'El modo thin solo admite Oracle 12.1 y posteriores. Para un servidor anterior, indica la carpeta de Oracle Instant Client en Ajustes y vuelve a intentarlo.',
+  'connErr.oracleClientTitle': 'No se puede usar Oracle Instant Client',
+  'connErr.oracleClientHint':
+    'Revisa la carpeta de Instant Client en Ajustes: debe contener oci.dll (Windows) o libclntsh (macOS/Linux), y su arquitectura debe coincidir con la aplicación. Detalle: {detail}',  'connErr.tlsTitle': 'TLS/SSL falló',
   'connErr.tlsHint':
     'El certificado del servidor no coincide con los ajustes de SSL. Revisa el modo SSL de la conexión.',
   'connErr.sshTitle': 'El túnel SSH falló',
