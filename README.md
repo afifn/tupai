@@ -12,6 +12,7 @@ Jelajahi objek, edit data, tulis query, dan pindahkan data tanpa berpindah alat.
 
 [![Rilis terbaru](https://img.shields.io/github/v/release/afifn/tupai?style=flat-square)](https://github.com/afifn/tupai/releases)
 [![Lisensi MIT](https://img.shields.io/github/license/afifn/tupai?style=flat-square)](LICENSE)
+[![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/afifn/tupai/releases)
 [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-000000?style=flat-square&logo=apple)](https://github.com/afifn/tupai/releases)
 [![Electron 45](https://img.shields.io/badge/Electron-45-47848F?style=flat-square&logo=electron)](https://www.electronjs.org/)
 
@@ -21,8 +22,10 @@ Jelajahi objek, edit data, tulis query, dan pindahkan data tanpa berpindah alat.
 
 > [!IMPORTANT]
 > Unduh Tupai hanya dari [halaman rilis resmi](https://github.com/afifn/tupai/releases).
-> Build macOS saat ini belum ditandatangani dan belum dinotarisasi, jadi macOS
-> menolak pembukaan pertama sampai Anda membukanya lewat klik kanan → **Open**.
+> Build saat ini belum ditandatangani secara digital, jadi kedua sistem
+> menampilkan peringatan pada pembukaan pertama:
+> **Windows** → *More info* lalu *Run anyway*;
+> **macOS** → klik kanan aplikasi lalu *Open* sekali.
 > Repositori dengan nama mirip atau README salinan tidak menjamin unduhan resmi.
 
 ---
@@ -54,8 +57,9 @@ tampilan. Setiap channel IPC divalidasi sebelum menyentuh driver.
 - SSL/TLS dengan CA, client certificate, dan private key (MySQL/MariaDB,
   PostgreSQL).
 - Tombol **Test** sebelum koneksi disimpan.
-- Impor dan ekspor koneksi Navicat (`.ncx`). Password tidak pernah didekripsi
-  atau ikut diekspor.
+- Impor dan ekspor koneksi Navicat (`.ncx`). Ekspor bisa memilih koneksi mana
+  saja lewat dialog, atau langsung dari menu konteks satu koneksi/grup. Password
+  tidak pernah didekripsi atau ikut diekspor.
 
 ### Menjelajah objek
 
@@ -63,7 +67,7 @@ tampilan. Setiap channel IPC divalidasi sebelum menyentuh driver.
   trigger, event) dan Saved queries.
 - Kolom tampil di panel Detail, bukan memenuhi tree.
 - Informasi tabel: jumlah baris, ukuran, komentar, dan engine.
-- Pencarian cepat lintas objek yang sudah dimuat lewat `Mod+F`.
+- Pencarian cepat lintas objek yang sudah dimuat lewat `⌘F` / `Ctrl+F`.
 - Menu konteks untuk koneksi, database, schema, tabel, view, dan routine.
 - Fokus sidebar mengikuti database/schema yang Anda klik, sehingga tab query
   baru selalu terbuka pada scope yang terlihat.
@@ -71,6 +75,9 @@ tampilan. Setiap channel IPC divalidasi sebelum menyentuh driver.
 ### Data
 
 - Grid dengan paging, sorting, filter cepat, dan filter multi-kondisi (AND/OR).
+- Nomor urut di kolom pertama; baris dipilih langsung dengan klik, `Ctrl`/`⌘`
+  klik untuk menambah, `Shift` klik untuk rentang, atau drag menyapu beberapa
+  baris tanpa ikut menyorot teks.
 - Edit sel sesuai tipe kolom, tambah baris inline, dan hapus banyak baris dalam
   satu transaksi.
 - Preview BLOB: gambar, teks, atau hex dump.
@@ -104,6 +111,9 @@ tampilan. Setiap channel IPC divalidasi sebelum menyentuh driver.
 - Table Designer: kolom, index, foreign key, komentar, info, dan DDL.
 - View Designer.
 - User dan permission (MySQL, MariaDB, PostgreSQL, Oracle).
+- Pada Oracle, hak akses per objek (tabel/schema) dipisahkan dari **System
+  Privileges** (`GRANT privilege TO user` tanpa klausa `ON`), karena keduanya
+  memang berbeda di Oracle.
 - Monitor sesi dan hentikan sesi lain (semua engine kecuali SQLite).
 - Import CSV dan SQL; ekspor CSV, JSON, dan SQL. Backup & restore SQL dengan
   riwayat.
@@ -158,6 +168,11 @@ Unduh dari [halaman rilis](https://github.com/afifn/tupai/releases):
 - `Tupai-<versi>-arm64.dmg` untuk Apple Silicon
 - `Tupai-<versi>-x64.dmg` untuk Intel
 
+> [!NOTE]
+> Build macOS dibuat di mesin macOS, jadi tidak selalu ada pada rilis terbaru.
+> Bila rilis teratas hanya berisi installer Windows, buka rilis terakhir yang
+> memuat berkas `.dmg` (per 28 Oktober 2026: **v0.2.1**).
+
 Buka DMG, lalu seret Tupai ke Applications. Build belum ditandatangani, jadi
 Gatekeeper menolak pembukaan pertama. Buka lewat klik kanan → **Open** sekali,
 atau jalankan:
@@ -211,17 +226,17 @@ npm run dist:mac:unsigned
 2. **Buka objek.** Klik dua kali koneksi di sidebar, bentangkan database dan
    schema, lalu klik nama tabel untuk membuka datanya.
 3. **Jelajahi dan edit.** Gunakan paging, sorting, dan filter. Tambah baris lewat
-   tombol di pager; pilih beberapa baris untuk menghapus sekaligus. Tabel tanpa
-   primary key bersifat read-only.
-4. **Tulis query.** Buka tab Query (`Mod+1`), pilih database dan schema di bar
-   atas, lalu jalankan dengan `Mod+Enter`. Pilih sebagian teks untuk menjalankan
-   bagian itu saja.
+   tombol di pager. Pilih beberapa baris dengan drag atau `Shift` klik, lalu
+   hapus sekaligus. Tabel tanpa primary key bersifat read-only.
+4. **Tulis query.** Buka tab Query (`⌘1` / `Ctrl+1`), pilih database dan schema di
+   bar atas, lalu jalankan dengan `⌘↩` / `Ctrl+Enter`. Pilih sebagian teks untuk
+   menjalankan bagian itu saja.
 5. **Pakai asisten.** Buka panel asisten, lalu tanyakan soal skema atau data.
    Ketik `@` untuk merujuk tabel beserta kolomnya. Blok SQL di jawaban bisa
    disisipkan ke editor.
 6. **Pindahkan atau cadangkan.** Gunakan **Transfer** untuk memindahkan data,
    **Sync** untuk menyamakan struktur/data, dan **Backup** untuk dump SQL.
-7. **Atur aplikasi.** `Mod+,` membuka Setelan: bahasa, tema, font editor, ukuran
+7. **Atur aplikasi.** `⌘,` / `Ctrl+,` membuka Setelan: bahasa, tema, font editor, ukuran
    grid, konfigurasi asisten, keymap, dan info versi.
 
 ### Pintasan
@@ -244,8 +259,8 @@ Aplikasi memeriksa rilis baru saat dibuka dan menampilkan notifikasi bila ada
 versi lebih baru. Pemeriksaan manual ada di **Setelan → Tentang → Periksa
 pembaruan**, atau di menu aplikasi.
 
-- **Windows** (bila build tersedia): pembaruan diunduh di latar belakang lalu
-  dipasang saat Anda menekan **Pasang dan mulai ulang**.
+- **Windows**: pembaruan diunduh di latar belakang lalu dipasang saat Anda
+  menekan **Pasang dan mulai ulang**.
 - **macOS**: build belum ditandatangani, sehingga macOS tidak mengizinkan
   aplikasi mengganti dirinya sendiri. Panel menampilkan versi baru dan tombol
   **Buka halaman unduhan**; unduh DMG lalu pasang seperti biasa.
@@ -256,8 +271,8 @@ Koneksi database, kredensial, dan setelan tidak pernah ikut.
 ## Kebutuhan sistem
 
 - **macOS 13 atau lebih baru**, Apple Silicon atau Intel.
-- **Windows 10/11 64-bit**: target build tersedia, installer publik belum
-  diterbitkan.
+- **Windows 10/11 64-bit**: installer tersedia di halaman rilis. Pemasangan
+  memerlukan izin administrator karena Tupai dipasang untuk semua pengguna.
 - **Oracle**: server 12.1+ berjalan dengan mode thin. Server yang lebih lama
   memerlukan Oracle Instant Client dan mode thick, yang diatur di
   **Setelan → Oracle**.
@@ -308,8 +323,12 @@ Build saat ini belum ditandatangani dan dinotarisasi. Buka lewat klik kanan →
 <details>
 <summary><strong>Apakah sudah ada build Windows?</strong></summary>
 
-Belum. Target build Windows ada di repositori, tetapi installer belum
-dipublikasikan. Rilis saat ini berisi build macOS arm64 dan x64.
+Ya, sejak **0.2.2**. Unduh `Tupai-Setup-<versi>.exe` di
+[halaman rilis](https://github.com/afifn/tupai/releases). Build belum
+ditandatangani, jadi Windows menampilkan peringatan lebih dulu: klik
+**More info** lalu **Run anyway**, kemudian setujui konfirmasi administrator.
+
+Build macOS tersedia terpisah pada rilis yang dibangun di macOS.
 </details>
 
 <details>

@@ -8,6 +8,17 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+### Diubah
+
+- **README** kini menyebut installer Windows sudah tersedia sejak 0.2.2, lengkap
+  dengan langkah melewati SmartScreen dan konfirmasi administrator. Sebelumnya
+  README masih menyatakan installer Windows belum dipublikasikan.
+- README menambahkan catatan bahwa build macOS hanya ada pada rilis yang dibangun
+  di macOS, sehingga pembaca tidak bingung ketika rilis teratas hanya berisi
+  installer Windows.
+- Pintasan di README memakai notasi platform (`⌘1` / `Ctrl+1`), bukan token
+  mentah `Mod+1`.
+
 ### Ditambahkan
 
 - **Tangkapan layar di README** dalam versi terang dan gelap, dipilih otomatis
