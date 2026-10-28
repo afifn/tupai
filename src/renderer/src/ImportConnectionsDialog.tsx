@@ -206,7 +206,7 @@ export function ImportConnectionsDialog({
                         <td>
                           {item.engine ? (
                             <span className="ncx__engine">
-                              <EngineIcon engine={item.engine} size={13} active />
+                              <EngineIcon engine={item.engine} size={13} />
                               {ENGINE_LABEL[item.engine]}
                             </span>
                           ) : (

@@ -13,6 +13,7 @@ import type {
   TransactionRef
 } from '@shared/types'
 import { describeBinary, isBinaryCell } from '@shared/binary'
+import { toTransferable } from '@shared/transferable'
 import { getAdapterFactory } from '../drivers/registry'
 import { DbError, type DatabaseAdapter } from '../drivers/types'
 
@@ -27,9 +28,45 @@ interface WorkerResponse {
   ok: boolean
   data?: unknown
   error?: { code: string; message: string; engine: string }
+  // Set only for the last message a dying worker sends. The parent treats it as
+  // the reason every connection is about to disappear.
+  fatal?: boolean
 }
 
 const adapters = new Map<string, DatabaseAdapter>()
+
+// A worker that dies takes every connection with it, and Node reports the crash
+// as an empty error message when the failure comes from inside a native module.
+// The detail is sent to the parent before exiting so the log names the cause
+// instead of only an exit code.
+function reportFatal(err: unknown): void {
+  const source = err instanceof Error ? err : new Error(String(err))
+  // The stack already starts with "Name: message", so it is used on its own
+  // rather than prefixed, which printed the same line twice.
+  const stack = (source.stack ?? '').split('\n').slice(0, 6).join('\n')
+  const message = (stack || `${source.name}: ${source.message}`).slice(0, 2000)
+  try {
+    parentPort?.postMessage({
+      id: -1,
+      ok: false,
+      fatal: true,
+      error: { code: 'WORKER_ERROR', message, engine: 'sqlite' }
+    } satisfies WorkerResponse)
+  } catch {
+    // The thread is going down; the parent still reports the exit.
+  }
+}
+
+process.on('uncaughtException', (err) => {
+  reportFatal(err)
+  // One turn of the loop so the message can leave the thread; exiting right away
+  // can drop it and leave the parent with only an exit code.
+  setImmediate(() => process.exit(1))
+})
+process.on('unhandledRejection', (reason) => {
+  reportFatal(reason)
+  setImmediate(() => process.exit(1))
+})
 
 // Every adapter this worker has ever opened. Used to tell "you never connected"
 // apart from "you were connected and the connection went away": both used to
@@ -86,6 +123,19 @@ function prepareRows(
   })
 }
 
+// A driver can hand back a live handle (LOB, ResultSet, object type) instead of
+// plain data. Handles cannot cross the thread boundary: postMessage throws a
+// DataCloneError, and an uncaught one used to kill the worker together with
+// every open connection. Values that cannot be cloned are described instead.
+function postResponse(response: WorkerResponse): void {
+  try {
+    parentPort?.postMessage(response)
+  } catch (err) {
+    if ((err as { name?: string })?.name !== 'DataCloneError') throw err
+    parentPort?.postMessage(toTransferable(response) as WorkerResponse)
+  }
+}
+
 async function handle(op: string, payload: unknown): Promise<unknown> {
   switch (op) {
     case 'testConnection': {
@@ -95,10 +145,17 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
     }
     // Diagnostic hook: crashes the thread on purpose so the crash-reporting path
     // can be exercised without a real segfault. Only reachable when the env var
-    // is set, so a shipped build cannot trigger it.
+    // is set, so a shipped build cannot trigger it. The `throw` mode raises an
+    // uncaught error instead of a bare exit, which is what a real crash does.
     case '__crash': {
       if (process.env.TUPAI_DEBUG_CRASH !== '1') {
         throw new DbError('UNKNOWN_OP', 'Unknown operation: __crash', 'sqlite')
+      }
+      if ((payload as { mode?: string })?.mode === 'throw') {
+        setTimeout(() => {
+          throw new Error('Diagnostic worker crash')
+        }, 0)
+        return true
       }
       process.exit(99)
     }
@@ -450,5 +507,5 @@ parentPort?.on('message', async (req: WorkerRequest) => {
       }
     }
   }
-  parentPort?.postMessage(response)
+  postResponse(response)
 })

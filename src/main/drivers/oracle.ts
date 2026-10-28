@@ -46,6 +46,9 @@ import { oracleLimitSql, oraclePageBinds, oraclePageSql } from '@shared/oracleSq
 
 const QUERY_TIMEOUT_MS = 30000
 
+// Set once per worker process; see loadOracle().
+let clobAsString = false
+
 // `oracledb` is a CommonJS package: imported from an ES module its real API
 // arrives on `default`, so `(await import('oracledb')).getConnection` is
 // undefined and connecting fails with "(intermediate value).getConnection is not
@@ -53,7 +56,17 @@ const QUERY_TIMEOUT_MS = 30000
 // handled once.
 async function loadOracle(): Promise<typeof import('oracledb')> {
   const mod = await import('oracledb')
-  return resolveCjsDefault(mod) as unknown as typeof import('oracledb')
+  const api = resolveCjsDefault(mod) as unknown as typeof import('oracledb')
+  if (!clobAsString) {
+    // CLOB and NCLOB arrive as Lob handles by default. A handle is bound to the
+    // connection, cannot cross the worker thread boundary, and the grid can only
+    // show text anyway. This is a module-level setting: `execute()` has no
+    // `fetchAsString` option, so passing one there is silently ignored. Listing
+    // CLOB covers NCLOB too.
+    api.fetchAsString = [api.CLOB]
+    clobAsString = true
+  }
+  return api
 }
 
 // Thick mode is process-wide and can only be initialised once, so the outcome is
@@ -211,7 +224,8 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   // Ask oracledb for BLOB/RAW columns as Buffers instead of Lob handles so the
-  // preview layer can inspect the bytes without a second round-trip.
+  // preview layer can inspect the bytes without a second round-trip. CLOB/NCLOB
+  // are already strings, see loadOracle().
   private fetchOptions(oracledb: typeof import('oracledb')): {
     outFormat: number
     fetchTypeHandler: (metaData: { dbType: number }) => { type: number } | undefined
@@ -811,7 +825,7 @@ class OracleAdapter implements DatabaseAdapter {
           stmt,
           {},
           {
-            outFormat: oracledb.OUT_FORMAT_OBJECT,
+            ...this.fetchOptions(oracledb),
             autoCommit,
             resultSet: true,
             fetchArraySize: Math.min(500, maxRows + 1)
@@ -990,7 +1004,7 @@ class OracleAdapter implements DatabaseAdapter {
   ): Promise<ForeignKeyInfo[]> {
     const owner = schema ?? this.schema()
     const res = await this.require().execute(
-      `SELECT c.constraint_name, cc.column_name, r.owner AS ref_owner,
+      `SELECT c.constraint_name, cc.column_name, rc.owner AS ref_owner,
               rc.table_name AS ref_table, rcc.column_name AS ref_column,
               c.delete_rule
        FROM all_constraints c
@@ -1274,26 +1288,48 @@ class OracleAdapter implements DatabaseAdapter {
   }
 
   async listUsers(): Promise<DbUser[]> {
-    const res = await this.require().execute(
-      `SELECT u.username, u.account_status,
-              CASE WHEN r.granted_role = 'DBA' THEN 'Y' ELSE 'N' END AS is_dba
-       FROM all_users u
-       LEFT JOIN (
-         SELECT grantee, granted_role FROM dba_role_privs WHERE granted_role = 'DBA'
-       ) r ON r.grantee = u.username
-       ORDER BY u.username`
-    )
-    return (res.rows ?? []).map((r) => {
-      const row = r as Record<string, unknown>
-      return {
-        name: String(row.USERNAME ?? row.username),
-        canLogin: String(row.ACCOUNT_STATUS ?? row.account_status ?? '').startsWith(
-          'OPEN'
-        ),
-        isSuperuser: String(row.IS_DBA ?? row.is_dba) === 'Y',
-        attributes: []
-      }
-    })
+    // `all_users` has no ACCOUNT_STATUS; that column lives in `dba_users`, which
+    // needs catalog access. Listing every user therefore has two shapes: the
+    // privileged one that knows the status, and a plain list of names. Referencing
+    // a column the current user cannot read failed the whole screen with
+    // ORA-00904, so the query is chosen instead of assumed.
+    const privileged = await this.require()
+      .execute(
+        `SELECT u.username, u.account_status,
+                CASE WHEN r.granted_role = 'DBA' THEN 'Y' ELSE 'N' END AS is_dba
+         FROM dba_users u
+         LEFT JOIN (
+           SELECT grantee, granted_role FROM dba_role_privs WHERE granted_role = 'DBA'
+         ) r ON r.grantee = u.username
+         ORDER BY u.username`
+      )
+      .then((res) => res)
+      .catch(() => null)
+
+    // Catalog queries return rows as arrays: only selectRows/fetchBatch ask for
+    // OUT_FORMAT_OBJECT. Reading `row.USERNAME` here silently produced
+    // `undefined` for every user, so the columns are read by position.
+    const rows = privileged?.rows
+      ? (privileged.rows as unknown[][]).map((r) => ({
+          name: String(r[0]),
+          canLogin: String(r[1] ?? '').startsWith('OPEN'),
+          isSuperuser: String(r[2] ?? '') === 'Y',
+          attributes: [] as string[]
+        }))
+      : await this.require()
+          .execute(`SELECT username FROM all_users ORDER BY username`)
+          .then((res) =>
+            ((res.rows ?? []) as unknown[][]).map((r) => ({
+              name: String(r[0]),
+              // Without catalog access the status is unknown, so it is reported
+              // as such instead of guessing a value the screen would show as fact.
+              canLogin: true,
+              isSuperuser: false,
+              attributes: ['status tidak diketahui (butuh akses katalog)']
+            }))
+          )
+
+    return rows
   }
 
   async beginTransaction(begin: TransactionBegin): Promise<TransactionInfo> {

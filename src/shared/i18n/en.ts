@@ -682,6 +682,12 @@ export const en: Record<MessageKey, string> = {
   'ncx.done': '{count} connections imported.',
   'ncx.doneNone': 'No connection was imported.',
   'ncx.exportTitle': 'Export connections',
+  'ncx.exportHint':
+    'Choose the connections to write to the file. Passwords are never exported, so each one needs to be filled in once after importing.',
+  'ncx.exportCount': 'Export {count} connections',
+  'ncx.exportCount_one': 'Export 1 connection',
+  'ncx.exportCount_other': 'Export {count} connections',
+  'ncx.exporting': 'Exporting...',
   'ncx.exportDone': '{count} connections exported to {path}.',
   'ncx.exportCancelled': 'Export cancelled.',
   'ncx.noConnections': 'There are no connections to export yet.',

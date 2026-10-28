@@ -65,7 +65,9 @@ interface Props {
   // Navicat migration: the tree background is where a user looks for "add
   // connections", so both directions live here too.
   onImportConnections: () => void
-  onExportConnections: () => void
+  // Opens the export picker. A group passes its members so they start checked;
+  // the background menu passes nothing, which means every connection.
+  onExportConnections: (preselected?: string[]) => void
   // Sidebar filter, driven by Cmd/Ctrl+F in the shell. Empty means show all.
   filter: string
   // Aggregate result of the filter, so the shell can say "no match" when nothing
@@ -349,8 +351,10 @@ export function ObjectTree({
       <div
         key={c.id}
         className={`objtree__conn${c.color ? ` is-colored conn-tint--${c.color}` : ''}${
-          draggingId === c.id ? ' is-dragging' : ''
-        }${failure ? ' is-failed' : ''}${hidden ? ' is-filtered-out' : ''}`}
+          isOpen ? ' is-open' : ''
+        }${draggingId === c.id ? ' is-dragging' : ''}${failure ? ' is-failed' : ''}${
+          hidden ? ' is-filtered-out' : ''
+        }`}
       >
         <div
           className={`objtree__row${rowState}${focusState}`}
@@ -405,8 +409,8 @@ export function ObjectTree({
           >
             <IconCaret open={isExpanded} />
           </button>
-          <span className={`objtree__icon${c.id === activeId ? ' is-active' : ''}`}>
-            <EngineIcon engine={c.engine} active={isOpen} size={14} />
+          <span className="objtree__icon">
+            <EngineIcon engine={c.engine} size={14} tint={isOpen ? 'brand' : 'muted'} />
           </span>
           <span className="objtree__name" title={c.name}>
             {c.name}
@@ -588,6 +592,16 @@ export function ObjectTree({
             {
               label: tr('menu.renameGroup'),
               onSelect: () => setGroupPrompt({ mode: 'rename', group: groupMenu.group })
+            },
+            {
+              label: tr('ncx.exportMenu'),
+              disabled: !connections.some((c) => c.groupId === groupMenu.group.id),
+              onSelect: () =>
+                onExportConnections(
+                  connections
+                    .filter((c) => c.groupId === groupMenu.group.id)
+                    .map((c) => c.id)
+                )
             },
             {
               label: tr('menu.deleteGroup'),

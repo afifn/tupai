@@ -39,6 +39,9 @@ export class DbWorkerClient {
   // running. A crash report without this is untraceable: the exit code alone
   // does not say which statement took the thread down.
   private inFlight: { op: string; startedAt: number } | null = null
+  // The operation that was running when the 'error' event fired. Kept separately
+  // because rejecting the pending calls clears `inFlight` before 'exit' runs.
+  private crashLastOp: string | null = null
   // Called whenever the worker dies, with the reason and the last operation.
   // Adapters only exist inside the worker, so their loss has to reach the
   // renderer; otherwise the UI keeps showing a connection that cannot be used
@@ -67,7 +70,24 @@ export class DbWorkerClient {
     })
     worker.on(
       'message',
-      (res: { id: number; ok: boolean; data?: unknown; error?: DbErrorShape }) => {
+      (res: {
+        id: number
+        ok: boolean
+        fatal?: boolean
+        data?: unknown
+        error?: DbErrorShape
+      }) => {
+        // The worker reports its own uncaught error before exiting. Without this
+        // the parent only saw exit code 1, and a crash inside a native module
+        // left an empty message in the log.
+        if (res.fatal && res.error) {
+          this.crashLastOp = this.describeInFlight()
+          this.deadReason = res.error
+          // The thread is exiting; refuse new calls instead of posting into it.
+          this.dead = true
+          this.failAll(res.error.message, res.error.code)
+          return
+        }
         const p = this.pending.get(res.id)
         if (!p) return
         this.pending.delete(res.id)
@@ -79,7 +99,17 @@ export class DbWorkerClient {
     worker.on('online', markReady)
     worker.on('error', (err) => {
       markReady()
-      this.deadReason = describeWorkerFailure(err.message)
+      // Node reports a crash inside a native module with an empty message, so the
+      // name and stack are what actually identify it. Without them the log only
+      // says "worker died", which is not enough to fix anything.
+      const detail = [err?.name, err?.message, err?.stack]
+        .filter((part) => typeof part === 'string' && part.trim().length > 0)
+        .join(': ')
+      this.deadReason = describeWorkerFailure(detail || 'worker crashed')
+      // The 'error' event rejects the pending calls, whose `.finally` clears
+      // `inFlight`; the exit handler would then report no operation at all. Keep
+      // it here so the crash report names what was running.
+      this.crashLastOp = this.describeInFlight()
       this.failAll(this.deadReason.message, this.deadReason.code)
     })
     // Without this handler a crashed worker (OOM, native module segfault) left
@@ -96,9 +126,10 @@ export class DbWorkerClient {
           engine: 'sqlite'
         }
       }
-      const lastOp = this.inFlight
-        ? `${this.inFlight.op} (${Math.round((Date.now() - this.inFlight.startedAt) / 1000)}s)`
-        : null
+      // Prefer the operation recorded by the 'error' handler: rejecting the
+      // pending calls already cleared `inFlight`.
+      const lastOp = this.crashLastOp ?? this.describeInFlight()
+      this.crashLastOp = null
       this.inFlight = null
       this.failAll(this.deadReason.message, this.deadReason.code)
       // Tell the main process that every adapter died with the thread.
@@ -112,6 +143,13 @@ export class DbWorkerClient {
     handler: (reason: DbErrorShape, lastOp: string | null) => void
   ): void {
     this.onWorkerLost = handler
+  }
+
+  // The operation that was running when the worker died, formatted for the log.
+  private describeInFlight(): string | null {
+    if (!this.inFlight) return null
+    const seconds = Math.round((Date.now() - this.inFlight.startedAt) / 1000)
+    return `${this.inFlight.op} (${seconds}s)`
   }
 
   // A stopped worker is recoverable: the adapters only live in the worker, so

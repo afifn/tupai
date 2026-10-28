@@ -6,19 +6,27 @@ import oracleRaw from './assets/engines/oracle.svg?raw'
 import sqliteRaw from './assets/engines/sqlite.svg?raw'
 import mongodbRaw from './assets/engines/mongodb.svg?raw'
 
+/** `brand` paints the engine tint, `muted` paints the neutral grey mark. */
+export type EngineIconTint = 'brand' | 'muted'
+
 interface Props {
   engine: DbEngine
   size?: number
-  // Disconnected connections render muted; the brand tint applies when active.
-  active?: boolean
+  tint?: EngineIconTint
 }
 
 // The bundled SVGs carry a <title> element. It duplicates the label wherever the
 // icon sits next to text (and would be read twice by a screen reader), so it is
 // stripped once here; the wrapper keeps the name as a tooltip.
+//
+// Hardcoded fills are stripped too. One vendor asset (Oracle) ships its own
+// `fill="#EA1B22"`, which overrode the tint from CSS and left that one mark red
+// no matter what state the connection was in. The colour is decided in one
+// place, so the shape files may only carry shape.
 function clean(raw: string): string {
   return raw
     .replace(/<title>[^<]*<\/title>/i, '')
+    .replace(/\sfill="(?!none")[^"]*"/gi, '')
     .replace(/<svg /i, '<svg aria-hidden="true" focusable="false" ')
 }
 
@@ -44,10 +52,10 @@ export const ENGINE_LABEL: Record<DbEngine, string> = {
   mongodb: 'MongoDB'
 }
 
-export function EngineIcon({ engine, size = 16, active = false }: Props): JSX.Element {
+export function EngineIcon({ engine, size = 16, tint = 'brand' }: Props): JSX.Element {
   return (
     <span
-      className={`engine-icon engine-icon--${engine}${active ? ' is-active' : ''}`}
+      className={`engine-icon engine-icon--${engine}${tint === 'muted' ? ' is-muted' : ''}`}
       title={ENGINE_LABEL[engine]}
       style={{ width: size, height: size }}
       // The bundled SVG is a trusted local asset, not user input.

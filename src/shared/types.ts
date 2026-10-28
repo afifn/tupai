@@ -877,6 +877,21 @@ export type UserOperation =
       schema?: string
       table?: string
     }
+  // System privileges are not tied to an object: Oracle spells them
+  // `GRANT priv TO user` with no ON clause. Kept as their own operation so the
+  // object-privilege path can never emit that form by accident.
+  | {
+      kind: 'grantSystem'
+      user: string
+      host?: string
+      privileges: string[]
+    }
+  | {
+      kind: 'revokeSystem'
+      user: string
+      host?: string
+      privileges: string[]
+    }
 
 export type ExportFormat = 'csv' | 'json' | 'sql'
 

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { placeMenu, type MenuOffset } from '@shared/menuPosition'
 
 export interface MenuItem {
   label: string
@@ -17,6 +18,10 @@ interface Props {
 
 export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  // Where the menu ends up. `null` until the real box has been measured, which
+  // keeps the first paint from showing the menu at the pointer before it jumps
+  // to its clamped spot.
+  const [offset, setOffset] = useState<MenuOffset | null>(null)
   // Roving focus: only one item is tabbable, and the arrow keys move between
   // enabled items. Without this the menu could only be used with a mouse.
   const [focusIndex, setFocusIndex] = useState(() =>
@@ -34,13 +39,42 @@ export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
     [items]
   )
 
+  // Measure instead of guessing. A menu's height is not `itemCount * rowHeight`:
+  // separators, padding, and labels that wrap to a second line all add to it,
+  // and a guess left the last entries below the window edge where they could
+  // not be clicked. `useLayoutEffect` runs after the DOM exists but before the
+  // browser paints, so the menu is drawn once, already inside the window.
+  // Re-running on every render also covers a late font or a changed label.
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    // `clientWidth`/`clientHeight` describe the space a fixed element can
+    // actually use; `innerWidth` would include a classic scrollbar the menu
+    // cannot paint over.
+    const root = document.documentElement
+    const next = placeMenu(
+      x,
+      y,
+      { width: node.offsetWidth, height: node.offsetHeight },
+      {
+        width: root.clientWidth || window.innerWidth,
+        height: root.clientHeight || window.innerHeight
+      }
+    )
+    setOffset((prev) =>
+      prev && prev.left === next.left && prev.top === next.top ? prev : next
+    )
+  })
+
   useEffect(() => {
     const node = ref.current?.querySelectorAll<HTMLButtonElement>(
       '.context-menu__item:not(:disabled)'
     )
     node?.[Math.max(0, enabledIndexes.indexOf(focusIndex))]?.focus()
-    // Focus only on mount and when the highlighted item changes.
-  }, [focusIndex, enabledIndexes])
+    // Focus only on mount and when the highlighted item changes. `offset` is a
+    // dependency because the menu is invisible until it has been measured, and
+    // a hidden element cannot take focus.
+  }, [focusIndex, enabledIndexes, offset])
 
   useEffect(() => {
     function onDocClick(e: MouseEvent): void {
@@ -83,8 +117,9 @@ export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
   }, [onClose, focusIndex, enabledIndexes])
 
   const style: React.CSSProperties = {
-    left: Math.min(x, window.innerWidth - 200),
-    top: Math.min(y, window.innerHeight - items.length * 30 - 12)
+    left: offset?.left ?? x,
+    top: offset?.top ?? y,
+    visibility: offset ? 'visible' : 'hidden'
   }
 
   return (

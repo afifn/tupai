@@ -81,9 +81,9 @@ export function SessionsPanel({ connectionId, engine, database }: Props): JSX.El
 
   return (
     <div className="sessions">
-      <div className="sessions__bar">
+      <div className="grid-toolbar">
         <h2 className="grid-title">{tr('sessions.title')}</h2>
-        <div className="sessions__actions">
+        <div className="grid-toolbar__actions">
           {supportsSessions && engine !== 'mongodb' && (
             <label className="checkbox checkbox--tight">
               <input
@@ -127,8 +127,20 @@ export function SessionsPanel({ connectionId, engine, database }: Props): JSX.El
               : tr('sessions.empty')}
           </p>
         ) : (
-          <div className="table-scroll table-scroll--short">
-            <table className="data-table">
+          <div className="table-scroll table-scroll--fill">
+            <table className="data-table data-table--fill">
+              <colgroup>
+                {/* Proportional widths: the table follows the window instead of
+                    forcing a minimum, so no column ever scrolls out of reach.
+                    Query has no width and takes whatever is left. */}
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '16%' }} />
+                <col />
+                <col style={{ width: 112 }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th className="th-plain">{tr('sessions.colId')}</th>

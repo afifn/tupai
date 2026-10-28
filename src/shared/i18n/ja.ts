@@ -657,6 +657,12 @@ export const ja: Record<MessageKey, string> = {
   'ncx.done': '{count} 件の接続をインポートしました。',
   'ncx.doneNone': '接続はインポートされませんでした。',
   'ncx.exportTitle': '接続をエクスポート',
+  'ncx.exportHint':
+    'ファイルに含める接続を選択してください。パスワードはエクスポートされないため、インポート後に一度ずつ入力が必要です。',
+  'ncx.exportCount': '{count} 件の接続をエクスポート',
+  'ncx.exportCount_one': '1 件の接続をエクスポート',
+  'ncx.exportCount_other': '{count} 件の接続をエクスポート',
+  'ncx.exporting': 'エクスポート中...',
   'ncx.exportDone': '{count} 件の接続を {path} にエクスポートしました。',
   'ncx.exportCancelled': 'エクスポートを中止しました。',
   'ncx.noConnections': 'エクスポートできる接続がまだありません。',

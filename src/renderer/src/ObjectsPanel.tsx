@@ -80,7 +80,7 @@ export function ObjectsPanel({
       <header className="objects__head">
         <div className="objects__path">
           <span className="objects__conn">
-            <EngineIcon engine={engine} active />
+            <EngineIcon engine={engine} />
           </span>
           <button
             className="objects__crumb"

@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { DbUser, QueryResultSet, UserOperation } from '@shared/types'
-import { privilegeChoices } from '@shared/userOps'
+import type {
+  DbUser,
+  PrivilegeObjectType,
+  QueryResultSet,
+  UserOperation
+} from '@shared/types'
+import {
+  privilegeChoices,
+  privilegeScopes,
+  systemPrivilegeChoices
+} from '@shared/userOps'
 import { unwrap } from './api'
 import { useLocale } from './i18n'
 import { confirmDestructive } from './confirm'
@@ -10,7 +19,7 @@ interface Props {
   engine: string
 }
 
-type Mode = 'none' | 'create' | 'grant' | 'revoke'
+type Mode = 'none' | 'create' | 'grant' | 'revoke' | 'system'
 
 interface FormState {
   username: string
@@ -19,23 +28,28 @@ interface FormState {
   canLogin: boolean
   superuser: boolean
   privileges: string[]
-  onType: 'database' | 'table' | 'schema'
+  onType: PrivilegeObjectType
   database: string
   schema: string
   table: string
 }
 
-const EMPTY: FormState = {
-  username: '',
-  host: '%',
-  password: '',
-  canLogin: true,
-  superuser: false,
-  privileges: ['SELECT'],
-  onType: 'database',
-  database: '',
-  schema: '',
-  table: ''
+// The scope list is per engine: Oracle has no database-level object privilege,
+// so offering it only produced SQL the server always rejects.
+function initialForm(engine: string): FormState {
+  const scopes = privilegeScopes(engine as never)
+  return {
+    username: '',
+    host: '%',
+    password: '',
+    canLogin: true,
+    superuser: false,
+    privileges: ['SELECT'],
+    onType: scopes[0] ?? 'table',
+    database: '',
+    schema: '',
+    table: ''
+  }
 }
 
 export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
@@ -45,13 +59,20 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('none')
-  const [form, setForm] = useState<FormState>(EMPTY)
+  const [form, setForm] = useState<FormState>(() => initialForm(engine))
   const [preview, setPreview] = useState<string[] | null>(null)
   const [pending, setPending] = useState<UserOperation | null>(null)
   const [busy, setBusy] = useState(false)
+  // Which direction the System Privileges form is working in. Kept out of
+  // FormState because it is not a field the user edits.
+  const [systemKind, setSystemKind] = useState<'grantSystem' | 'revokeSystem'>(
+    'grantSystem'
+  )
 
   const isMysql = engine === 'mysql' || engine === 'mariadb'
   const privChoices = privilegeChoices(engine as never)
+  const scopes = privilegeScopes(engine as never)
+  const systemChoices = systemPrivilegeChoices(engine as never)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -70,7 +91,7 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
   }, [load])
 
   function resetForm(): void {
-    setForm(EMPTY)
+    setForm(initialForm(engine))
     setPreview(null)
     setPending(null)
     setMode('none')
@@ -155,6 +176,19 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
     })
   }
 
+  function submitSystem(kind: 'grantSystem' | 'revokeSystem', user: DbUser): void {
+    if (form.privileges.length === 0) {
+      setError(tr('users.needPrivilege'))
+      return
+    }
+    void requestPreview({
+      kind,
+      user: user.name,
+      host: user.host,
+      privileges: form.privileges
+    })
+  }
+
   function submitDrop(user: DbUser): void {
     const label = isMysql ? `${user.name}@${user.host}` : user.name
     void confirmDestructive(`Drop user "${label}"?`, {
@@ -167,14 +201,29 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
   }
 
   function startPrivilege(user: DbUser, kind: 'grant' | 'revoke'): void {
-    setForm({ ...EMPTY, username: user.name, host: user.host ?? '%' })
+    setForm({ ...initialForm(engine), username: user.name, host: user.host ?? '%' })
     setMode(kind)
     setMessage(null)
     setError(null)
   }
 
+  function startSystem(user: DbUser, kind: 'grantSystem' | 'revokeSystem'): void {
+    setForm({
+      ...initialForm(engine),
+      username: user.name,
+      host: user.host ?? '%',
+      // System privileges are not object privileges, so the checkbox list starts
+      // empty instead of inheriting the SELECT default.
+      privileges: []
+    })
+    setMode('system')
+    setSystemKind(kind)
+    setMessage(null)
+    setError(null)
+  }
+
   return (
-    <div className="struct">
+    <div className="struct struct--fill">
       <div className="grid-toolbar">
         <h2 className="grid-title">{tr('users.title')}</h2>
         <div className="grid-toolbar__actions">
@@ -182,7 +231,7 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
             className="btn btn--small"
             onClick={() => {
               setMode(mode === 'create' ? 'none' : 'create')
-              setForm(EMPTY)
+              setForm(initialForm(engine))
               setPreview(null)
             }}
           >
@@ -297,9 +346,15 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
                   setForm({ ...form, onType: e.target.value as FormState['onType'] })
                 }
               >
-                <option value="database">{tr('users.scopeDatabase')}</option>
-                <option value="table">{tr('users.scopeTable')}</option>
-                {!isMysql && <option value="schema">{tr('users.scopeSchema')}</option>}
+                {scopes.map((scope) => (
+                  <option key={scope} value={scope}>
+                    {scope === 'database'
+                      ? tr('users.scopeDatabase')
+                      : scope === 'table'
+                        ? tr('users.scopeTable')
+                        : tr('users.scopeSchema')}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="field">
@@ -332,6 +387,12 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
               </label>
             </div>
           )}
+          {form.onType === 'schema' && engine === 'oracle' && (
+            <p className="notice notice--info">
+              Hak akses diberikan ke setiap tabel dan view yang ada di schema ini, satu
+              statement per objek. Jumlah objek terlihat di pratinjau.
+            </p>
+          )}
           <div className="struct__actions">
             <button className="btn btn--ghost btn--small" onClick={resetForm}>
               {tr('common.cancel')}
@@ -342,6 +403,53 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
                 onClick={() =>
                   submitPrivilege(
                     mode,
+                    users.find((u) => u.name === form.username)!
+                  )
+                }
+              >
+                {tr('users.showSql')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mode === 'system' && systemChoices.length > 0 && (
+        <div className="struct__form">
+          <p className="field__label">
+            {systemKind === 'grantSystem'
+              ? 'System privileges untuk '
+              : 'Cabut system privilege dari '}
+            <strong>{form.username}</strong>
+          </p>
+          <div className="field">
+            <span className="field__label">System privilege</span>
+            <div className="struct__checks">
+              {systemChoices.map((p) => (
+                <label key={p} className="checkbox checkbox--tight">
+                  <input
+                    type="checkbox"
+                    checked={form.privileges.includes(p)}
+                    onChange={() => togglePriv(p)}
+                  />
+                  <span>{p}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <p className="muted">
+            Hak tingkat sistem tidak terikat ke satu objek, jadi SQL-nya tanpa klausa ON.
+          </p>
+          <div className="struct__actions">
+            <button className="btn btn--ghost btn--small" onClick={resetForm}>
+              {tr('common.cancel')}
+            </button>
+            {users?.find((u) => u.name === form.username) && (
+              <button
+                className="btn btn--small"
+                onClick={() =>
+                  submitSystem(
+                    systemKind,
                     users.find((u) => u.name === form.username)!
                   )
                 }
@@ -381,8 +489,19 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
       ) : !users || users.length === 0 ? (
         <p className="muted">{tr('users.empty')}</p>
       ) : (
-        <div className="table-scroll">
-          <table className="data-table">
+        <div className="table-scroll table-scroll--fill">
+          <table className="data-table data-table--fill">
+            <colgroup>
+              {/* Proportional widths: the table follows the window instead of
+                  forcing a minimum, so no column ever scrolls out of reach.
+                  Attributes has no width and takes whatever is left. */}
+              <col style={{ width: '20%' }} />
+              {isMysql && <col style={{ width: '14%' }} />}
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '14%' }} />
+              <col />
+              <col style={{ width: systemChoices.length > 0 ? 285 : 205 }} />
+            </colgroup>
             <thead>
               <tr>
                 <th className="th-plain">{tr('users.colUser')}</th>
@@ -426,6 +545,16 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
                     >
                       Revoke
                     </button>
+                    {systemChoices.length > 0 && (
+                      <button
+                        className="btn btn--ghost btn--tiny"
+                        onClick={() => startSystem(u, 'grantSystem')}
+                        disabled={busy}
+                        title="Hak tingkat sistem (tanpa ON)"
+                      >
+                        System
+                      </button>
+                    )}
                     <button
                       className="btn btn--ghost btn--tiny"
                       onClick={() => submitDrop(u)}

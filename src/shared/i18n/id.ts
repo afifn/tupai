@@ -712,6 +712,12 @@ export const id = {
   'ncx.done': '{count} koneksi diimpor.',
   'ncx.doneNone': 'Tidak ada koneksi yang diimpor.',
   'ncx.exportTitle': 'Ekspor koneksi',
+  'ncx.exportHint':
+    'Pilih koneksi yang masuk ke file. Password tidak pernah ikut diekspor, jadi tiap koneksi perlu diisi ulang sekali setelah diimpor.',
+  'ncx.exportCount': 'Ekspor {count} koneksi',
+  'ncx.exportCount_one': 'Ekspor 1 koneksi',
+  'ncx.exportCount_other': 'Ekspor {count} koneksi',
+  'ncx.exporting': 'Mengekspor...',
   'ncx.exportDone': '{count} koneksi diekspor ke {path}.',
   'ncx.exportCancelled': 'Ekspor dibatalkan.',
   'ncx.noConnections': 'Belum ada koneksi untuk diekspor.',

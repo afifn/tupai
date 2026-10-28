@@ -105,8 +105,8 @@ const dbApi = {
     return () => ipcRenderer.removeListener(IPC.workerLostEvent, wrapped)
   },
   // Diagnostic only; the main process refuses unless TUPAI_DEBUG_CRASH=1.
-  debugCrashWorker(): Promise<IpcResult<boolean>> {
-    return ipcRenderer.invoke(IPC.debugCrashWorker)
+  debugCrashWorker(mode?: 'exit' | 'throw'): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.debugCrashWorker, mode)
   },
   ping(message: string): Promise<IpcResult<{ echo: string }>> {
     return ipcRenderer.invoke(IPC.ping, { message })

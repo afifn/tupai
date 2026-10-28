@@ -27,6 +27,13 @@ Jelajahi objek, edit data, tulis query, dan pindahkan data tanpa berpindah alat.
 
 ---
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/dark.png">
+  <img src="assets/screenshots/light.png" alt="Tupai: sidebar koneksi, pohon objek, dan grid data tabel pesanan" width="100%">
+</picture>
+
+---
+
 Tupai menyatukan pekerjaan sehari-hari seorang pengguna database ke satu jendela:
 membuka koneksi, menelusuri database dan schema, mengedit baris, menulis SQL,
 membandingkan struktur, memindahkan data, dan membaca rencana query. Tidak ada
@@ -161,9 +168,24 @@ xattr -dr com.apple.quarantine /Applications/Tupai.app
 
 ### Windows
 
-Target build Windows sudah ada di repositori (`npm run dist:win`), tetapi
-installer Windows belum dipublikasikan di halaman rilis. Bagian ini akan
-diperbarui saat build Windows tersedia.
+Unduh `Tupai-Setup-<versi>.exe` dari
+[halaman rilis](https://github.com/afifn/tupai/releases), lalu jalankan.
+
+Build belum ditandatangani secara digital, jadi Windows menampilkan peringatan
+lebih dulu. Ini normal untuk aplikasi tanpa sertifikat code signing, bukan tanda
+file rusak:
+
+1. Jendela biru **"Windows protected your PC"** muncul.
+2. Klik **More info** (teks kecil di bawah pesan).
+3. Klik **Run anyway**.
+
+Setelah itu installer berjalan seperti biasa. Windows meminta konfirmasi
+administrator saat installer dijalankan, karena Tupai dipasang untuk semua
+pengguna; setelah disetujui, folder pemasangan bisa diubah bila perlu.
+Installer mengikuti bahasa Windows.
+
+Koneksi yang sudah tersimpan tidak dihapus saat aplikasi dicopot, jadi memasang
+ulang tidak menghilangkan daftar koneksi Anda.
 
 ### Dari sumber
 

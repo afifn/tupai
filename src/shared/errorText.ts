@@ -60,9 +60,11 @@ export function describeError(error: unknown, locale: Locale): string {
   const mapped = CODE_KEYS[code]
   if (mapped) {
     // Keep the technical detail for the worker and native-module failures: the
-    // sentence explains what to do, the detail says which module broke.
+    // sentence explains what to do, the detail says which module broke. Only the
+    // first line is used, since a crash detail now carries a stack trace.
     if (code === 'NATIVE_ABI' || code === 'NATIVE_MISSING' || code === 'WORKER_ERROR') {
-      return message ? `${t(locale, mapped)} (${message})` : t(locale, mapped)
+      const headline = message.split('\n')[0].trim()
+      return headline ? `${t(locale, mapped)} (${headline})` : t(locale, mapped)
     }
     return t(locale, mapped)
   }

@@ -1,7 +1,7 @@
 {
   "name": "db-manager",
   "productName": "Tupai",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tupai, a desktop multi-database management tool",
   "engines": {
     "node": ">=22.12.0"
@@ -49,6 +49,7 @@
     "release:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false PYTHON=/usr/bin/python3 electron-builder --mac --arm64 --x64 --publish always && npm run rebuild:host",
     "release:win": "npm run build && electron-builder --win --publish always",
     "release:meta": "node scripts/release-meta.mjs",
+    "release:notes": "node scripts/release-notes.mjs --write",
     "smoke:worker": "scripts/smoke/run.sh worker",
     "smoke:p2-tx": "scripts/smoke/run.sh p2-tx"
   },

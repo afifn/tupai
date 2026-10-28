@@ -40,14 +40,39 @@ publish:
   owner: afifn
   repo: tupai
 win:
+  # GitHub asset names may not contain spaces, but the NSIS default name is
+  # "${productName} Setup ${version}.${ext}". electron-builder writes the feed
+  # URL with hyphens, so latest.yml pointed at Tupai-Setup-<version>.exe while
+  # the built file was "Tupai Setup <version>.exe": every installed app asked
+  # for a name that was never uploaded. The name is fixed here instead, and
+  # `npm run release:meta` fails if the two ever diverge again.
+  artifactName: ${productName}-Setup-${version}.${ext}
   target:
     - target: nsis
       arch:
         - x64
 nsis:
   oneClick: false
+  # Per-machine, so the "Who should this application be installed for?" page is
+  # not shown. That page asks a technical question most users cannot answer, and
+  # electron-builder has no Indonesian translation for it, so it appeared in
+  # English while the rest of the installer was Indonesian. Installing for all
+  # users is the usual expectation for a shared workstation; the cost is one
+  # UAC confirmation, which users already recognise.
+  perMachine: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  # Indonesian first. electron-builder's bundled language list does not include
+  # id_ID, so an Indonesian Windows fell back to English: "Next", "Install", and
+  # the uninstall prompts were in a language the app itself never uses. The
+  # installer picks the OS language and falls back to English.
+  installerLanguages:
+    - id_ID
+    - en_US
+  # Saved connections live in userData, not in the install directory. Keeping
+  # them after an uninstall means a reinstall does not wipe every connection the
+  # user typed in; removing the app is not the same as discarding their setup.
+  deleteAppDataOnUninstall: false
 # Two separate artifacts instead of a universal binary: a universal build needs
 # lipo for every native module (better-sqlite3, cpu-features) and mergeASARs,
 # which fails in ways that are hard to diagnose. Separate downloads are also

@@ -431,6 +431,18 @@ export const userOperationSchema = z.discriminatedUnion('kind', [
     database: z.string().min(1),
     schema: z.string().optional(),
     table: z.string().optional()
+  }),
+  z.object({
+    kind: z.literal('grantSystem'),
+    user: z.string().min(1),
+    host: z.string().optional(),
+    privileges: z.array(z.string().min(1)).min(1)
+  }),
+  z.object({
+    kind: z.literal('revokeSystem'),
+    user: z.string().min(1),
+    host: z.string().optional(),
+    privileges: z.array(z.string().min(1)).min(1)
   })
 ])
 

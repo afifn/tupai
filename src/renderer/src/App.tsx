@@ -10,6 +10,7 @@ import type {
 import { ApiError, unwrap } from './api'
 import { ConnectionForm } from './ConnectionForm'
 import { ImportConnectionsDialog } from './ImportConnectionsDialog'
+import { ExportConnectionsDialog } from './ExportConnectionsDialog'
 import { ObjectTree } from './ObjectTree'
 import type {
   DatabaseTarget,
@@ -351,6 +352,9 @@ export function App(): JSX.Element {
   const [editing, setEditing] = useState<StoredConnection | 'new' | null>(null)
   // Path of the Navicat export being previewed, or null when the dialog is shut.
   const [ncxPath, setNcxPath] = useState<string | null>(null)
+  // Ids pre-checked in the export dialog, or null when it is shut. A connection
+  // or group right-click seeds it; the application menu passes every id.
+  const [exportPreselect, setExportPreselect] = useState<string[] | null>(null)
   // Sidebar filter, opened with Cmd/Ctrl+F. It filters what the tree has loaded
   // instead of running a per-database server search, so one field covers every
   // connection the user has open.
@@ -1048,8 +1052,13 @@ export function App(): JSX.Element {
       },
       { label: tr('menu.reload'), separatorBefore: true, onSelect: refreshTree },
       {
+        label: tr('ncx.exportMenu'),
+        onSelect: () => openExportDialog([conn.id])
+      },
+      {
         label: tr('menu.deleteConnection'),
         danger: true,
+        separatorBefore: true,
         onSelect: () => {
           void confirmDestructive(
             tr('app.deleteConnectionMessage', { name: conn.name }),
@@ -2013,7 +2022,9 @@ export function App(): JSX.Element {
     }
   }
 
-  async function exportConnections(): Promise<void> {
+  // Navicat export. Every entry point opens the same picker: exporting one
+  // connection, a group, or everything differs only in what starts checked.
+  function openExportDialog(preselected: string[] = []): void {
     if (connections.length === 0) {
       pushToast({
         kind: 'info',
@@ -2022,24 +2033,8 @@ export function App(): JSX.Element {
       })
       return
     }
-    try {
-      const result = await unwrap(window.dbApi.exportNcx(connections.map((c) => c.id)))
-      if (!result) {
-        pushToast({
-          kind: 'info',
-          title: tr('ncx.exportTitle'),
-          body: tr('ncx.exportCancelled')
-        })
-        return
-      }
-      pushToast({
-        kind: 'ok',
-        title: tr('ncx.exportTitle'),
-        body: tr('ncx.exportDone', { count: result.count, path: result.path })
-      })
-    } catch (err) {
-      pushToast({ kind: 'error', title: tr('ncx.exportTitle'), body: errorText(err) })
-    }
+    const ids = preselected.length > 0 ? preselected : connections.map((c) => c.id)
+    setExportPreselect(ids)
   }
 
   // Shell shortcuts come from the keymap, so rebinding one in Settings takes
@@ -2197,7 +2192,7 @@ export function App(): JSX.Element {
           void importConnections()
           break
         case 'connection.export':
-          void exportConnections()
+          openExportDialog()
           break
         case 'group.new':
           setGroupPrompt({ mode: 'create' })
@@ -2280,7 +2275,7 @@ export function App(): JSX.Element {
   }, [
     activeTabId,
     importConnections,
-    exportConnections,
+    openExportDialog,
     importSavedQuery,
     openQuery,
     openTableBrowser,
@@ -2817,6 +2812,7 @@ export function App(): JSX.Element {
               // Clicking a row is a request to inspect it, so show that tab.
               setRightPanelTab('detail')
             }}
+            onClearInspect={() => setInspectedRow(null)}
           />
         ) : tab.view === 'form' ? (
           <FormView selection={tab.selection} />
@@ -3113,7 +3109,7 @@ export function App(): JSX.Element {
               queryVersion={queryVersion}
               onNewConnection={() => setEditing('new')}
               onImportConnections={() => void importConnections()}
-              onExportConnections={() => void exportConnections()}
+              onExportConnections={(preselected) => openExportDialog(preselected)}
               filter={sidebarFilter}
               onFilterResult={setFilterResult}
               onConnect={(id) => void handleConnect(id)}
@@ -3430,6 +3426,22 @@ export function App(): JSX.Element {
           onClose={() => {
             setSettingsOpen(false)
             setSettingsSection('general')
+          }}
+        />
+      )}
+
+      {exportPreselect && (
+        <ExportConnectionsDialog
+          connections={connections}
+          preselected={exportPreselect}
+          onClose={() => setExportPreselect(null)}
+          onExported={(result) => {
+            setExportPreselect(null)
+            pushToast({
+              kind: 'ok',
+              title: tr('ncx.exportTitle'),
+              body: tr('ncx.exportDone', { count: result.count, path: result.path })
+            })
           }}
         />
       )}

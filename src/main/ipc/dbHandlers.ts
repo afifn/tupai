@@ -77,13 +77,16 @@ import {
 } from '@shared/schemas'
 import type {
   AiStreamEvent,
+  DbEngine,
   IpcResult,
+  StoredConnection,
   SyncProgress,
-  TransferProgress
+  TransferProgress,
+  UserOperation
 } from '@shared/types'
 import { DbWorkerClient, toIpcResult } from '../workers/dbWorkerClient'
 import { buildDdl } from '@shared/ddl'
-import { buildUserSql } from '@shared/userOps'
+import { buildUserSql, schemaObjectGrants } from '@shared/userOps'
 import { dumpDatabase } from '../io/databaseDump'
 import {
   exportResultSet,
@@ -106,7 +109,12 @@ import {
   listConnectionGroups,
   saveConnectionGroup
 } from '../connection/groups'
-import { previewNcxFile, toExportable, writeNcxFile } from '../connection/ncx'
+import {
+  previewNcxFile,
+  suggestNcxFileName,
+  toExportable,
+  writeNcxFile
+} from '../connection/ncx'
 import { appInfo, readSettings, resetSettings, writeSettings } from '../settings/store'
 import { applyMenuState, refreshApplicationMenu, setMenuLabels } from '../menu'
 import {
@@ -174,9 +182,13 @@ function getClient(): DbWorkerClient {
     // "not connected" that looks like the user's fault.
     client.setWorkerLostHandler((reason, lastOp) => {
       log('error', 'worker-lost', { code: reason.code, message: reason.message, lastOp })
+      // The log keeps the stack; the banner gets the first line only, because a
+      // stack trace in a notice bar is unreadable and pushes the sentence away.
+      const headline = reason.message.split('\n')[0]
+      const shown = { ...reason, message: headline }
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed())
-          win.webContents.send(IPC.workerLostEvent, { reason, lastOp })
+          win.webContents.send(IPC.workerLostEvent, { reason: shown, lastOp })
       }
     })
   }
@@ -207,6 +219,42 @@ async function run<T>(fn: () => Promise<T>): Promise<IpcResult<T>> {
   }
 }
 
+/**
+ * Builds the statements for a user operation. Most are a pure translation, but
+ * an Oracle schema-wide grant cannot be one statement: the objects are listed
+ * first and each gets its own GRANT, so the preview shows exactly what will run.
+ */
+async function userStatements(
+  connectionId: string,
+  engine: DbEngine,
+  operation: UserOperation
+): Promise<string[]> {
+  const schemaWide =
+    (operation.kind === 'grant' || operation.kind === 'revoke') &&
+    operation.onType === 'schema' &&
+    engine === 'oracle'
+  if (!schemaWide) return buildUserSql(engine, operation)
+
+  const scoped = operation as Extract<UserOperation, { kind: 'grant' | 'revoke' }>
+  const owner = scoped.schema ?? scoped.database
+  const tables = (await getClient().call('listTables', {
+    connectionId,
+    database: owner,
+    schema: owner
+  })) as { name: string }[]
+  return schemaObjectGrants(
+    engine,
+    {
+      kind: scoped.kind,
+      user: scoped.user,
+      host: scoped.host,
+      privileges: scoped.privileges,
+      schema: owner
+    },
+    tables.map((t) => t.name)
+  )
+}
+
 export function registerDbHandlers(): void {
   ipcMain.handle(IPC.ping, (_e, raw) =>
     run(async () => {
@@ -217,13 +265,14 @@ export function registerDbHandlers(): void {
 
   // Diagnostic only: forwards a deliberate worker crash when the app was started
   // with TUPAI_DEBUG_CRASH=1. Used to verify that a dead worker is reported to
-  // the window instead of leaving a phantom connection behind.
-  ipcMain.handle(IPC.debugCrashWorker, () =>
+  // the window instead of leaving a phantom connection behind, and that the log
+  // names the cause. `throw` raises an uncaught error; anything else exits.
+  ipcMain.handle(IPC.debugCrashWorker, (_e, mode?: unknown) =>
     run(async () => {
       if (process.env.TUPAI_DEBUG_CRASH !== '1') {
         throw new Error('Diagnostic crash is disabled.')
       }
-      await getClient().call('__crash', {})
+      await getClient().call('__crash', { mode: mode === 'throw' ? 'throw' : 'exit' })
       return true
     })
   )
@@ -296,9 +345,14 @@ export function registerDbHandlers(): void {
     run(async () => {
       const { connectionIds } = exportNcxSchema.parse(raw)
       const all = await listConnections()
-      const chosen = all.filter((c) => connectionIds.includes(c.id))
+      const byId = new Map(all.map((c) => [c.id, c]))
+      // Keep the order the renderer sent, so the file lists connections the same
+      // way the export dialog did instead of store order.
+      const chosen = connectionIds
+        .map((id) => byId.get(id))
+        .filter((c): c is StoredConnection => Boolean(c))
       if (chosen.length === 0) return null
-      const target = await showSaveDialog('connections.ncx')
+      const target = await showSaveDialog(suggestNcxFileName(chosen.map((c) => c.name)))
       if (!target) return null
       await writeNcxFile(target, chosen.map(toExportable))
       return { path: target, count: chosen.length }
@@ -618,7 +672,7 @@ export function registerDbHandlers(): void {
       const { connectionId, operation } = userRequestSchema.parse(raw)
       const cfg = await getConnectionConfig(connectionId)
       if (!cfg) throw new Error(`Connection not found: ${connectionId}`)
-      return buildUserSql(cfg.engine, operation)
+      return userStatements(connectionId, cfg.engine, operation)
     })
   )
 
@@ -627,18 +681,13 @@ export function registerDbHandlers(): void {
       const { connectionId, operation } = userRequestSchema.parse(raw)
       const cfg = await getConnectionConfig(connectionId)
       if (!cfg) throw new Error(`Connection not found: ${connectionId}`)
-      const statements = buildUserSql(cfg.engine, operation)
+      const statements = await userStatements(connectionId, cfg.engine, operation)
       // A table-level GRANT names a table in a specific database. Without the
       // context the statement ran against the connection's default database,
       // so granting on a table elsewhere failed with "relation does not exist".
-      const database =
-        operation.kind === 'grant' || operation.kind === 'revoke'
-          ? operation.database
-          : undefined
-      const schema =
-        operation.kind === 'grant' || operation.kind === 'revoke'
-          ? operation.schema
-          : undefined
+      const scoped = operation.kind === 'grant' || operation.kind === 'revoke'
+      const database = scoped ? operation.database : undefined
+      const schema = scoped ? operation.schema : undefined
       return getClient().call('runQuery', {
         connectionId,
         sql: statements.join('\n'),

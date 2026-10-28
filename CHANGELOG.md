@@ -6,6 +6,123 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/) dan
 [Semantic Versioning](https://semver.org/lang/id/). Versi masih di jalur `0.x`,
 jadi antarmuka dan format file bisa berubah antar rilis minor.
 
+## [Unreleased]
+
+### Ditambahkan
+
+- **Tangkapan layar di README** dalam versi terang dan gelap, dipilih otomatis
+  sesuai tema GitHub. Gambarnya memakai database demo, bukan data kerja.
+
+## [0.2.2] - 2026-10-28
+
+### Diubah
+
+- **Installer Windows berbahasa Indonesia** dan tidak lagi menampilkan halaman
+  "Who should this application be installed for?". Sebelumnya installer tampil
+  bahasa Inggris karena daftar bahasa bawaan tidak memuat `id_ID`, dan halaman
+  mode pemasangan menambah satu pertanyaan teknis yang juga berbahasa Inggris.
+  Pemasangan kini selalu untuk semua pengguna, dengan satu konfirmasi
+  administrator.
+- **Catatan rilis GitHub dibuat dari `CHANGELOG.md`** lewat `npm run release:notes`.
+  Skrip menambahkan langkah pemasangan di depan bagian perubahan, sehingga
+  halaman unduhan selalu menjelaskan cara melewati peringatan SmartScreen.
+- Grid data memakai **nomor urut** di kolom paling kiri, bukan checkbox. Baris
+  dipilih langsung dengan mouse: klik memilih satu baris, Ctrl/Cmd+klik
+  menambah, Shift+klik memperluas, dan drag menyapu rentang tanpa menyorot teks.
+  Header `#` tetap berfungsi sebagai pilih-semua, dan pengguna keyboard memakai
+  panah, Space, Ctrl/Cmd+A, dan Escape.
+
+### Ditambahkan
+
+- **Ekspor koneksi bisa dipilih**: menu konteks koneksi mengekspor koneksi itu
+  saja, menu konteks grup mengekspor anggotanya, dan menu latar atau menu
+  aplikasi tetap mengekspor semuanya. Dialog baru menampilkan checkbox per
+  koneksi beserta nama file yang mengikuti nama koneksi saat hanya satu yang
+  dipilih.
+- **System Privileges** di halaman User untuk Oracle: `GRANT privilege TO user`
+  dan `REVOKE privilege FROM user` tanpa klausa `ON`, lewat tombol **System** di
+  setiap baris user. Hak tingkat sistem tidak terikat ke satu objek, jadi
+  dipisahkan dari Grant/Revoke per objek.
+
+### Diperbaiki
+
+- Grid data tidak lagi menyisakan warna pada baris yang sudah di-deselect. Baris
+  yang ditampilkan di panel Detail menyimpan tint sendiri, dan cincin fokus
+  keyboard ikut menyala pada klik mouse; keduanya kini ikut bersih saat seleksi
+  dikosongkan, sementara navigasi panah tetap menampilkan cincin fokus.
+- **Teks baris koneksi berwarna** kini netral selama koneksi belum tersambung, dan
+  baru memakai warna identitas setelah sesi dibuka. Warna mentah ternyata tidak
+  layak jadi warna teks: diukur pada wash barisnya sendiri, 7 dari 8 warna gagal
+  4.5:1 di tema terang dan 8 dari 8 gagal di tema gelap (terburuk violet 2.55:1).
+  Warna teks karena itu memakai campuran 50% warna identitas dengan `--text`,
+  shade paling jenuh yang masih lolos di semua latar termasuk saat hover
+  (terukur 6.2–8.4:1 di terang, 4.8–6.7:1 di gelap). Aturan ini dijaga
+  `tests/connectionTint.test.ts`.
+- **Jarak sidebar kini satu ritme**: baris koneksi berwarna menambah padding dan
+  margin sendiri, sehingga barisnya 3 px lebih tinggi dari tetangganya dan jarak
+  antar-barispun melompat dari 28 px ke 32 px di setiap batas blok. Semua jarak
+  disamakan menjadi 4 px (judul folder, koneksi, dan tree di dalam koneksi), dan
+  tint warna kini hanya cat, bukan layout. Ikon koneksi juga diberi bentuk ring
+  tipis tanpa latar, sesuai permintaan.
+- **Ikon engine di sidebar** kini hanya berwarna saat koneksinya tersambung.
+  Sebelumnya setiap baris punya kotak 20 px dengan latar abu-abu dan garis tepi,
+  dan ikonnya selalu berwarna merek — jadi status "tersambung" tidak terlihat dan
+  setiap baris membawa dua penanda visual sekaligus. Kotak dan garis tepinya
+  dihapus, ikon tertutup tampil abu-abu, dan warna merek muncul saat sesi dibuka.
+  Ikon Oracle juga tidak lagi merah sendiri di semua keadaan karena `oracle.svg`
+  membawa `fill="#EA1B22"` tertanam yang mengalahkan warna CSS; `EngineIcon` kini
+  membuang `fill` dari aset sehingga warna ditentukan di satu tempat.
+- **Jarak blok di sidebar**: grup folder dan daftar koneksi kini dipisahkan 8 px
+  (sebelumnya menempel), koneksi pertama di bawah judul folder diberi jarak 4 px,
+  dan indentasi di dalam grup dikurangi dari 14 px ke 12 px supaya caret serta
+  ikon grup dan koneksi duduk di kolom yang sama (terukur: `caretX` 11, `iconX`
+  33, `nameX` 59 untuk keduanya).
+- **Menu klik-kanan di dekat tepi bawah jendela** tidak lagi terpotong. Posisinya
+  dulu ditebak dari jumlah item (`jumlah item × 30 px`), padahal tinggi sebenarnya
+  juga terhitung dari padding, garis pemisah, dan label yang membungkus ke baris
+  kedua. Pada menu latar sidebar (5 item) tebakannya meleset 32 px sehingga entri
+  terakhir, **Reload**, berada di luar jendela dan tidak bisa diklik. Menu kini
+  diukur lebih dulu lalu digeser ke dalam jendela, dan menu yang lebih tinggi dari
+  jendela bisa di-scroll, bukan dipotong.
+- **Membuat user di Oracle** gagal dengan `ORA-00988` karena password dikirim
+  sebagai string literal, padahal `IDENTIFIED BY` menerima identifier password.
+  Password kini dikutip sebagai identifier sehingga berfungsi untuk password
+  berawalan angka, bertanda baca, dan reserved word.
+- User Oracle yang baru dibuat **tidak bisa login** (`ORA-01045`) karena tidak
+  punya `CREATE SESSION`. Pilihan "Can login" dan "superuser" kini benar-benar
+  diterapkan.
+- **Grant/Revoke di Oracle** mengirim `ON DATABASE`/`ON SCHEMA`, sintaks yang
+  tidak ada di Oracle, sehingga selalu gagal dengan `ORA-00905`. Pilihan scope
+  kini mengikuti kemampuan tiap engine: Oracle hanya Tabel dan Schema, dan scope
+  Schema diperluas menjadi satu perintah per objek.
+- Judul kolom di halaman **Users** dan **Sessions** menempel ke garis sel karena
+  padding header dimatikan oleh aturan grid yang lebih spesifik. Header kini punya
+  jarak lagi, dan tombol kedua halaman diletakkan di kanan pada posisi yang sama.
+- Halaman **Sessions** dan **Users** kini memakai seluruh tinggi dan lebar tab.
+  Sebelumnya tabelnya dipatok setinggi 320 px (Sessions) atau menyisakan celah
+  (Users), dan lebarnya berhenti di lebar isi kolom. Jendela yang lebih besar
+  sekarang menampilkan lebih banyak baris, dan jendela sempit tidak lagi
+  memotong kolom aksi.
+- Halaman **User** pada Oracle menampilkan setiap nama sebagai `undefined`.
+  Query katalog mengembalikan baris sebagai array, sedangkan pembacanya memakai
+  nama kolom. Nama, status login, dan tanda superuser kini terbaca benar.
+- Worker database tidak lagi mati saat membuka tabel Oracle yang punya kolom CLOB
+  atau NCLOB. Driver mengembalikan kolom itu sebagai objek `Lob` (handle yang
+  terikat ke koneksi), dan handle tersebut tidak bisa menyeberang ke main process
+  sehingga `postMessage` melempar `DataCloneError` dan mematikan thread beserta
+  semua koneksi. Nilainya kini diambil sebagai string, dan nilai lain yang tidak
+  bisa disalin ditampilkan sebagai label, bukan menjatuhkan sesi.
+- Laporan worker berhenti kini menyebut penyebab sebenarnya beserta operasi yang
+  sedang berjalan, bukan pesan kosong. Detail lengkap masuk `db-manager.log`,
+  sedangkan banner hanya menampilkan baris pertamanya.
+- Daftar relasi (foreign key) pada Oracle selalu kosong karena query memakai alias
+  tabel yang tidak ada (`r.owner` pada join ber-alias `rc`). Kesalahan ini berlaku
+  di semua versi Oracle, bukan hanya versi lama.
+- Halaman User pada Oracle gagal dengan `ORA-00904` karena membaca
+  `all_users.account_status`, kolom yang hanya ada di `dba_users`. Kini memakai
+  `dba_users` bila tersedia, dan jatuh ke daftar nama dengan status ditandai tidak
+  diketahui bila akun tidak punya akses katalog.
+
 ## [0.2.1] - 2026-10-27
 
 ### Ditambahkan

@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent
+} from 'react'
 import type { ColumnFilter, ColumnInfo, FilterOperator, PageResult } from '@shared/types'
 import {
   classifyColumnType,
@@ -24,7 +28,9 @@ import { useSettings } from './settingsStore'
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200]
 const DEFAULT_COL_WIDTH = 180
-const CHECKBOX_COL_WIDTH = 34
+// Wide enough for the row number itself; the selection is made by clicking or
+// dragging the rows, so no control needs space here.
+const ROW_NUMBER_COL_WIDTH = 54
 const ACTIONS_COL_WIDTH = 68
 const MIN_COL_WIDTH = 60
 
@@ -33,6 +39,9 @@ interface Props {
   // Called when a row is clicked, so the detail dock can show that record. The
   // key matches the row's identity so the grid can highlight it.
   onInspectRow?: (row: Record<string, unknown>, key: string) => void
+  // Called when the inspected row is no longer part of the selection, so the
+  // detail dock does not keep showing a row the grid has stopped highlighting.
+  onClearInspect?: () => void
   // Highlights the row the detail dock is showing.
   inspectedRowKey?: string | null
   // The filter toggle lives in the tab strip, so the shell owns this flag and
@@ -193,6 +202,7 @@ function IconClose(): JSX.Element {
 export function DataGrid({
   selection,
   onInspectRow,
+  onClearInspect,
   inspectedRowKey,
   filterOpen
 }: Props): JSX.Element {
@@ -346,7 +356,7 @@ export function DataGrid({
 
   const widthOf = (name: string): number => colWidths[name] ?? DEFAULT_COL_WIDTH
   const totalWidth =
-    CHECKBOX_COL_WIDTH +
+    ROW_NUMBER_COL_WIDTH +
     ACTIONS_COL_WIDTH +
     columns.reduce((sum, c) => sum + widthOf(c.name), 0)
 
@@ -370,6 +380,147 @@ export function DataGrid({
 
   function toggleAll(): void {
     setSelected(allSelected ? new Set() : new Set(rowKeys))
+  }
+
+  // Selection by mouse: a click selects one row, ctrl/cmd+click toggles, and a
+  // drag paints a range. The anchor is where the drag or the shift-click began,
+  // so moving the pointer back and forth keeps the range consistent with the
+  // starting row instead of accumulating rows the pointer merely crossed.
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  const [focusedRow, setFocusedRow] = useState(0)
+  // Only a keyboard move paints the focus ring; see the CSS comment.
+  const [keyboardFocus, setKeyboardFocus] = useState(false)
+  const dragAnchor = useRef<number | null>(null)
+  const dragMoved = useRef(false)
+  const [dragging, setDragging] = useState(false)
+
+  function keysBetween(from: number, to: number): string[] {
+    const start = Math.min(from, to)
+    const end = Math.max(from, to)
+    return rowKeys.slice(start, end + 1)
+  }
+
+  function selectOnly(index: number): void {
+    const key = rowKeys[index]
+    if (key === undefined) return
+    setSelected(new Set([key]))
+  }
+
+  function extendTo(index: number, base: Set<string>): void {
+    const anchor = dragAnchor.current ?? index
+    const next = new Set(base)
+    for (const key of keysBetween(anchor, index)) next.add(key)
+    setSelected(next)
+  }
+
+  function startDrag(index: number, e: ReactMouseEvent): void {
+    if (!canEdit || busy) return
+    // A cell being edited owns its own mouse events; starting a row drag there
+    // would steal the caret from the input.
+    const target = e.target as HTMLElement
+    if (target.closest('input, select, textarea, button, a')) return
+    // Without this the browser starts a text selection as soon as the pointer
+    // moves, which is exactly what a drag across rows must not do.
+    e.preventDefault()
+    // Every click path leaves the keyboard position on the row that was clicked,
+    // otherwise Space would keep acting on an earlier row. The ring stays off:
+    // this is a mouse gesture, not keyboard navigation.
+    dragMoved.current = false
+    setFocusedRow(index)
+    setKeyboardFocus(false)
+    bodyRef.current?.querySelector<HTMLElement>(`tr[data-row-index="${index}"]`)?.focus()
+
+    if (e.shiftKey && dragAnchor.current !== null) {
+      extendTo(index, selected)
+      return
+    }
+    if (e.ctrlKey || e.metaKey) {
+      dragAnchor.current = index
+      toggleRow(rowKeys[index])
+      return
+    }
+    dragAnchor.current = index
+    selectOnly(index)
+    setDragging(true)
+  }
+
+  function dragOver(index: number): void {
+    if (!dragging || !canEdit || busy) return
+    dragMoved.current = true
+    setSelected(new Set(keysBetween(dragAnchor.current ?? index, index)))
+  }
+
+  function endDrag(): void {
+    if (!dragging) return
+    setDragging(false)
+  }
+
+  useEffect(() => {
+    if (!dragging) return
+    // The pointer often leaves the table before the button is released, so the
+    // drag has to end on the window or it would stay active over the whole app.
+    window.addEventListener('mouseup', endDrag)
+    return () => window.removeEventListener('mouseup', endDrag)
+  }, [dragging])
+
+  // Keyboard parity with the drag: the removed checkboxes were the only way a
+  // keyboard user could select a row, so arrows move a single tab stop and Space
+  // toggles the row under it.
+  useEffect(() => {
+    // The page can get shorter (filter, delete, new page); a stale index would
+    // leave no row reachable by Tab.
+    setFocusedRow((prev) => Math.min(prev, Math.max(0, rowKeys.length - 1)))
+  }, [rowKeys.length])
+
+  // The inspected row is the one the detail dock shows, and it keeps its own
+  // accent tint. Clicking a row both selects and inspects it, so a row that
+  // leaves the selection must stop being highlighted too: otherwise deselecting
+  // all rows still left one row coloured, which reads as a stuck selection.
+  useEffect(() => {
+    if (inspectedRowKey == null) return
+    if (selected.has(inspectedRowKey)) return
+    onClearInspect?.()
+  }, [selected, inspectedRowKey, onClearInspect])
+
+  function focusRow(index: number): void {
+    setFocusedRow(index)
+    setKeyboardFocus(true)
+    const row = bodyRef.current?.querySelector<HTMLElement>(
+      `tr[data-row-index="${index}"]`
+    )
+    row?.focus()
+  }
+
+  function onRowKeyDown(index: number, e: ReactKeyboardEvent): void {
+    if (e.target !== e.currentTarget) return
+    const key = rowKeys[index]
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const step = e.key === 'ArrowDown' ? 1 : -1
+      const next = Math.min(Math.max(index + step, 0), rowKeys.length - 1)
+      if (e.shiftKey && canEdit) {
+        if (dragAnchor.current === null) dragAnchor.current = index
+        extendTo(next, selected)
+      }
+      focusRow(next)
+      return
+    }
+    if (e.key === ' ' || e.key === 'Spacebar') {
+      if (!canEdit || busy || key === undefined) return
+      e.preventDefault()
+      dragAnchor.current = index
+      toggleRow(key)
+      return
+    }
+    if (e.key === 'Escape' && selected.size > 0) {
+      e.preventDefault()
+      setSelected(new Set())
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && canEdit) {
+      e.preventDefault()
+      toggleAll()
+    }
   }
 
   // Applies a saved change to the row already on screen. The row keeps its
@@ -909,7 +1060,7 @@ export function DataGrid({
             ) : (
               <table className="data-table" style={{ width: totalWidth }}>
                 <colgroup>
-                  <col style={{ width: CHECKBOX_COL_WIDTH }} />
+                  <col style={{ width: ROW_NUMBER_COL_WIDTH }} />
                   {columns.map((c) => (
                     <col key={c.name} style={{ width: widthOf(c.name) }} />
                   ))}
@@ -917,14 +1068,23 @@ export function DataGrid({
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="th-select">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleAll}
-                        disabled={busy || !canEdit}
-                        aria-label={tr('grid.selectAllRows')}
-                      />
+                    {/* The header no longer holds a checkbox: clicking it is the
+                        select-all affordance, which keeps the capability without
+                        a control in every row. */}
+                    <th className="th-rownum">
+                      {canEdit ? (
+                        <button
+                          className={`th-rownum__btn${allSelected ? ' is-all' : ''}`}
+                          onClick={toggleAll}
+                          disabled={busy}
+                          aria-label={tr('grid.selectAllRows')}
+                          title={tr('grid.selectAllRows')}
+                        >
+                          #
+                        </button>
+                      ) : (
+                        <span aria-hidden="true">#</span>
+                      )}
                     </th>
                     {columns.map((c) => (
                       <th
@@ -964,7 +1124,7 @@ export function DataGrid({
                     <th className="th-actions" />
                   </tr>
                 </thead>
-                <tbody>
+                <tbody ref={bodyRef}>
                   {data.rows.length === 0 && !draft && (
                     <tr className="grid-empty">
                       <td className="cell grid-empty__cell" colSpan={columns.length + 2}>
@@ -983,20 +1143,32 @@ export function DataGrid({
                     return (
                       <tr
                         key={key}
+                        data-row-index={rowIndex}
+                        tabIndex={
+                          canEdit ? (rowIndex === focusedRow ? 0 : -1) : undefined
+                        }
+                        aria-selected={canEdit ? selected.has(key) : undefined}
                         className={`${selected.has(key) ? 'is-selected' : ''}${
                           isInspected ? ' is-inspected' : ''
-                        }${savedKey === key ? ' is-saved' : ''}`}
-                        onClick={() => onInspectRow?.(row, key)}
+                        }${savedKey === key ? ' is-saved' : ''}${
+                          dragging ? ' is-dragging' : ''
+                        }${
+                          keyboardFocus && rowIndex === focusedRow
+                            ? ' is-keyboard-focus'
+                            : ''
+                        }`}
+                        onMouseDown={(e) => startDrag(rowIndex, e)}
+                        onMouseEnter={() => dragOver(rowIndex)}
+                        onKeyDown={(e) => onRowKeyDown(rowIndex, e)}
+                        onClick={() => {
+                          // A drag across rows is a bulk selection, not a request
+                          // to inspect the row the pointer happened to stop on.
+                          if (dragMoved.current) return
+                          onInspectRow?.(row, key)
+                        }}
                       >
-                        <td className="cell cell--select">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(key)}
-                            onChange={() => toggleRow(key)}
-                            onClick={(e) => e.stopPropagation()}
-                            disabled={busy || !canEdit}
-                            aria-label={tr('grid.selectRow')}
-                          />
+                        <td className="cell cell--rownum" aria-hidden="true">
+                          {page * pageSize + rowIndex + 1}
                         </td>
                         {columns.map((c) => {
                           const isEditing =
@@ -1106,7 +1278,7 @@ export function DataGrid({
                   })}
                   {draft && (
                     <tr className="draft-row">
-                      <td className="cell cell--select" />
+                      <td className="cell cell--rownum" aria-hidden="true" />
                       {columns.map((c) => {
                         if (!(c.name in draft)) {
                           return (

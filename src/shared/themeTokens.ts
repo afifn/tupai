@@ -172,36 +172,38 @@ export const THEME_TOKENS: ThemeToken[] = [
     description: 'Teks di atas --error, misalnya angka di badge.'
   },
 
-  // Engine brand tints
+  // Engine brand tints. The mark shows its tint only while the connection is
+  // open; a closed connection keeps a neutral grey mark, so the colour is a
+  // status and never a second decoration next to the name.
   {
     name: '--engine-mysql',
     group: 'engine',
-    description: 'Warna ikon engine MySQL.'
+    description: 'Warna ikon engine MySQL saat koneksinya terbuka.'
   },
   {
     name: '--engine-mariadb',
     group: 'engine',
-    description: 'Warna ikon engine MariaDB.'
+    description: 'Warna ikon engine MariaDB saat koneksinya terbuka.'
   },
   {
     name: '--engine-postgres',
     group: 'engine',
-    description: 'Warna ikon engine PostgreSQL.'
+    description: 'Warna ikon engine PostgreSQL saat koneksinya terbuka.'
   },
   {
     name: '--engine-sqlite',
     group: 'engine',
-    description: 'Warna ikon engine SQLite.'
+    description: 'Warna ikon engine SQLite saat koneksinya terbuka.'
   },
   {
     name: '--engine-oracle',
     group: 'engine',
-    description: 'Warna ikon engine Oracle.'
+    description: 'Warna ikon engine Oracle saat koneksinya terbuka.'
   },
   {
     name: '--engine-mongodb',
     group: 'engine',
-    description: 'Warna ikon engine MongoDB.'
+    description: 'Warna ikon engine MongoDB saat koneksinya terbuka.'
   },
 
   // Diagram card colours. Content, not chrome: identical in every theme.
@@ -381,44 +383,45 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { fg: '--error', bg: '--surface', min: 4.5, note: 'Pesan error di panel' },
   { fg: '--ok', bg: '--surface', min: 4.5, note: 'Pesan berhasil di panel' },
   { fg: '--info', bg: '--surface', min: 4.5, note: 'Pesan informasi di panel' },
-  // Engine marks sit on the 20px badge, so the badge is the background that
-  // matters. 3:1 is the WCAG floor for meaningful non-text graphics; the
-  // sidebar is small and dense, so the tints have to clear it.
+  // Engine marks sit directly on the sidebar row, with no badge behind them, so
+  // the row background is what they have to clear. 3:1 is the WCAG floor for
+  // meaningful non-text graphics. The muted state uses --text-muted, which is
+  // covered by the pairs above.
   {
     fg: '--engine-mysql',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine MySQL di badge sidebar'
+    note: 'Ikon engine MySQL di baris sidebar'
   },
   {
     fg: '--engine-mariadb',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine MariaDB di badge sidebar'
+    note: 'Ikon engine MariaDB di baris sidebar'
   },
   {
     fg: '--engine-postgres',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine PostgreSQL di badge sidebar'
+    note: 'Ikon engine PostgreSQL di baris sidebar'
   },
   {
     fg: '--engine-sqlite',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine SQLite di badge sidebar'
+    note: 'Ikon engine SQLite di baris sidebar'
   },
   {
     fg: '--engine-oracle',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine Oracle di badge sidebar'
+    note: 'Ikon engine Oracle di baris sidebar'
   },
   {
     fg: '--engine-mongodb',
-    bg: '--surface-muted',
+    bg: '--surface',
     min: 3,
-    note: 'Ikon engine MongoDB di badge sidebar'
+    note: 'Ikon engine MongoDB di baris sidebar'
   }
 ]
 

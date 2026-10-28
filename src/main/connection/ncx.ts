@@ -123,6 +123,22 @@ export async function writeNcxFile(
   await writeFile(path, buildNcx(connections), 'utf-8')
 }
 
+// Windows forbids these outright; the control-character class is stripped too so
+// a pasted name cannot smuggle a newline into the file name.
+const ILLEGAL_FILE_CHARS = /[\\/:*?"<>|\p{Cc}]/gu
+
+// Default name for the save dialog: one connection is exported often enough that
+// its own name is more useful than a generic "connections.ncx", but a set of
+// them would only produce a confusing list.
+export function suggestNcxFileName(names: readonly string[]): string {
+  if (names.length !== 1) return 'connections.ncx'
+  const cleaned = names[0]
+    .replace(ILLEGAL_FILE_CHARS, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.]+|[\s.]+$/g, '')
+  return cleaned ? `${cleaned}.ncx` : 'connections.ncx'
+}
+
 // StoredConnection is what the renderer and store expose; the export only needs
 // the non-secret fields, so widening it to ConnectionConfig is safe.
 export function toExportable(connection: StoredConnection): ConnectionConfig {

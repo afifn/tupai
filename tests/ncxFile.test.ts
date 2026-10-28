@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildNcx, parseNcx } from '../src/main/connection/ncx'
+import { buildNcx, parseNcx, suggestNcxFileName } from '../src/main/connection/ncx'
 
 // A sanitised copy of a real Navicat Premium 16 export: same element and
 // attribute shape, fake host and credentials.
@@ -125,5 +125,35 @@ describe('buildNcx', () => {
     // Navicat reads `ShowDB="true"`; a bare `ShowDB` means nothing to it.
     const xml = buildNcx([connection])
     expect(xml).toMatch(/ShowDB="true"/)
+  })
+
+  it('writes only the connections it is given', () => {
+    // Exporting one connection or a group must not quietly include the rest.
+    const xml = buildNcx([
+      connection,
+      { ...connection, id: 'c2', name: 'Reporting', database: 'reports' }
+    ])
+    expect(xml.match(/<Connection\s/g)).toHaveLength(2)
+    expect(xml).toContain('ConnectionName="Reporting"')
+  })
+})
+
+describe('suggestNcxFileName', () => {
+  it('names a single-connection export after the connection', () => {
+    expect(suggestNcxFileName(['Shop & Co'])).toBe('Shop & Co.ncx')
+  })
+
+  it('replaces characters a file name cannot hold', () => {
+    expect(suggestNcxFileName(['db:prod/eu*?'])).toBe('db-prod-eu--.ncx')
+  })
+
+  it('falls back to a generic name when the connection name is unusable', () => {
+    expect(suggestNcxFileName(['...'])).toBe('connections.ncx')
+    expect(suggestNcxFileName([''])).toBe('connections.ncx')
+  })
+
+  it('uses the generic name for more than one connection', () => {
+    expect(suggestNcxFileName(['A', 'B'])).toBe('connections.ncx')
+    expect(suggestNcxFileName([])).toBe('connections.ncx')
   })
 })

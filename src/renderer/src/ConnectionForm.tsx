@@ -455,7 +455,7 @@ export function ConnectionForm({ initial, onClose, onSaved }: Props): JSX.Elemen
                       className={`conn__engine${selected ? ' is-active' : ''}`}
                       onClick={() => changeEngine(engine)}
                     >
-                      <EngineIcon engine={engine} size={18} active={selected} />
+                      <EngineIcon engine={engine} size={18} />
                       <span>{ENGINE_LABEL[engine]}</span>
                     </button>
                   )
