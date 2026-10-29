@@ -8,6 +8,8 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-29
+
 ### Diubah
 
 - **README** kini menyebut installer Windows sudah tersedia sejak 0.2.2, lengkap
