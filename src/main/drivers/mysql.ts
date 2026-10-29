@@ -28,6 +28,7 @@ import type {
 import { MAX_OPEN_TRANSACTIONS } from '@shared/types'
 import { commitsImplicitly } from '@shared/transactionGuard'
 import { buildFilterWhere } from '@shared/filter'
+import { describeLostSession } from '@shared/connectionLost'
 import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
 import {
@@ -135,6 +136,10 @@ class MysqlAdapter implements DatabaseAdapter {
 
   private pool: Pool | null = null
   private tunnel: SshTunnel | null = null
+  // Connections that already carry the session-lost listener.
+  private guarded = new WeakSet<object>()
+  // Why the last session ended, when the server closed it.
+  private lostReason: string | null = null
   // One pinned connection per open manual transaction. A pooled connection is
   // returned to the pool after every call, so a transaction needs its own.
   private transactions = new Map<
@@ -190,8 +195,33 @@ class MysqlAdapter implements DatabaseAdapter {
     const ssl = await resolveSsl(cfg.ssl)
     const options = await this.buildOptions(cfg, ssl)
     this.pool = mysql.createPool(options)
+    // mysql2 does not put an `error` listener on a pooled connection. A session
+    // the server ends while the connection sits idle in the pool therefore emits
+    // `error` with no listener, and Node turns that into an uncaught exception
+    // that takes the whole database worker down. Every new connection is guarded
+    // as it is handed out; see guardConnection.
+    this.pool.on('connection', (conn: PoolConnection) => this.guardConnection(conn))
     const conn = await this.pool.getConnection()
     conn.release()
+  }
+
+  /**
+   * Keeps a session that the server ended from becoming a crash.
+   *
+   * The listener only records the reason: mysql2 marks the connection fatal and
+   * removes it from the pool by itself, so the next `getConnection` builds a new
+   * one. Queries on a dead connection already reject with a fatal driver error,
+   * which `isConnectionLostError` recognises.
+   */
+  private guardConnection(conn: PoolConnection): void {
+    // A WeakSet, not a set of thread ids: thread ids are reused by the server and
+    // a connection object is the only stable identity here.
+    if (this.guarded.has(conn)) return
+    this.guarded.add(conn)
+    conn.on('error', (err: Error) => {
+      this.lostReason = describeLostSession(err)
+      console.error('[mysql] session ended:', this.lostReason)
+    })
   }
 
   private async closeTunnel(): Promise<void> {

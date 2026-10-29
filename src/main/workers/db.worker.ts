@@ -14,6 +14,7 @@ import type {
 } from '@shared/types'
 import { describeBinary, isBinaryCell } from '@shared/binary'
 import { toTransferable } from '@shared/transferable'
+import { describeLostSession, isConnectionLostError } from '@shared/connectionLost'
 import { getAdapterFactory } from '../drivers/registry'
 import { DbError, type DatabaseAdapter } from '../drivers/types'
 
@@ -500,10 +501,21 @@ parentPort?.on('message', async (req: WorkerRequest) => {
       response.error = err.toShape()
     } else {
       const engine = (req.payload as { engine?: DbEngine })?.engine ?? 'sqlite'
-      response.error = {
-        code: 'INTERNAL',
-        message: describeError(err),
-        engine
+      // A session the server ended arrives as a driver error, not as a DbError.
+      // Reporting it as INTERNAL would blame the statement; the connection is
+      // what is gone, so it gets the code the UI turns into "reconnect".
+      if (isConnectionLostError(err)) {
+        response.error = {
+          code: 'CONNECTION_LOST',
+          message: describeLostSession(err),
+          engine
+        }
+      } else {
+        response.error = {
+          code: 'INTERNAL',
+          message: describeError(err),
+          engine
+        }
       }
     }
   }

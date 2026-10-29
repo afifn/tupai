@@ -24,6 +24,19 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 - **Tangkapan layar di README** dalam versi terang dan gelap, dipilih otomatis
   sesuai tema GitHub. Gambarnya memakai database demo, bukan data kerja.
 
+### Diperbaiki
+
+- **Koneksi Postgres yang diputus server karena menganggur tidak lagi menjatuhkan
+  seluruh aplikasi.** Sebelumnya `pg.Client` memancarkan `error` tanpa listener,
+  sehingga error itu menjadi uncaught exception dan mematikan worker database
+  beserta semua koneksi. Kini sesi yang berakhir hanya membuang koneksi itu;
+  koneksi lain tetap jalan dan koneksi tersebut menyambung ulang otomatis.
+  Lubang yang sama ditutup untuk MySQL.
+- **Query yang sedang berjalan saat sesinya diputus** berhenti dengan pesan
+  "Sesi ke server berakhir (...) Koneksi ini perlu disambung ulang", bukan
+  menggantung tanpa batas. Penyebabnya `pg-cursor`: callback pembacaan tidak
+  pernah dipanggil setelah sesi mati.
+
 ## [0.2.2] - 2026-10-28
 
 ### Diubah

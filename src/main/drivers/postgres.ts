@@ -27,6 +27,7 @@ import type {
 } from '@shared/types'
 import { MAX_OPEN_TRANSACTIONS } from '@shared/types'
 import { buildFilterWhere } from '@shared/filter'
+import { describeLostSession } from '@shared/connectionLost'
 import { nowExpression } from '@shared/nowExpression'
 import { chunkRows } from '@shared/insertChunks'
 import {
@@ -58,6 +59,12 @@ class PostgresAdapter implements DatabaseAdapter {
 
   private ssl: ResolvedSsl | null = null
   private tunnel: SshTunnel | null = null
+  // Why the last session ended, if the server closed it. Shown once to the
+  // caller so "connection lost" comes with a reason instead of a bare code.
+  private lostReason: string | null = null
+  // Rejects when the client's session ends, so a pending cursor read can be
+  // released instead of waiting for a callback that will never arrive.
+  private deaths = new WeakMap<Client, Promise<never>>()
   // One dedicated client per open manual transaction. Reusing a cached client
   // would put every other tab's statement inside the same transaction.
   private transactions = new Map<string, { client: Client; info: TransactionInfo }>()
@@ -139,6 +146,51 @@ class PostgresAdapter implements DatabaseAdapter {
     this.tunnel = null
   }
 
+  /**
+   * Attaches the handler that keeps a dropped session from becoming a crash.
+   *
+   * `pg.Client` is an EventEmitter, and it emits `error` when the server ends the
+   * session (an idle timeout, an admin shutdown, a dropped socket). An EventEmitter
+   * with no `error` listener re-throws the error as an uncaught exception, which
+   * used to take down the whole worker and every other connection with it.
+   *
+   * The handler drops the dead client from the cache and remembers why, so the
+   * next call for that database builds a fresh client. It deliberately does not
+   * wrap `client.query`: pg runs its own queue through that method, and replacing
+   * it made pg believe two queries were in flight at once.
+   */
+  private guard(client: Client, database: string): void {
+    // Statements run through a pg-cursor, and a cursor read that is pending when
+    // the session dies never calls back: the error arrives on the client, not on
+    // the cursor. `died` is what a pending read races against, so the caller gets
+    // an error instead of waiting forever.
+    let fail: (err: Error) => void = () => undefined
+    const died = new Promise<never>((_, reject) => {
+      fail = reject
+    })
+    // A lost session is not always awaited (an idle client has nothing pending),
+    // so the rejection is marked handled here.
+    died.catch(() => undefined)
+    this.deaths.set(client, died)
+
+    client.on('error', (err: Error) => {
+      this.forget(client, database)
+      this.lostReason = describeLostSession(err)
+      // The worker's stderr reaches db-manager.log, which is where a user is
+      // asked to look when something goes wrong.
+      console.error('[postgres] session ended:', this.lostReason)
+      fail(err)
+    })
+  }
+
+  /** Removes a client that can no longer be used from every place it is held. */
+  private forget(client: Client, database: string): void {
+    if (this.clients.get(database) === client) this.clients.delete(database)
+    for (const [id, entry] of this.transactions) {
+      if (entry.client === client) this.transactions.delete(id)
+    }
+  }
+
   /** A fresh client for a manual transaction, never the shared cache. */
   private async openTransactionClient(database: string): Promise<Client> {
     if (!this.config) throw new DbError('NOT_CONNECTED', 'Not connected', this.engine)
@@ -155,6 +207,7 @@ class PostgresAdapter implements DatabaseAdapter {
     const client = new PgClient(options as never)
     await client.connect()
     await client.query(`SET statement_timeout = ${QUERY_TIMEOUT_MS}`)
+    this.guard(client, database)
     return client
   }
 
@@ -183,6 +236,7 @@ class PostgresAdapter implements DatabaseAdapter {
     const client = new PgClient(options as never)
     await client.connect()
     await client.query(`SET statement_timeout = ${QUERY_TIMEOUT_MS}`)
+    this.guard(client, database)
     this.clients.set(database, client)
     await this.evictClients()
     return client
@@ -734,9 +788,12 @@ class PostgresAdapter implements DatabaseAdapter {
     let fields: { name: string }[] = []
     let truncated = false
     let rowCount = 0
+    // Resolves to a rejection when the session ends, so a read that will never
+    // call back is released instead of hanging the query.
+    const died = this.deaths.get(client)
     try {
       for (;;) {
-        const batch = await new Promise<{ rows: unknown[][]; result?: unknown }>(
+        const read = new Promise<{ rows: unknown[][]; result?: unknown }>(
           (resolve, reject) => {
             cursor.read(
               Math.min(500, maxRows + 1 - values.length),
@@ -747,6 +804,7 @@ class PostgresAdapter implements DatabaseAdapter {
             )
           }
         )
+        const batch = died ? await Promise.race([read, died]) : await read
         if (batch.result) {
           const meta = batch.result as {
             fields?: { name: string }[]
@@ -763,7 +821,10 @@ class PostgresAdapter implements DatabaseAdapter {
         }
       }
     } finally {
-      await cursor.close().catch(() => undefined)
+      // On a dead session `close()` waits for a reply that never comes, so it is
+      // raced against the same death promise as the reads.
+      const closing = cursor.close().catch(() => undefined)
+      await (died ? Promise.race([closing, died.catch(() => undefined)]) : closing)
     }
     if (values.length > maxRows) values.length = maxRows
     const rows = values.map((row) => {
