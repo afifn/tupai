@@ -851,6 +851,8 @@ export const en: Record<MessageKey, string> = {
   'app.truncateTableDetail': 'Auto-increment will be reset.',
   'app.deleteConnectionTitle': 'Delete connection',
   'tab.query': 'Query',
+  'tab.moveLeft': 'Move tab left',
+  'tab.moveRight': 'Move tab right',
   'tab.newTable': 'New table',
   'tab.newView': 'New view',
   'tab.objects': '{database} objects',

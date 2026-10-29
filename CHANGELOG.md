@@ -8,6 +8,15 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+### Diubah
+
+- Tangkapan layar README diperbarui menggunakan workspace PostgreSQL demo POS dengan data pesanan yang lebih padat dalam tema terang dan gelap.
+- Urutan tab kerja kini bisa disusun ulang dengan drag-and-drop, menu konteks, atau pintasan `Alt+Shift+←/→`.
+- Pengaturan kini terbuka di jendela tersendiri dengan navigasi bagian dan tata letak yang disesuaikan untuk halaman preferensi. Tombol pengaturan AI membuka bagian AI, dan perubahan pengaturan langsung tersinkron ke jendela utama.
+- Perubahan tema dari jendela Pengaturan kini langsung diterapkan pada jendela utama.
+- Title bar jendela Pengaturan di macOS kini menyatu dengan frame halaman dan mengikuti tema aplikasi.
+- Pada Windows 11+ dan Linux, tombol frame Pengaturan kini memakai overlay native setinggi toolbar utama.
+
 ## [0.2.3] - 2026-10-29
 
 ### Diubah
@@ -184,7 +193,7 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
   server. Paket `oracledb` adalah CommonJS, dan API-nya berada di `default` saat
   diimpor dari ES module; driver kini membuka `default` lebih dulu. Pesan error
   yang muncul sekarang adalah error jaringan atau TNS yang sebenarnya.
-- Server Oracle yang lebih lama dari 12.1 kini bisa dihubungkan lewat mode thick.  Bagian **Oracle** di Pengaturan menerima folder Oracle Instant Client, dan
+- Server Oracle yang lebih lama dari 12.1 kini bisa dihubungkan lewat mode thick. Bagian **Oracle** di Pengaturan menerima folder Oracle Instant Client, dan
   pesan `NJS-138` diterjemahkan menjadi penjelasan yang mengarahkan ke setelan
   tersebut. Folder kosong tetap memakai mode thin, jadi server 12.1+ tidak
   berubah. Bagian itu juga punya tombol **Unduh Instant Client** yang membuka

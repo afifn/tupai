@@ -823,6 +823,8 @@ export const ja: Record<MessageKey, string> = {
   'app.truncateTableDetail': '自動増分がリセットされます。',
   'app.deleteConnectionTitle': '接続を削除',
   'tab.query': 'クエリ',
+  'tab.moveLeft': 'タブを左へ移動',
+  'tab.moveRight': 'タブを右へ移動',
   'tab.newTable': '新しいテーブル',
   'tab.newView': '新しいビュー',
   'tab.objects': '{database} のオブジェクト',

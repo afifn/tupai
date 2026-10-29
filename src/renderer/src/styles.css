@@ -1075,6 +1075,22 @@ button {
   box-shadow: 0 1px 0 var(--bg);
 }
 
+.tab.is-dragging {
+  opacity: 0.48;
+}
+
+.tab.is-drop-target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tab[draggable='true'] .tab__label {
+  cursor: grab;
+}
+
+.tab[draggable='true'] .tab__label:active {
+  cursor: grabbing;
+}
+
 .tab.is-active::before {
   content: '';
   width: 2px;
@@ -1537,35 +1553,53 @@ button {
   margin-top: 20px;
 }
 
-/* Settings dialog. A sidebar keeps seven sections reachable without scrolling,
-   and the body scrolls on its own so the section list never moves. */
-.modal--settings {
-  width: min(880px, 100%);
-  max-width: 880px;
-  height: min(680px, 88vh);
-  padding: 0;
+/* Settings has its own BrowserWindow. The stable navigation rail lets frequent
+   preferences stay in reach while only the active section scrolls. */
+.settings-page {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  min-width: 0;
   overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
 }
 
-/* Windows controls sit a little taller than macOS ones. The same pane should
-   not feel cramped next to Explorer or a native dialog on either platform. */
-:root[data-platform='win32'] .settings__nav-item {
-  padding: 7px 9px;
-  font-size: 13px;
+.settings-window-titlebar {
+  display: none;
+  align-items: center;
+  padding: 0 16px 0 88px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  -webkit-app-region: drag;
 }
 
-:root[data-platform='win32'] .settings__pane {
-  gap: 16px;
+:root[data-platform='darwin'] .settings-page {
+  grid-template-rows: 44px minmax(0, 1fr);
 }
 
-@media (max-width: 760px) {
-  .settings {
-    grid-template-columns: 156px minmax(0, 1fr);
-  }
+:root[data-platform='darwin'] .settings-window-titlebar {
+  display: flex;
+}
 
-  .settings__nav {
-    padding: 12px 6px;
-  }
+:root[data-titlebar-overlay='true'] .settings-page {
+  grid-template-rows: 44px minmax(0, 1fr);
+}
+
+:root[data-titlebar-overlay='true'] .settings-window-titlebar {
+  display: flex;
+  padding-left: 12px;
+  border-bottom-color: transparent;
+}
+
+.settings-page .settings {
+  grid-template-columns: 232px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
 }
 
 .settings {
@@ -1578,27 +1612,35 @@ button {
 .settings__nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 8px;
+  gap: 4px;
+  padding: 24px 14px 16px;
   border-right: 1px solid var(--border);
   background: var(--surface-muted);
   overflow-y: auto;
 }
 
 .settings__title {
-  margin: 0 0 10px;
-  padding: 0 8px;
-  font-size: 14px;
+  margin: 0 0 18px;
+  padding: 0 10px;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.settings__subtitle {
+  margin: -12px 10px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .settings__nav-item {
-  padding: 6px 9px;
+  min-height: 36px;
+  padding: 8px 10px;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
 }
@@ -1610,7 +1652,7 @@ button {
 
 .settings__nav-item:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .settings__nav-item.is-active {
@@ -1625,11 +1667,18 @@ button {
   border-top: 1px solid var(--border);
 }
 
+.settings__nav-foot .btn {
+  min-height: 36px;
+  white-space: normal;
+  text-align: left;
+}
+
 .settings__body {
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  background: var(--bg);
 }
 
 .settings__head {
@@ -1637,7 +1686,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  min-height: 92px;
+  padding: 20px clamp(24px, 5vw, 64px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -1646,11 +1696,32 @@ button {
   font-size: 15px;
 }
 
+.settings__head h1 {
+  margin: 0;
+  font-size: 23px;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.settings__eyebrow {
+  margin: 0 0 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.settings__state {
+  margin: 0;
+  padding: 28px clamp(24px, 5vw, 64px);
+  color: var(--text-muted);
+}
+
 .settings__pane {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 20px;
+  width: min(100%, 860px);
+  padding: 28px clamp(24px, 5vw, 64px) 56px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -1667,14 +1738,14 @@ button {
 .settings__group legend {
   padding: 0;
   margin-bottom: 2px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
 .settings__hint {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -1683,7 +1754,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .settings__label {
@@ -1772,7 +1843,7 @@ button {
 
 .settings__theme:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .settings__theme.is-active {
@@ -1780,6 +1851,82 @@ button {
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 600;
+}
+
+:root[data-window='settings'] .settings__nav-item:focus-visible,
+:root[data-window='settings'] .settings__theme:focus-visible,
+:root[data-window='settings'] button:focus-visible,
+:root[data-window='settings'] input:focus-visible,
+:root[data-window='settings'] select:focus-visible,
+:root[data-window='settings'] textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .settings-page .settings {
+    grid-template-columns: 176px minmax(0, 1fr);
+  }
+
+  .settings__nav {
+    padding: 18px 8px 12px;
+  }
+
+  .settings__head,
+  .settings__pane,
+  .settings__state {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-page .settings {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings__nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-content: start;
+    gap: 4px;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings__title {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+  }
+
+  .settings__subtitle {
+    grid-column: 1 / -1;
+    margin: 0 10px 6px;
+  }
+
+  .settings__nav-item {
+    min-height: 44px;
+    padding: 6px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .settings__nav-foot {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+    padding: 6px 0 0;
+  }
+
+  .settings__head {
+    min-height: 72px;
+  }
+
+  .settings__themes,
+  .settings__core-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Two-tone chip: the swatch shows the theme's own background and accent without

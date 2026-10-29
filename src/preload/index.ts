@@ -81,6 +81,10 @@ const dbApi = {
   // True when the window has no native title bar, so the renderer adds the
   // traffic-light inset itself.
   usesCustomTitleBar: process.platform === 'darwin',
+  supportsTitleBarOverlay:
+    process.platform === 'darwin' ||
+    process.platform === 'win32' ||
+    process.platform === 'linux',
   setTitleBarColors(
     color: string,
     symbolColor: string,
@@ -517,6 +521,17 @@ const dbApi = {
       listener(action)
     ipcRenderer.on(IPC.menuAction, wrapped)
     return () => ipcRenderer.removeListener(IPC.menuAction, wrapped)
+  },
+  openSettingsWindow(section: string): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.openSettingsWindow, section)
+  },
+  closeSettingsWindow(): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.closeSettingsWindow)
+  },
+  onSettingsChanged(listener: () => void): () => void {
+    const wrapped = (): void => listener()
+    ipcRenderer.on(IPC.settingsChanged, wrapped)
+    return () => ipcRenderer.removeListener(IPC.settingsChanged, wrapped)
   },
   // Translated labels for the native menu, which lives in main.
   setMenuLabels(labels: Record<string, string>): Promise<IpcResult<boolean>> {

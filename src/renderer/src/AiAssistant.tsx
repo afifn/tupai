@@ -38,7 +38,7 @@ interface Props {
     scope: { connectionId?: string; database?: string; schema?: string }
   ) => void
   onClose?: () => void
-  // The AI form lives in the Settings dialog now; this panel only points there.
+  // The AI form lives in the Settings window; this panel only points there.
   onOpenSettings?: () => void
   // The right dock already names the panel in its tab, so the inner title row
   // would repeat it. Embedded mode drops that row and folds its actions into

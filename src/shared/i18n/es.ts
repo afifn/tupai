@@ -836,6 +836,8 @@ export const es: Record<MessageKey, string> = {
   'app.truncateTableDetail': 'El autonumérico se reiniciará.',
   'app.deleteConnectionTitle': 'Eliminar conexión',
   'tab.query': 'Consulta',
+  'tab.moveLeft': 'Mover pestaña a la izquierda',
+  'tab.moveRight': 'Mover pestaña a la derecha',
   'tab.newTable': 'Nueva tabla',
   'tab.newView': 'Nueva vista',
   'tab.objects': 'Objetos de {database}',

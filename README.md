@@ -32,7 +32,7 @@ Jelajahi objek, edit data, tulis query, dan pindahkan data tanpa berpindah alat.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/dark.png">
-  <img src="assets/screenshots/light.png" alt="Tupai: sidebar koneksi, pohon objek, dan grid data tabel pesanan" width="100%">
+  <img src="assets/screenshots/light.png" alt="Tupai: koneksi PostgreSQL, pohon database POS, dan grid pesanan demo" width="100%">
 </picture>
 
 ---

@@ -152,6 +152,7 @@ import { deleteSyncProfile, listSyncProfiles, saveSyncProfile } from '../sync/pr
 import { forgetHostKey, storedFingerprint } from '../connection/knownHosts'
 import { supportsTitleBarOverlay } from '../windowChrome'
 import { log } from '../logger'
+import { broadcastSettingsChanged } from '../settingsWindow'
 
 let client: DbWorkerClient | null = null
 
@@ -766,8 +767,12 @@ export function registerDbHandlers(): void {
 
   ipcMain.handle(IPC.getAiSettings, () => run(() => getAiSettings()))
 
-  ipcMain.handle(IPC.saveAiSettings, (_e, raw) =>
-    run(() => saveAiSettings(aiSettingsInputSchema.parse(raw)))
+  ipcMain.handle(IPC.saveAiSettings, (event, raw) =>
+    run(async () => {
+      const saved = await saveAiSettings(aiSettingsInputSchema.parse(raw))
+      broadcastSettingsChanged(event.sender)
+      return saved
+    })
   )
 
   ipcMain.handle(IPC.listAiModels, (_e, raw) =>
@@ -917,7 +922,7 @@ export function registerDbHandlers(): void {
   // recorded fingerprint makes the next connect record it again (TOFU).
   ipcMain.handle(IPC.getSettings, () => run(() => readSettings()))
 
-  ipcMain.handle(IPC.saveSettings, (_e, raw) =>
+  ipcMain.handle(IPC.saveSettings, (event, raw) =>
     run(async () => {
       const { settings } = saveSettingsSchema.parse(raw)
       const next = appSettingsSchema.parse(settings)
@@ -928,6 +933,7 @@ export function registerDbHandlers(): void {
       // model). Import is the exception: there the file is the user's intent.
       const stored = await readSettings()
       const saved = await writeSettings({ ...next, ai: stored.ai })
+      broadcastSettingsChanged(event.sender)
       // A rebound shortcut or a language change has to reach the native menu
       // too; it is built in main from the catalogue.
       if (
@@ -940,7 +946,14 @@ export function registerDbHandlers(): void {
     })
   )
 
-  ipcMain.handle(IPC.resetSettings, () => run(() => resetSettings()))
+  ipcMain.handle(IPC.resetSettings, (event) =>
+    run(async () => {
+      const saved = await resetSettings()
+      broadcastSettingsChanged(event.sender)
+      await refreshApplicationMenu()
+      return saved
+    })
+  )
 
   // The renderer knows which tools are usable right now; main greys out the menu
   // items that would otherwise be dead entries.
@@ -979,12 +992,15 @@ export function registerDbHandlers(): void {
     })
   )
 
-  ipcMain.handle(IPC.importSettings, (_e, raw) =>
+  ipcMain.handle(IPC.importSettings, (event, raw) =>
     run(async () => {
       const { filePath } = importSettingsSchema.parse(raw)
       const text = await readFile(filePath, 'utf-8')
       const merged = mergeSettings(JSON.parse(text))
-      return writeSettings(merged)
+      const saved = await writeSettings(merged)
+      broadcastSettingsChanged(event.sender)
+      await refreshApplicationMenu()
+      return saved
     })
   )
 

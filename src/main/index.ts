@@ -9,6 +9,11 @@ import { log } from './logger'
 import { IPC } from '@shared/ipc-contract'
 import { titleBarColorsSchema } from '@shared/schemas'
 import { toIpcResult } from './workers/dbWorkerClient'
+import {
+  registerSettingsWindowHandlers,
+  setMainWindow,
+  settingsWindowForSender
+} from './settingsWindow'
 
 // Whether this window got `titleBarOverlay` at creation. Electron has no getter
 // for it, so the decision is made once and both the window state and the IPC
@@ -126,6 +131,7 @@ function createWindow(): void {
       sandbox: true
     }
   })
+  setMainWindow(win)
 
   win.on('ready-to-show', () => win.show())
 
@@ -133,10 +139,12 @@ function createWindow(): void {
   // measures the toolbar and reports both colours whenever the theme changes.
   if (usesTitleBarOverlay) {
     ipcMain.handle(IPC.titleBarColors, (event, raw) => {
-      if (event.sender !== win.webContents) return { ok: true, data: true }
+      const targetWindow =
+        event.sender === win.webContents ? win : settingsWindowForSender(event.sender)
+      if (!targetWindow) return { ok: true, data: true }
       try {
         const { color, symbolColor, height } = titleBarColorsSchema.parse(raw)
-        win.setTitleBarOverlay({ color, symbolColor, height })
+        targetWindow.setTitleBarOverlay({ color, symbolColor, height })
         return { ok: true, data: true }
       } catch (err) {
         return toIpcResult<boolean>(err)
@@ -192,6 +200,7 @@ app.whenReady().then(() => {
   // listens for, including any the user rebound.
   void refreshApplicationMenu()
   registerDbHandlers()
+  registerSettingsWindowHandlers()
   // The updater is initialised before the window so the first paint already has
   // a state to render instead of flashing "idle".
   void initUpdater().then(() => scheduleStartupCheck())

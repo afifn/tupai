@@ -1,9 +1,17 @@
-import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  Menu,
+  type MenuItemConstructorOptions
+} from 'electron'
 import { IPC } from '@shared/ipc-contract'
 import { acceleratorFor, bindingFor, type ActionId } from '@shared/keymap'
 import type { MenuAction, MenuState } from '@shared/types'
 import type { AppSettings } from '@shared/settings'
 import { readSettings } from './settings/store'
+import { isSettingsWindow, mainWindowForMenu, openSettingsWindow } from './settingsWindow'
+import { checkForUpdates } from './update/updater'
 
 // Menu items whose shortcut the user can rebind. The accelerator comes from the
 // saved keymap so the menu never advertises a key the app does not listen for.
@@ -91,31 +99,74 @@ export function applyMenuState(state: MenuState): void {
 }
 
 function sendMenuAction(action: MenuAction): void {
-  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (action === 'settings.open') {
+    openSettingsWindow('general')
+    return
+  }
+  if (action === 'about.open') {
+    openSettingsWindow('about')
+    return
+  }
+  if (action === 'update.check') {
+    openSettingsWindow('about')
+    void checkForUpdates()
+    return
+  }
+  const focused = BrowserWindow.getFocusedWindow()
+  const win =
+    focused && isSettingsWindow(focused.webContents)
+      ? mainWindowForMenu()
+      : (focused ?? mainWindowForMenu() ?? BrowserWindow.getAllWindows()[0])
   if (!win || win.isDestroyed()) return
   win.webContents.send(IPC.menuAction, action)
 }
 
+function defaultMenuLabels(locale: string): MenuLabels {
+  const labels: Record<string, MenuLabels> = {
+    en: { 'appMenu.settings': 'Settings' },
+    id: { 'appMenu.settings': 'Pengaturan' },
+    zh: { 'appMenu.settings': '设置' },
+    ja: { 'appMenu.settings': '設定' },
+    es: { 'appMenu.settings': 'Ajustes' }
+  }
+  return labels[locale] ?? labels.en
+}
+
 // Translated labels, sent by the renderer whenever the language changes.
 //
-// The catalogue is NOT imported here on purpose: bundling all five languages
-// into the main process produced a bundle that esbuild could not transpile
-// ("Unterminated string literal"), and main has no other reason to carry ~6500
-// strings. The renderer already has them loaded and sends just the labels this
-// menu needs.
+// The renderer owns translated menu labels; the native menu only carries a
+// short settings label fallback until the main renderer reports its locale.
 export type MenuLabels = Record<string, string>
 
 let menuLabels: MenuLabels = {}
+let registeredSettingsShortcut: string | null = null
+
+function registerSettingsShortcut(settings: AppSettings): void {
+  if (registeredSettingsShortcut) {
+    globalShortcut.unregister(registeredSettingsShortcut)
+    registeredSettingsShortcut = null
+  }
+  const binding = bindingFor(settings.keymap, 'settings.open')
+  if (!binding) return
+  const accelerator = acceleratorFor(binding)
+  if (globalShortcut.register(accelerator, () => openSettingsWindow('general'))) {
+    registeredSettingsShortcut = accelerator
+  }
+}
 
 export function installApplicationMenu(
   settings?: AppSettings,
   labels?: MenuLabels
 ): void {
   if (labels) menuLabels = labels
-  // A missing label falls back to the English text the renderer would send, and
-  // then to the key itself, so a stale renderer cannot leave a blank menu.
-  const label = (key: string): string => menuLabels[key] ?? key
+  // Keep a usable label during startup before the main renderer reports labels.
+  const label = (key: string): string => {
+    return (
+      menuLabels[key] ?? defaultMenuLabels(settings?.general.locale ?? 'en')[key] ?? key
+    )
+  }
   const keymap = settings?.keymap
+  if (settings) registerSettingsShortcut(settings)
   const accelerator = (action: MenuAction, fallback?: string): string | undefined => {
     const id = KEYMAP_FOR_ACTION[action]
     if (!id || !keymap) return fallback
@@ -247,7 +298,11 @@ export function installApplicationMenu(
  * a rebound shortcut shows up in the menu immediately.
  */
 export async function refreshApplicationMenu(): Promise<void> {
-  installApplicationMenu(await readSettings())
+  const settings = await readSettings()
+  if (Object.keys(menuLabels).length === 0) {
+    menuLabels = defaultMenuLabels(settings.general.locale)
+  }
+  installApplicationMenu(settings)
 }
 
 /** Called by the renderer with the translated labels for the current locale. */

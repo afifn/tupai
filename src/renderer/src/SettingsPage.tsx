@@ -15,19 +15,18 @@ import {
   validatePalette
 } from '@shared/customTheme'
 import { LOCALE_LABELS, LOCALES, type Locale } from '@shared/i18n'
+import type { MessageKey } from '@shared/i18n'
 import { THEMES, type ThemeId } from './theme'
 import { useSettings } from './settingsStore'
 import { useLocale } from './i18n'
 import { useFocusTrap } from './useFocusTrap'
 import { unwrap } from './api'
-import { IconClose } from './Icons'
-import type { MessageKey } from '@shared/i18n'
 import brandMark from './assets/brand/tupai.png'
 
-type SectionId =
+export type SettingsSectionId =
   'general' | 'appearance' | 'editor' | 'grid' | 'oracle' | 'ai' | 'keymap' | 'about'
 
-const SECTIONS: { id: SectionId; labelKey: MessageKey }[] = [
+const SECTIONS: { id: SettingsSectionId; labelKey: MessageKey }[] = [
   { id: 'general', labelKey: 'settings.section.general' },
   { id: 'appearance', labelKey: 'settings.section.appearance' },
   { id: 'editor', labelKey: 'settings.section.editor' },
@@ -41,23 +40,96 @@ const SECTIONS: { id: SectionId; labelKey: MessageKey }[] = [
 ]
 
 interface Props {
-  onClose: () => void
   // Which section to open on. The AI panel deep-links here.
-  initialSection?: SectionId
+  initialSection?: string
 }
 
-// One dialog for every preference. A sidebar keeps seven sections reachable
-// without a scroll bar, which a single long form could not do.
-export function SettingsDialog({
-  onClose,
-  initialSection = 'general'
-}: Props): JSX.Element {
-  const { settings, update, replace, reset, error } = useSettings()
+export function SettingsPage({ initialSection = 'general' }: Props): JSX.Element {
+  const { settings, update, replace, reset, error, loading } = useSettings()
   const { tr } = useLocale()
-  const [section, setSection] = useState<SectionId>(initialSection)
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const navRef = useRef<HTMLDivElement>(null)
-  useFocusTrap(dialogRef, true)
+  const [resetConfirm, setResetConfirm] = useState(false)
+  const [titlebarInset, setTitlebarInset] = useState(12)
+  const validSection = (value: string): SettingsSectionId =>
+    SECTIONS.some((entry) => entry.id === value)
+      ? (value as SettingsSectionId)
+      : 'general'
+  const [section, setSection] = useState<SettingsSectionId>(() =>
+    validSection(initialSection)
+  )
+  const [reloadKey, setReloadKey] = useState(0)
+  const navRef = useRef<HTMLElement>(null)
+  const resetButtonRef = useRef<HTMLButtonElement>(null)
+  const resetDialogRef = useRef<HTMLElement>(null)
+  const titlebarRef = useRef<HTMLElement>(null)
+  useFocusTrap(resetDialogRef, resetConfirm)
+
+  useEffect(() => {
+    document.title = `${tr('settings.title')} · Tupai`
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      if (resetConfirm) setResetConfirm(false)
+      else void window.dbApi.closeSettingsWindow()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [tr, resetConfirm])
+
+  useEffect(() => {
+    const overlay = navigator.windowControlsOverlay
+    if (!overlay) return
+
+    const syncOverlay = (): void => {
+      const active = overlay.visible
+      document.documentElement.dataset.titlebarOverlay = active ? 'true' : 'false'
+      const area = active ? overlay.getTitlebarAreaRect() : null
+      const header = titlebarRef.current
+      if (active && area && header) {
+        setTitlebarInset(Math.max(12, Math.round(header.clientWidth - area.right) + 12))
+        const zoom = window.dbApi.getZoom() || 1
+        const height = Math.round(header.getBoundingClientRect().height * zoom)
+        void window.dbApi
+          .setTitleBarColors(
+            'rgba(0,0,0,0)',
+            getComputedStyle(document.body).color,
+            height
+          )
+          .catch(() => undefined)
+      } else {
+        setTitlebarInset(12)
+      }
+    }
+
+    syncOverlay()
+    overlay.addEventListener('geometrychange', syncOverlay)
+    window.addEventListener('resize', syncOverlay)
+    return () => {
+      overlay.removeEventListener('geometrychange', syncOverlay)
+      window.removeEventListener('resize', syncOverlay)
+      delete document.documentElement.dataset.titlebarOverlay
+    }
+  }, [settings.general.themeId, settings.display.zoomFactor])
+
+  useEffect(() => {
+    return window.dbApi.onUpdateState((state) => {
+      if (state) setReloadKey((key) => key + 1)
+    })
+  }, [])
+
+  useEffect(() => setSection(validSection(initialSection)), [initialSection])
+  useEffect(() => {
+    const onHashChange = (): void => {
+      if (window.location.hash.startsWith('#settings=')) {
+        setSection(validSection(window.location.hash.slice('#settings='.length)))
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  useEffect(
+    () => window.dbApi.onSettingsChanged(() => setReloadKey((key) => key + 1)),
+    []
+  )
 
   const index = SECTIONS.findIndex((entry) => entry.id === section)
 
@@ -70,101 +142,120 @@ export function SettingsDialog({
     button?.focus()
   }
 
-  function onKey(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onClose()
-      return
-    }
+  function onKey(event: React.KeyboardEvent<HTMLElement>): void {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    if (!(event.target instanceof HTMLButtonElement)) return
     event.preventDefault()
     move(event.key === 'ArrowDown' ? 1 : -1)
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={tr('settings.title')}
-      onClick={onClose}
-    >
-      <div
-        className="modal modal--settings"
-        ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={onKey}
+    <main className="settings-page" onKeyDown={onKey}>
+      <header
+        className="settings-window-titlebar"
+        ref={titlebarRef}
+        style={{ paddingRight: titlebarInset }}
       >
-        <div className="settings">
-          <nav
-            className="settings__nav"
-            aria-label={tr('settings.sectionNav')}
-            ref={navRef}
+        <span>Tupai</span>
+      </header>
+      <div className="settings">
+        <nav
+          className="settings__nav"
+          aria-label={tr('settings.sectionNav')}
+          ref={navRef}
+        >
+          <h2 className="settings__title">Tupai</h2>
+          <p className="settings__subtitle">{tr('settings.title')}</p>
+          {SECTIONS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              data-section={entry.id}
+              className={`settings__nav-item${entry.id === section ? ' is-active' : ''}`}
+              aria-current={entry.id === section ? 'page' : undefined}
+              onClick={() => setSection(entry.id)}
+            >
+              {tr(entry.labelKey)}
+            </button>
+          ))}
+          <div className="settings__nav-foot">
+            <button
+              className="btn btn--ghost btn--tiny"
+              onClick={() => setResetConfirm(true)}
+              title={tr('settings.resetDetail')}
+              ref={resetButtonRef}
+            >
+              {tr('settings.resetAll')}
+            </button>
+          </div>
+        </nav>
+
+        <section className="settings__body" aria-labelledby="settings-current-section">
+          <header className="settings__head">
+            <div>
+              <p className="settings__eyebrow">{tr('settings.title')}</p>
+              <h1 id="settings-current-section">{tr(SECTIONS[index].labelKey)}</h1>
+            </div>
+          </header>
+
+          {error && (
+            <p className="notice notice--error" role="alert">
+              {tr('settings.saveFailed', { message: error })}
+            </p>
+          )}
+
+          {loading ? (
+            <p className="settings__state" role="status">
+              {tr('settings.loading')}
+            </p>
+          ) : section === 'general' ? (
+            <GeneralSection settings={settings} update={update} replace={replace} />
+          ) : section === 'appearance' ? (
+            <AppearanceSection settings={settings} update={update} />
+          ) : section === 'editor' ? (
+            <EditorSection settings={settings} update={update} />
+          ) : section === 'grid' ? (
+            <GridSection settings={settings} update={update} />
+          ) : section === 'oracle' ? (
+            <OracleSection settings={settings} update={update} />
+          ) : section === 'ai' ? (
+            <AiSection key={reloadKey} settings={settings} update={update} />
+          ) : section === 'keymap' ? (
+            <KeymapSection settings={settings} update={update} />
+          ) : (
+            <AboutSection />
+          )}
+        </section>
+      </div>
+      {resetConfirm && (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="modal"
+            ref={resetDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="settings-reset-title"
           >
-            <h2 className="settings__title">{tr('settings.title')}</h2>
-            {SECTIONS.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                data-section={entry.id}
-                className={`settings__nav-item${entry.id === section ? ' is-active' : ''}`}
-                aria-current={entry.id === section ? 'page' : undefined}
-                onClick={() => setSection(entry.id)}
-              >
-                {tr(entry.labelKey)}
+            <h2 id="settings-reset-title">{tr('settings.resetConfirm')}</h2>
+            <div className="modal__actions">
+              <button className="btn btn--ghost" onClick={() => setResetConfirm(false)}>
+                {tr('common.cancel')}
               </button>
-            ))}
-            <div className="settings__nav-foot">
               <button
-                className="btn btn--ghost btn--tiny"
-                onClick={() => void reset()}
-                title={tr('settings.resetDetail')}
+                className="btn"
+                onClick={() => {
+                  setResetConfirm(false)
+                  void reset()
+                  requestAnimationFrame(() => resetButtonRef.current?.focus())
+                }}
               >
                 {tr('settings.resetAll')}
               </button>
             </div>
-          </nav>
-
-          <section className="settings__body">
-            <header className="settings__head">
-              <h3>{tr(SECTIONS[index].labelKey)}</h3>
-              <button
-                className="icon-btn"
-                onClick={onClose}
-                aria-label={tr('common.close')}
-              >
-                <IconClose size={14} />
-              </button>
-            </header>
-
-            {error && (
-              <p className="notice notice--error" role="alert">
-                {tr('settings.saveFailed', { message: error })}
-              </p>
-            )}
-
-            {section === 'general' && (
-              <GeneralSection settings={settings} update={update} replace={replace} />
-            )}
-            {section === 'appearance' && (
-              <AppearanceSection settings={settings} update={update} />
-            )}
-            {section === 'editor' && (
-              <EditorSection settings={settings} update={update} />
-            )}
-            {section === 'grid' && <GridSection settings={settings} update={update} />}
-            {section === 'oracle' && (
-              <OracleSection settings={settings} update={update} />
-            )}
-            {section === 'ai' && <AiSection settings={settings} update={update} />}
-            {section === 'keymap' && (
-              <KeymapSection settings={settings} update={update} />
-            )}
-            {section === 'about' && <AboutSection />}
           </section>
         </div>
-      </div>
-    </div>
+      )}
+    </main>
   )
 }
 
@@ -290,6 +381,7 @@ function AppearanceSection({ settings, update }: SectionProps): JSX.Element {
             <button
               key={theme.id}
               type="button"
+              aria-pressed={settings.general.themeId === theme.id}
               className={`settings__theme${
                 settings.general.themeId === theme.id ? ' is-active' : ''
               }`}

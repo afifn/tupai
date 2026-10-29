@@ -9,7 +9,7 @@ import { readSettings, writeSettings } from '../settings/store'
 
 // The API key is the only secret here. Everything else (base URL, model, the
 // cached model list, temperature, token cap, system prompt) lives in
-// settings.json, so the Settings dialog edits one file and the AI client reads
+// settings.json, so the Settings page edits one file and the AI client reads
 // the same values. Keeping a second copy of the model in this file is how a
 // model change in Settings used to have no effect.
 //

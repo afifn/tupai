@@ -28,7 +28,7 @@ export const id = {
   'common.none': '(tidak ada)',
 
   // Preferences popover
-  // Settings dialog
+  // Settings page
   'settings.title': 'Setelan',
   'settings.open': 'Buka setelan',
   'settings.section.general': 'Umum',
@@ -883,6 +883,8 @@ export const id = {
   'app.truncateTableDetail': 'Auto-increment akan di-reset.',
   'app.deleteConnectionTitle': 'Hapus koneksi',
   'tab.query': 'Query',
+  'tab.moveLeft': 'Pindahkan tab ke kiri',
+  'tab.moveRight': 'Pindahkan tab ke kanan',
   'tab.newTable': 'Tabel baru',
   'tab.newView': 'View baru',
   'tab.objects': 'Objek {database}',

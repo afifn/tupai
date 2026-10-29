@@ -166,6 +166,8 @@ export function SettingsProvider({ children }: { children: ReactNode }): JSX.Ele
     }
   }, [])
 
+  useEffect(() => window.dbApi.onSettingsChanged(() => void refresh()), [refresh])
+
   const reset = useCallback(async (): Promise<void> => {
     try {
       const saved = await unwrap(window.dbApi.resetSettings())

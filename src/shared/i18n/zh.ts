@@ -791,6 +791,8 @@ export const zh: Record<MessageKey, string> = {
   'app.truncateTableDetail': '自增将被重置。',
   'app.deleteConnectionTitle': '删除连接',
   'tab.query': '查询',
+  'tab.moveLeft': '将标签页左移',
+  'tab.moveRight': '将标签页右移',
   'tab.newTable': '新表',
   'tab.newView': '新视图',
   'tab.objects': '{database} 对象',

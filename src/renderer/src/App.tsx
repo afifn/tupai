@@ -44,7 +44,6 @@ import { ToastStack, useToasts } from './Toast'
 import { describeConnectionError } from '@shared/connectionError'
 import { useLocale } from './i18n'
 import { useSettings } from './settingsStore'
-import { SettingsDialog } from './SettingsDialog'
 import { bindingFor, matchesBinding, type ActionId } from '@shared/keymap'
 
 import { PromptDialog } from './PromptDialog'
@@ -73,6 +72,7 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { shortcutLabel } from './platform'
 import { pickDefaultDatabase } from '@shared/databaseChoice'
 import { useSchemaContext } from './useSchemaContext'
+import { moveItem } from '@shared/tabOrder'
 
 type TableView = 'data' | 'form' | 'struct' | 'io' | 'definition'
 
@@ -552,6 +552,8 @@ export function App(): JSX.Element {
   const [tabMenu, setTabMenu] = useState<{ x: number; y: number; tabId: string } | null>(
     null
   )
+  const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null)
   const [queryMenu, setQueryMenu] = useState<{
     x: number
     y: number
@@ -591,10 +593,9 @@ export function App(): JSX.Element {
     onConfirm: (value: string) => void
   } | null>(null)
   const [groupPrompt, setGroupPrompt] = useState<{ mode: 'create' } | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsSection, setSettingsSection] = useState<
-    'general' | 'appearance' | 'editor' | 'grid' | 'ai' | 'keymap' | 'about'
-  >('general')
+  const openSettings = useCallback((section: string = 'general'): void => {
+    void window.dbApi.openSettingsWindow(section)
+  }, [])
 
   async function createGroup(name: string): Promise<void> {
     setGroupPrompt(null)
@@ -1852,6 +1853,25 @@ export function App(): JSX.Element {
     )
   }
 
+  function moveTabBy(tabId: string, offset: number): void {
+    const index = tabs.findIndex((tab) => tab.id === tabId)
+    if (index < 0) return
+    setTabs((current) => moveItem(current, index, index + offset))
+  }
+
+  function dropTabRelative(tabId: string, targetId: string, after: boolean): void {
+    setTabs((current) => {
+      if (tabId === targetId) return current
+      const moving = current.find((tab) => tab.id === tabId)
+      if (!moving) return current
+      const fromIndex = current.findIndex((tab) => tab.id === tabId)
+      const targetIndex = current.findIndex((tab) => tab.id === targetId)
+      if (fromIndex < 0 || targetIndex < 0) return current
+      const toIndex = targetIndex + (after ? 1 : 0) - (fromIndex < targetIndex ? 1 : 0)
+      return moveItem(current, fromIndex, toIndex)
+    })
+  }
+
   // Closing used to discard typed SQL without asking. The close now stops at
   // the first query tab with unsaved text and lets the user save, discard, or
   // cancel; tabs without edits still close immediately.
@@ -1987,7 +2007,18 @@ export function App(): JSX.Element {
     const index = tabs.findIndex((t) => t.id === tabId)
     return [
       {
+        label: tr('tab.moveLeft'),
+        disabled: index <= 0,
+        onSelect: () => moveTabBy(tabId, -1)
+      },
+      {
+        label: tr('tab.moveRight'),
+        disabled: index < 0 || index >= tabs.length - 1,
+        onSelect: () => moveTabBy(tabId, 1)
+      },
+      {
         label: tr('menu.closeTab'),
+        separatorBefore: true,
         onSelect: () => closeTab(tabId)
       },
       {
@@ -2048,7 +2079,7 @@ export function App(): JSX.Element {
 
       if (action('settings.open')) {
         e.preventDefault()
-        setSettingsOpen(true)
+        openSettings()
         return
       }
       if (action('tab.close') && activeTabId) {
@@ -2105,11 +2136,12 @@ export function App(): JSX.Element {
     supportsUsers,
     tabs,
     activeEngine,
-    settings.keymap
+    settings.keymap,
+    openSettings
   ])
 
   // A new release is announced once per session with a toast that opens the
-  // Settings dialog. Auto-download is off, so the user decides when to install.
+  // Settings window. Auto-download is off, so the user decides when to install.
   const announcedUpdate = useRef<string | null>(null)
   useEffect(() => {
     return window.dbApi.onUpdateState((state) => {
@@ -2123,8 +2155,7 @@ export function App(): JSX.Element {
         action: {
           label: tr('settings.open'),
           onClick: () => {
-            setSettingsSection('about')
-            setSettingsOpen(true)
+            openSettings('about')
           }
         },
         timeoutMs: 12000
@@ -2253,18 +2284,13 @@ export function App(): JSX.Element {
           break
         }
         case 'about.open':
-          setSettingsSection('about')
-          setSettingsOpen(true)
+          openSettings('about')
           break
         case 'settings.open':
-          setSettingsSection('general')
-          setSettingsOpen(true)
+          openSettings()
           break
         case 'update.check':
-          // The About pane owns the buttons, so the menu opens it and lets the
-          // check run there instead of duplicating the state machine.
-          setSettingsSection('about')
-          setSettingsOpen(true)
+          openSettings('about')
           void window.dbApi.checkForUpdates().catch(() => undefined)
           break
         case 'app.reloadTree':
@@ -2285,7 +2311,8 @@ export function App(): JSX.Element {
     openBackup,
     openSessions,
     openUsers,
-    refreshTree
+    refreshTree,
+    openSettings
   ])
 
   async function handleConnect(id: string): Promise<void> {
@@ -2467,8 +2494,7 @@ export function App(): JSX.Element {
           initialToken={tab.initialToken}
           onSaved={refreshQueries}
           onOpenSettings={() => {
-            setSettingsSection('ai')
-            setSettingsOpen(true)
+            openSettings('ai')
           }}
           isVisible={tab.id === activeTabId}
           onContextChange={({ database, schema }) => {
@@ -3016,8 +3042,7 @@ export function App(): JSX.Element {
         <button
           className="icon-btn"
           onClick={() => {
-            setSettingsSection('general')
-            setSettingsOpen(true)
+            openSettings()
           }}
           aria-label={tr('settings.open')}
           title={tr('settings.open')}
@@ -3168,13 +3193,45 @@ export function App(): JSX.Element {
               {tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className={`tab${tab.id === activeTabId ? ' is-active' : ''}`}
+                  className={`tab${tab.id === activeTabId ? ' is-active' : ''}${tab.id === draggingTabId ? ' is-dragging' : ''}${tab.id === dragOverTabId ? ' is-drop-target' : ''}`}
                   role="tab"
                   aria-selected={tab.id === activeTabId}
+                  draggable={tabs.length > 1}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('text/plain', tab.id)
+                    setDraggingTabId(tab.id)
+                  }}
+                  onDragEnd={() => {
+                    setDraggingTabId(null)
+                    setDragOverTabId(null)
+                  }}
+                  onDragOver={(event) => {
+                    if (!draggingTabId || draggingTabId === tab.id) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                    setDragOverTabId(tab.id)
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    if (!draggingTabId) return
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const after = event.clientX > rect.left + rect.width / 2
+                    dropTabRelative(draggingTabId, tab.id, after)
+                    setDraggingTabId(null)
+                    setDragOverTabId(null)
+                  }}
                 >
                   <button
                     className="tab__label"
+                    aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
                     onClick={() => setActiveTabId(tab.id)}
+                    onKeyDown={(event) => {
+                      if (!event.altKey || !event.shiftKey) return
+                      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                      event.preventDefault()
+                      moveTabBy(tab.id, event.key === 'ArrowLeft' ? -1 : 1)
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault()
                       setTabMenu({ x: e.clientX, y: e.clientY, tabId: tab.id })
@@ -3250,8 +3307,7 @@ export function App(): JSX.Element {
             selection={detailSelection}
             inspectedRow={inspectedRow}
             onOpenSettings={() => {
-              setSettingsSection('ai')
-              setSettingsOpen(true)
+              openSettings('ai')
             }}
             onInsertSql={insertAssistantSql}
           />
@@ -3416,16 +3472,6 @@ export function App(): JSX.Element {
           onSaved={async () => {
             setEditing(null)
             await reload()
-          }}
-        />
-      )}
-
-      {settingsOpen && (
-        <SettingsDialog
-          initialSection={settingsSection}
-          onClose={() => {
-            setSettingsOpen(false)
-            setSettingsSection('general')
           }}
         />
       )}

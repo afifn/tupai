@@ -53,7 +53,7 @@ export function applyTheme(id: ThemeId, custom?: CustomTheme): void {
   // and written as inline custom properties on top of the base palette.
   //
   // Only a palette that passes its contrast checks is applied. Editing a colour
-  // in the Settings dialog updates the file as you type, and applying an
+  // in the Settings page updates the file as you type, and applying an
   // unreadable value here would repaint the dialog itself white-on-white before
   // the user could see the warning. The editor previews on its own subtree
   // instead; the app follows once the palette is valid.

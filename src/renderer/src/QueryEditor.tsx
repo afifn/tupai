@@ -69,7 +69,7 @@ interface Props {
   // Tells the shell which database the editor is pointed at, so the assistant
   // can list the tables of that database for @mentions.
   onContextChange?: (context: { database: string; schema: string }) => void
-  // Opens the Settings dialog on the AI section.
+  // Opens the Settings window on the AI section.
   onOpenSettings?: () => void
   // Called after a statement succeeds. The parent uses it to refresh the tree
   // and the assistant's table list when the script changed the schema.
