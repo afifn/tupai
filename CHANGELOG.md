@@ -8,6 +8,8 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-30
+
 ### Diubah
 
 - Tangkapan layar README diperbarui menggunakan workspace PostgreSQL demo POS dengan data pesanan yang lebih padat dalam tema terang dan gelap.
