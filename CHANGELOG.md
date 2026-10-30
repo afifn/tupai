@@ -8,6 +8,29 @@ jadi antarmuka dan format file bisa berubah antar rilis minor.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-30
+
+### Diperbaiki
+
+- **Jendela Pengaturan tidak lagi tertinggal** ketika jendela utama ditutup.
+  Sebelumnya jendela itu tetap terbuka tanpa workspace yang bisa diatur, dan di
+  Windows proses juga tidak keluar sampai jendela tersebut ditutup sendiri.
+  Sekarang keduanya tertutup bersama, dan referensi ke jendela utama ikut
+  dikosongkan agar menu serta aksi "buka ulang aplikasi" tidak menunjuk jendela
+  yang sudah dihancurkan.
+- **Mengganti folder Oracle Client di Setelan tidak pernah terpakai**: library
+  Oracle hanya bisa dimuat sekali per proses, jadi folder baru kini dilaporkan
+  sebagai "perlu aplikasi dibuka ulang" (dengan hint di Setelan) alih-alih gagal
+  dengan kode driver `NJS-090` yang tidak menjelaskan apa pun. Folder yang isinya
+  diperbaiki di path yang sama juga langsung dicoba lagi tanpa restart.
+- **Tidak ada jalan pintas setelah pesan "buka ulang aplikasi"**: Setelan Oracle
+  kini menampilkan folder yang benar-benar sedang dipakai, plus tombol **Buka
+  ulang aplikasi** yang muncul saat folder di Setelan berbeda dari folder aktif.
+  Tombol yang sama tersedia di notice form koneksi dan di toast kegagalan.
+  Perbandingan path juga tidak lagi sensitif terhadap `\` vs `/`, garis miring
+  penutup, atau huruf besar/kecil di Windows, sehingga folder yang sama tidak
+  lagi dianggap folder lain.
+
 ## [0.2.4] - 2026-10-30
 
 ### Diubah

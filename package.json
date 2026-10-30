@@ -1,7 +1,7 @@
 {
   "name": "db-manager",
   "productName": "Tupai",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Tupai, a desktop multi-database management tool",
   "engines": {
     "node": ">=22.12.0"

@@ -36,6 +36,12 @@ export const ja: Record<MessageKey, string> = {
   'settings.oracle.clear': 'クリア',
   'settings.oracle.modeHint':
     '空欄は thin モードです。フォルダーにはアプリと同じアーキテクチャの oci.dll（Windows）または libclntsh（macOS/Linux）が必要です。',
+  'settings.oracle.restartHint':
+    'フォルダーの変更はアプリの再起動後に反映されます。Oracle ライブラリはプロセスごとに一度しか読み込めません。',
+  'settings.oracle.statusActive': 'thick モードがこのフォルダーで有効です: {dir}',
+  'settings.oracle.statusPending':
+    'このフォルダーはまだ使われていません。プロセスは {dir} を使用中です。新しいフォルダーを読み込むにはアプリを再起動してください。',
+  'settings.oracle.restartNow': 'アプリを再起動',
   'settings.section.ai': 'AI',
   'settings.section.keymap': 'キーマップ',
   'settings.section.about': 'このアプリについて',
@@ -1471,6 +1477,9 @@ export const ja: Record<MessageKey, string> = {
   'connErr.oracleClientTitle': 'Oracle Instant Client を使用できません',
   'connErr.oracleClientHint':
     '設定の Instant Client フォルダーを確認してください。oci.dll（Windows）または libclntsh（macOS/Linux）が必要で、アプリと同じアーキテクチャである必要があります。詳細: {detail}',
+  'connErr.oracleRestartTitle': 'Oracle クライアントのフォルダーは再起動が必要です',
+  'connErr.oracleRestartHint':
+    'Oracle ライブラリはプロセスごとに一度しか読み込めないため、新しく指定したフォルダーはまだ使われていません。アプリを完全に終了して開き直してから接続してください。詳細: {detail}',
   'connErr.tlsTitle': 'TLS/SSL に失敗しました',
   'connErr.tlsHint':
     'サーバー証明書が SSL 設定と一致しません。接続の SSL モードを確認してください。',

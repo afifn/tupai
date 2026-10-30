@@ -47,6 +47,12 @@ export const id = {
   'settings.oracle.clear': 'Kosongkan',
   'settings.oracle.modeHint':
     'Kosong berarti mode thin. Folder harus berisi oci.dll (Windows) atau libclntsh (macOS/Linux) dengan arsitektur yang sama seperti aplikasi.',
+  'settings.oracle.restartHint':
+    'Perubahan folder baru dipakai setelah aplikasi dibuka ulang, karena library Oracle hanya bisa dimuat sekali per proses.',
+  'settings.oracle.statusActive': 'Mode thick aktif dengan folder: {dir}',
+  'settings.oracle.statusPending':
+    'Folder ini belum dipakai. Proses masih memakai: {dir}. Buka ulang aplikasi agar folder baru dipakai.',
+  'settings.oracle.restartNow': 'Buka ulang aplikasi',
   'settings.section.ai': 'AI',
   'settings.section.keymap': 'Keymap',
   'settings.section.about': 'Tentang',
@@ -1615,6 +1621,9 @@ export const id = {
   'connErr.oracleClientTitle': 'Oracle Instant Client tidak bisa dipakai',
   'connErr.oracleClientHint':
     'Periksa folder Instant Client di Pengaturan: folder harus berisi oci.dll (Windows) atau libclntsh (macOS/Linux), dan arsitekturnya harus sama dengan aplikasi. Detail: {detail}',
+  'connErr.oracleRestartTitle': 'Folder Oracle Client perlu aplikasi dibuka ulang',
+  'connErr.oracleRestartHint':
+    'Library Oracle hanya bisa dimuat sekali per proses, jadi folder yang baru dipilih belum terpakai. Tutup aplikasi sepenuhnya, buka lagi, lalu sambungkan ulang. Detail: {detail}',
   'connErr.tlsTitle': 'TLS/SSL gagal',
   'connErr.tlsHint':
     'Sertifikat server tidak cocok dengan pengaturan SSL. Periksa mode SSL pada koneksi.',

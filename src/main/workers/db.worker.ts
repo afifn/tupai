@@ -461,6 +461,13 @@ async function handle(op: string, payload: unknown): Promise<unknown> {
       const { connectionId } = payload as { connectionId: string }
       return (await getConnected(connectionId)).listUsers()
     }
+    // Which Oracle client folder this thread loaded, if any. Answers the
+    // question the UI cannot guess: whether the folder in Settings is the one
+    // the process is really using, or whether it is waiting for a restart.
+    case 'oracleClientStatus': {
+      const { loadedOracleClientDir } = await import('../drivers/oracle')
+      return { loadedDir: loadedOracleClientDir() }
+    }
     default:
       throw new DbError('UNKNOWN_OP', `Unknown operation: ${op}`, 'sqlite')
   }

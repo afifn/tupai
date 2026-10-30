@@ -45,6 +45,31 @@ describe('Oracle thin mode error', () => {
     const failure = describeConnectionError('ORA-12541: TNS:no listener', 'oracle', tr)
     expect(failure.retryable).toBe(true)
   })
+
+  it('asks for a restart when the client folder changed mid-session', () => {
+    const failure = describeConnectionError(
+      'Folder Oracle Client di "D:\\app\\product\\21c\\dbhomeXE\\bin" belum dipakai karena proses ini sudah memuat library dari "C:\\oracle\\instantclient_21_13".',
+      'oracle',
+      tr,
+      'ORACLE_CLIENT_RESTART_REQUIRED'
+    )
+    expect(failure.title).toContain('dibuka ulang')
+    expect(failure.hint).toContain('sekali per proses')
+    // Restarting is the fix, so retrying the same attempt cannot help.
+    expect(failure.retryable).toBe(false)
+  })
+
+  it('maps the raw driver codes for a second init to the same restart advice', () => {
+    for (const raw of [
+      'NJS-090: initOracleClient() was already called with different arguments',
+      'NJS-118: cannot call initOracleClient() after a thin mode connection has been created'
+    ]) {
+      const failure = describeConnectionError(raw, 'oracle', tr)
+      expect(failure.title).toContain('dibuka ulang')
+      expect(failure.hint).toContain(raw)
+      expect(failure.retryable).toBe(false)
+    }
+  })
 })
 
 describe('oracle settings', () => {

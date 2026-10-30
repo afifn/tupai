@@ -42,6 +42,7 @@ import {
 import { sslEnabled } from '../connection/ssl'
 import { sshEnabled } from '../connection/sshTunnel'
 import { resolveCjsDefault } from '@shared/cjsInterop'
+import { sameClientDir } from '@shared/oracleClientPath'
 import { oracleLimitSql, oraclePageBinds, oraclePageSql } from '@shared/oracleSql'
 
 const QUERY_TIMEOUT_MS = 30000
@@ -69,10 +70,30 @@ async function loadOracle(): Promise<typeof import('oracledb')> {
   return api
 }
 
-// Thick mode is process-wide and can only be initialised once, so the outcome is
-// memoised. Keying it on the directory means changing the setting in Preferences
-// takes effect on the next attempt instead of requiring an app restart.
-let thickMode: { dir: string; error: string | null } | null = null
+// The folder this process actually loaded the OCI library from. `initOracleClient`
+// accepts exactly one call per process: a second call with another `libDir`
+// throws NJS-090, and calling it after a thin connection was opened throws
+// NJS-118. Neither can be undone, so a folder change is only picked up after the
+// app restarts. Successful initialisation is memoised here; a failed one is
+// retried on the next attempt because the user may fix the folder contents
+// without changing the path.
+let loadedClientDir: string | null = null
+
+interface ModeFailure {
+  code: 'ORACLE_CLIENT_FAILED' | 'ORACLE_CLIENT_RESTART_REQUIRED'
+  message: string
+}
+
+/**
+ * The folder whose OCI library this process actually loaded, or null while the
+ * process is still in thin mode. Exported for the status IPC: a Windows process
+ * keeps using the first `oci.dll` it loaded, so a worker restart silently keeps
+ * the old library. Only a full restart of the app switches folders, and the UI
+ * needs to know which folder is really in use to say so.
+ */
+export function loadedOracleClientDir(): string | null {
+  return loadedClientDir
+}
 
 /**
  * Reads the Instant Client folder from the settings file.
@@ -104,26 +125,49 @@ async function readOracleClientDir(): Promise<string> {
  * Thin mode speaks the Oracle wire protocol directly and needs no client
  * library, but it only supports server 12.1 and newer. A 10g/11g server rejects
  * it with NJS-138, and the only way to reach it is the OCI client through thick
- * mode. The driver refuses a second `initOracleClient` call, hence the memo.
+ * mode.
  *
- * Returns null when thick mode is not configured, or an error message when it
- * was configured but could not be loaded, so the caller can explain the problem
- * instead of letting the raw NJS code through.
+ * Returns null when thick mode is ready, or the reason it is not. A configured
+ * folder that cannot be loaded *yet* is reported separately from one that can
+ * never be loaded in this process, because the second case needs a restart and
+ * no amount of retrying will help.
  */
-async function ensureOracleMode(dir: string): Promise<string | null> {
+async function ensureOracleMode(dir: string): Promise<ModeFailure | null> {
   const wanted = dir.trim()
   if (!wanted) return null
-  if (thickMode?.dir === wanted) return thickMode.error
+  if (loadedClientDir !== null && sameClientDir(loadedClientDir, wanted)) return null
+  if (loadedClientDir !== null) {
+    return {
+      code: 'ORACLE_CLIENT_RESTART_REQUIRED',
+      message:
+        `Folder Oracle Client di "${wanted}" belum dipakai karena proses ini sudah memuat ` +
+        `library dari "${loadedClientDir}". Library Oracle hanya bisa dimuat sekali per ` +
+        'proses, jadi tutup dan buka ulang aplikasi agar folder baru dipakai.'
+    }
+  }
   const oracledb = await loadOracle()
   try {
     // libDir is the folder holding oci.dll / libclntsh, not the library itself.
     oracledb.initOracleClient({ libDir: wanted })
-    thickMode = { dir: wanted, error: null }
+    loadedClientDir = wanted
     return null
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    thickMode = { dir: wanted, error: message }
-    return message
+    // NJS-090: initialised earlier with different arguments. NJS-118: a thin
+    // connection already exists, which also blocks thick mode for good. Both
+    // mean the same thing to the user, and the raw driver sentence does not.
+    if (/NJS-(090|118)/.test(message)) {
+      return {
+        code: 'ORACLE_CLIENT_RESTART_REQUIRED',
+        message:
+          `Folder Oracle Client di "${wanted}" belum bisa dipakai: ${message}. ` +
+          'Tutup dan buka ulang aplikasi, lalu sambungkan lagi.'
+      }
+    }
+    return {
+      code: 'ORACLE_CLIENT_FAILED',
+      message: `Oracle Instant Client di "${wanted}" tidak bisa dipakai: ${message}`
+    }
   }
 }
 
@@ -194,13 +238,7 @@ class OracleAdapter implements DatabaseAdapter {
   private async prepareMode(): Promise<void> {
     const dir = await readOracleClientDir()
     const failure = await ensureOracleMode(dir)
-    if (failure) {
-      throw new DbError(
-        'ORACLE_CLIENT_FAILED',
-        `Oracle Instant Client di "${dir}" tidak bisa dipakai: ${failure}`,
-        this.engine
-      )
-    }
+    if (failure) throw new DbError(failure.code, failure.message, this.engine)
   }
 
   async disconnect(): Promise<void> {

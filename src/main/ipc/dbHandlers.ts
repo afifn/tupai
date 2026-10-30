@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { clipboard } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '@shared/ipc-contract'
@@ -1024,6 +1024,24 @@ export function registerDbHandlers(): void {
     })
   )
   ipcMain.handle(IPC.updateState, () => run(async () => getUpdateState()))
+
+  // Restarts the whole app. The Oracle client library can only be loaded once
+  // per process, and on Windows a second `oci.dll` is not loaded at all: a new
+  // worker silently keeps using the first one. Relaunching is therefore the only
+  // way to switch folders, so the UI offers it as a button instead of asking the
+  // user to close and reopen the app by hand.
+  ipcMain.handle(IPC.relaunchApp, () =>
+    run(async () => {
+      app.relaunch()
+      // `quit` runs before-quit, which disposes the worker and the tunnels.
+      app.quit()
+      return true
+    })
+  )
+
+  ipcMain.handle(IPC.oracleClientStatus, () =>
+    run(() => getClient().call<{ loadedDir: string | null }>('oracleClientStatus', {}))
+  )
 
   ipcMain.handle(IPC.openPath, (_e, raw) =>
     run(async () => {

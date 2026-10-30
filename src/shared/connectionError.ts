@@ -30,12 +30,25 @@ function serviceName(engine: DbEngine | undefined, tr: Translate): string {
 export function describeConnectionError(
   raw: string,
   engine: DbEngine | undefined,
-  tr: Translate
+  tr: Translate,
+  code?: string
 ): ConnectionFailure {
   const text = (raw ?? '').trim()
   const upper = text.toUpperCase()
   const has = (...needles: string[]): boolean =>
     needles.some((needle) => upper.includes(needle.toUpperCase()))
+
+  // The Oracle client library can only be loaded once per process, so a folder
+  // changed while the app is running is not an error the user can fix by
+  // retrying: it needs a restart. The code is checked first because the message
+  // alone ("belum dipakai") does not say that.
+  if (code === 'ORACLE_CLIENT_RESTART_REQUIRED') {
+    return {
+      title: tr('connErr.oracleRestartTitle'),
+      hint: tr('connErr.oracleRestartHint', { detail: text }),
+      retryable: false
+    }
+  }
 
   if (has('ECONNREFUSED')) {
     return {
@@ -116,6 +129,13 @@ export function describeConnectionError(
     return {
       title: tr('connErr.oracleThinTitle'),
       hint: tr('connErr.oracleThinHint'),
+      retryable: false
+    }
+  }
+  if (has('NJS-090', 'NJS-118')) {
+    return {
+      title: tr('connErr.oracleRestartTitle'),
+      hint: tr('connErr.oracleRestartHint', { detail: text }),
       retryable: false
     }
   }

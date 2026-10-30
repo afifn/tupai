@@ -103,6 +103,8 @@ export const IPC = {
   updateInstall: 'app:updateInstall',
   updateOpenPage: 'app:updateOpenPage',
   openExternal: 'app:openExternal',
+  relaunchApp: 'app:relaunch',
+  oracleClientStatus: 'oracle:clientStatus',
   updateState: 'app:updateState',
   updateStateEvent: 'app:updateStateEvent',
   // The native menu lives in main, so its items ask the renderer to act, and the

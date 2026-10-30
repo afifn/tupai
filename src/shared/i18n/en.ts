@@ -37,6 +37,12 @@ export const en: Record<MessageKey, string> = {
   'settings.oracle.clear': 'Clear',
   'settings.oracle.modeHint':
     'Empty means thin mode. The folder must contain oci.dll (Windows) or libclntsh (macOS/Linux) built for the same architecture as the app.',
+  'settings.oracle.restartHint':
+    'A changed folder only takes effect after the app is restarted, because the Oracle library can be loaded once per process.',
+  'settings.oracle.statusActive': 'Thick mode is active with this folder: {dir}',
+  'settings.oracle.statusPending':
+    'This folder is not in use yet. The process still uses: {dir}. Restart the app so the new folder is loaded.',
+  'settings.oracle.restartNow': 'Restart app',
   'settings.section.ai': 'AI',
   'settings.section.keymap': 'Keymap',
   'settings.section.about': 'About',
@@ -1545,6 +1551,9 @@ export const en: Record<MessageKey, string> = {
   'connErr.oracleClientTitle': 'Oracle Instant Client cannot be used',
   'connErr.oracleClientHint':
     'Check the Instant Client folder in Settings: it must contain oci.dll (Windows) or libclntsh (macOS/Linux), and its architecture must match the app. Detail: {detail}',
+  'connErr.oracleRestartTitle': 'Oracle client folder needs an app restart',
+  'connErr.oracleRestartHint':
+    'The Oracle library can only be loaded once per process, so the folder you just picked is not in use yet. Quit the app completely, open it again, then connect. Detail: {detail}',
   'connErr.tlsTitle': 'TLS/SSL failed',
   'connErr.tlsHint':
     'The server certificate does not match the SSL settings. Check the SSL mode on the connection.',

@@ -21,6 +21,7 @@ import { useSettings } from './settingsStore'
 import { useLocale } from './i18n'
 import { useFocusTrap } from './useFocusTrap'
 import { unwrap } from './api'
+import { sameClientDir } from '@shared/oracleClientPath'
 import brandMark from './assets/brand/tupai.png'
 
 export type SettingsSectionId =
@@ -748,10 +749,34 @@ function OracleSection({ settings, update }: SectionProps): JSX.Element {
   // is written to disk and the driver re-initialises on the next attempt, so
   // typing a path one character at a time would retry a dozen broken folders.
   const [draft, setDraft] = useState(oracle.clientLibDir)
+  // Which folder the running process actually loaded. The saved setting and the
+  // loaded library can disagree, and only main can tell them apart, so the pane
+  // asks instead of assuming the setting is live.
+  const [loadedDir, setLoadedDir] = useState<string | null>(null)
 
   useEffect(() => {
     setDraft(oracle.clientLibDir)
   }, [oracle.clientLibDir])
+
+  useEffect(() => {
+    let active = true
+    unwrap(window.dbApi.getOracleClientStatus())
+      .then((status) => {
+        if (active) setLoadedDir(status.loadedDir)
+      })
+      .catch(() => {
+        // No worker answer means thin mode as far as this pane can tell.
+        if (active) setLoadedDir(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [oracle.clientLibDir])
+
+  const pending =
+    oracle.clientLibDir.trim().length > 0 &&
+    loadedDir !== null &&
+    !sameClientDir(loadedDir, oracle.clientLibDir)
 
   async function pickFolder(): Promise<void> {
     try {
@@ -807,8 +832,31 @@ function OracleSection({ settings, update }: SectionProps): JSX.Element {
           {tr('settings.oracle.clear')}
         </button>
       </div>
+      {loadedDir && !pending && (
+        <p className="settings__hint">
+          {tr('settings.oracle.statusActive', { dir: loadedDir })}
+        </p>
+      )}
+      {pending && (
+        <>
+          <p className="notice notice--info">
+            {tr('settings.oracle.statusPending', { dir: loadedDir ?? '' })}
+          </p>
+          <div className="settings__actions">
+            <button
+              className="btn btn--small"
+              onClick={() => {
+                void window.dbApi.relaunchApp()
+              }}
+            >
+              {tr('settings.oracle.restartNow')}
+            </button>
+          </div>
+        </>
+      )}
       <p className="settings__hint">{tr('settings.oracle.downloadHint')}</p>
       <p className="settings__hint">{tr('settings.oracle.modeHint')}</p>
+      <p className="settings__hint">{tr('settings.oracle.restartHint')}</p>
     </div>
   )
 }

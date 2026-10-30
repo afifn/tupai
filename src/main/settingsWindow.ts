@@ -19,7 +19,15 @@ const settingsSectionSchema = z.enum([
 let settingsWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
 
-export function setMainWindow(win: BrowserWindow): void {
+/**
+ * Records the main window, or clears it once it is gone.
+ *
+ * Clearing matters: the settings window is a child of the main one, and the
+ * relaunch action and the application menu both resolve the main window through
+ * here. A stale reference pointed at a destroyed window, so the next action
+ * silently did nothing.
+ */
+export function setMainWindow(win: BrowserWindow | null): void {
   mainWindow = win
 }
 
@@ -29,6 +37,11 @@ export function mainWindowForMenu(): BrowserWindow | null {
 
 export function isSettingsWindow(sender: Electron.WebContents): boolean {
   return settingsWindow?.webContents === sender
+}
+
+/** Whether a settings window is currently open. */
+export function hasSettingsWindow(): boolean {
+  return settingsWindow !== null && !settingsWindow.isDestroyed()
 }
 
 export function settingsWindowForSender(
@@ -107,6 +120,18 @@ export function openSettingsWindow(section: unknown = 'general'): void {
       hash: `settings=${targetSection}`
     })
   }
+}
+
+/**
+ * Closes the settings window, if one is open.
+ *
+ * Called when the main window closes: settings is a child of it, and nothing it
+ * shows can be applied once the workspace is gone. Leaving it open stranded a
+ * window that could not do anything, and on Windows it also kept the process
+ * alive until the user closed it separately.
+ */
+export function closeSettingsWindow(): void {
+  if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close()
 }
 
 export function registerSettingsWindowHandlers(): void {

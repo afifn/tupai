@@ -36,6 +36,12 @@ export const zh: Record<MessageKey, string> = {
   'settings.oracle.clear': '清空',
   'settings.oracle.modeHint':
     '留空表示 thin 模式。文件夹必须包含与应用架构一致的 oci.dll（Windows）或 libclntsh（macOS/Linux）。',
+  'settings.oracle.restartHint':
+    '更改文件夹后需重新启动应用才生效，因为 Oracle 库在每个进程中只能加载一次。',
+  'settings.oracle.statusActive': 'thick 模式已使用此文件夹：{dir}',
+  'settings.oracle.statusPending':
+    '此文件夹尚未使用。进程仍在用：{dir}。请重新启动应用以加载新文件夹。',
+  'settings.oracle.restartNow': '重新启动应用',
   'settings.section.ai': 'AI',
   'settings.section.keymap': '快捷键',
   'settings.section.about': '关于',
@@ -1418,6 +1424,9 @@ export const zh: Record<MessageKey, string> = {
   'connErr.oracleClientTitle': '无法使用 Oracle Instant Client',
   'connErr.oracleClientHint':
     '请检查设置中的 Instant Client 文件夹：其中必须包含 oci.dll（Windows）或 libclntsh（macOS/Linux），且架构必须与应用一致。详情：{detail}',
+  'connErr.oracleRestartTitle': 'Oracle 客户端文件夹需要重启应用',
+  'connErr.oracleRestartHint':
+    'Oracle 库在每个进程中只能加载一次，因此新选择的文件夹尚未生效。请完全退出应用后重新打开，再连接。详情：{detail}',
   'connErr.tlsTitle': 'TLS/SSL 失败',
   'connErr.tlsHint': '服务器证书与 SSL 设置不匹配。请检查连接上的 SSL 模式。',
   'connErr.sshTitle': 'SSH 隧道失败',

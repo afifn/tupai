@@ -2333,7 +2333,12 @@ export function App(): JSX.Element {
       setActiveId(id)
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err)
-      const failure = describeConnectionError(raw, conn?.engine, tr)
+      const failure = describeConnectionError(
+        raw,
+        conn?.engine,
+        tr,
+        err instanceof ApiError ? err.code : undefined
+      )
       setConnectionErrors((prev) => new Map(prev).set(id, failure.title))
       // A changed SSH host key is the one failure the user can resolve without
       // editing the connection: confirm the new fingerprint and reconnect.
@@ -2371,11 +2376,19 @@ export function App(): JSX.Element {
         // translated hint does not already contain.
         detail:
           raw && raw !== failure.hint && !failure.hint.includes(raw) ? raw : undefined,
-        action: failure.retryable
-          ? { label: tr('action.retry'), onClick: () => void handleConnect(id) }
-          : conn
-            ? { label: tr('action.editConnection'), onClick: () => setEditing(conn) }
-            : undefined
+        action:
+          err instanceof ApiError && err.code === 'ORACLE_CLIENT_RESTART_REQUIRED'
+            ? {
+                label: tr('settings.oracle.restartNow'),
+                onClick: () => {
+                  void window.dbApi.relaunchApp()
+                }
+              }
+            : failure.retryable
+              ? { label: tr('action.retry'), onClick: () => void handleConnect(id) }
+              : conn
+                ? { label: tr('action.editConnection'), onClick: () => setEditing(conn) }
+                : undefined
       })
     } finally {
       setConnectingIds((prev) => {

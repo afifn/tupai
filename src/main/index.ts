@@ -10,10 +10,16 @@ import { IPC } from '@shared/ipc-contract'
 import { titleBarColorsSchema } from '@shared/schemas'
 import { toIpcResult } from './workers/dbWorkerClient'
 import {
+  closeSettingsWindow,
+  hasSettingsWindow,
   registerSettingsWindowHandlers,
   setMainWindow,
   settingsWindowForSender
 } from './settingsWindow'
+import {
+  shouldCloseSettingsWithMain,
+  shouldForgetMainWindow
+} from '@shared/windowLifecycle'
 
 // Whether this window got `titleBarOverlay` at creation. Electron has no getter
 // for it, so the decision is made once and both the window state and the IPC
@@ -135,6 +141,17 @@ function createWindow(): void {
 
   win.on('ready-to-show', () => win.show())
 
+  // Settings is a child of this window, but Electron does not close children with
+  // their parent. Closing the workspace while a preferences window stayed alive
+  // left a window whose every action needs the workspace, and on Windows it kept
+  // the process running until that window was closed too.
+  win.on('closed', () => {
+    if (shouldCloseSettingsWithMain({ settingsOpen: hasSettingsWindow(), quitting })) {
+      closeSettingsWindow()
+    }
+    if (shouldForgetMainWindow()) setMainWindow(null)
+  })
+
   // The overlay is native, so it cannot follow the theme by itself. The renderer
   // measures the toolbar and reports both colours whenever the theme changes.
   if (usesTitleBarOverlay) {
@@ -209,6 +226,14 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+// Set while the application is quitting. A `closed` handler must not launch more
+// window work during teardown, so the companion-close rule reads this.
+let quitting = false
+
+app.on('before-quit', () => {
+  quitting = true
 })
 
 app.on('window-all-closed', () => {

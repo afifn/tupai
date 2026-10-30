@@ -36,6 +36,12 @@ export const es: Record<MessageKey, string> = {
   'settings.oracle.clear': 'Vaciar',
   'settings.oracle.modeHint':
     'Vacío significa modo thin. La carpeta debe contener oci.dll (Windows) o libclntsh (macOS/Linux) con la misma arquitectura que la aplicación.',
+  'settings.oracle.restartHint':
+    'Un cambio de carpeta solo se aplica tras reiniciar la aplicación, porque la biblioteca Oracle se carga una sola vez por proceso.',
+  'settings.oracle.statusActive': 'El modo thick está activo con esta carpeta: {dir}',
+  'settings.oracle.statusPending':
+    'Esta carpeta aún no se usa. El proceso sigue usando: {dir}. Reinicia la aplicación para cargar la carpeta nueva.',
+  'settings.oracle.restartNow': 'Reiniciar aplicación',
   'settings.section.ai': 'IA',
   'settings.section.keymap': 'Atajos',
   'settings.section.about': 'Acerca de',
@@ -1499,6 +1505,9 @@ export const es: Record<MessageKey, string> = {
   'connErr.oracleClientTitle': 'No se puede usar Oracle Instant Client',
   'connErr.oracleClientHint':
     'Revisa la carpeta de Instant Client en Ajustes: debe contener oci.dll (Windows) o libclntsh (macOS/Linux), y su arquitectura debe coincidir con la aplicación. Detalle: {detail}',
+  'connErr.oracleRestartTitle': 'La carpeta de cliente Oracle necesita reiniciar la app',
+  'connErr.oracleRestartHint':
+    'La biblioteca Oracle solo se puede cargar una vez por proceso, así que la carpeta recién elegida todavía no se usa. Cierra la aplicación por completo, ábrela de nuevo y vuelve a conectar. Detalle: {detail}',
   'connErr.tlsTitle': 'TLS/SSL falló',
   'connErr.tlsHint':
     'El certificado del servidor no coincide con los ajustes de SSL. Revisa el modo SSL de la conexión.',

@@ -11,7 +11,7 @@ import type {
 import { CONNECTION_COLORS } from '@shared/types'
 import { capabilitiesFor, defaultsFor, shouldAdoptPort } from '@shared/engineDefaults'
 import { describeConnectionError } from '@shared/connectionError'
-import { unwrap } from './api'
+import { ApiError, unwrap } from './api'
 import { useFocusTrap } from './useFocusTrap'
 import { useLocale } from './i18n'
 import { ENGINE_LABEL, EngineIcon } from './EngineIcon'
@@ -185,9 +185,13 @@ export function ConnectionForm({ initial, onClose, onSaved }: Props): JSX.Elemen
   const [testing, setTesting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [groups, setGroups] = useState<ConnectionGroup[]>([])
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
-    null
-  )
+  const [message, setMessage] = useState<{
+    kind: 'ok' | 'error'
+    text: string
+    // Set when the only way forward is restarting the app, so the notice can
+    // offer that instead of leaving the user to find the menu item.
+    relaunch?: boolean
+  } | null>(null)
 
   const caps = capabilitiesFor(form.engine)
   const defaults = defaultsFor(form.engine)
@@ -327,10 +331,16 @@ export function ConnectionForm({ initial, onClose, onSaved }: Props): JSX.Elemen
       // The driver message is a code plus an address; the classifier turns it
       // into what to fix. The raw text stays as the fallback.
       const raw = err instanceof Error ? err.message : String(err)
-      const failure = describeConnectionError(raw, form.engine, tr)
+      const failure = describeConnectionError(
+        raw,
+        form.engine,
+        tr,
+        err instanceof ApiError ? err.code : undefined
+      )
       setMessage({
         kind: 'error',
-        text: tr('conn.testFailed', { title: failure.title, hint: failure.hint })
+        text: tr('conn.testFailed', { title: failure.title, hint: failure.hint }),
+        relaunch: err instanceof ApiError && err.code === 'ORACLE_CLIENT_RESTART_REQUIRED'
       })
     } finally {
       setTesting(false)
@@ -878,9 +888,21 @@ export function ConnectionForm({ initial, onClose, onSaved }: Props): JSX.Elemen
           </div>
 
           {message && (
-            <p className={`notice notice--${message.kind}`} role="status">
+            <div className={`notice notice--${message.kind}`} role="status">
               {message.text}
-            </p>
+              {message.relaunch && (
+                <span className="notice__action">
+                  <button
+                    className="btn btn--small"
+                    onClick={() => {
+                      void window.dbApi.relaunchApp()
+                    }}
+                  >
+                    {tr('settings.oracle.restartNow')}
+                  </button>
+                </span>
+              )}
+            </div>
           )}
 
           <div className="modal__actions">

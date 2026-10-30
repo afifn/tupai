@@ -591,6 +591,13 @@ const dbApi = {
   openExternal(url: string): Promise<IpcResult<boolean>> {
     return ipcRenderer.invoke(IPC.openExternal, { url })
   },
+  // Restarts the app so a newly picked Oracle client folder is loaded.
+  relaunchApp(): Promise<IpcResult<boolean>> {
+    return ipcRenderer.invoke(IPC.relaunchApp)
+  },
+  getOracleClientStatus(): Promise<IpcResult<{ loadedDir: string | null }>> {
+    return ipcRenderer.invoke(IPC.oracleClientStatus)
+  },
   getUpdateState(): Promise<IpcResult<UpdateState>> {
     return ipcRenderer.invoke(IPC.updateState)
   },

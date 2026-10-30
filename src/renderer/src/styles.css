@@ -1317,6 +1317,13 @@ button {
   border: 1px solid var(--notice-info-border);
 }
 
+/* A notice that carries a fix, such as restarting the app to load a new Oracle
+   client folder. The button sits under the sentence so the text stays readable. */
+.notice__action {
+  display: block;
+  margin-top: 8px;
+}
+
 /* Tree */
 .tree {
   display: flex;
