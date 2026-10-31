@@ -103,11 +103,23 @@ dmg:
   # The title becomes the mounted volume name. Both arches build in parallel
   # and would otherwise attach the same volume ("Tupai 0.0.1"), making
   # hdiutil detach fail with "resource busy" and the whole build exit 1.
-  title: ${productName} ${version} ${arch}
+  # `${arch}` expands to "-arm64"/"-x64" including the hyphen, so it is written
+  # without a space: "Tupai 0.2.6-arm64".
+  title: ${productName} ${version}${arch}
+  # The same fox mark as the app, instead of the generic disk icon macOS gives a
+  # DMG without a volume icon.
+  icon: build/icon.icns
+  # 660x400 layout with the app on the left, Applications on the right, and a
+  # drawn arrow between them. The TIFF carries both 1x and 2x so Retina displays
+  # do not upscale a single bitmap.
+  background: build/dmg-background.tiff
+  window:
+    width: 660
+    height: 400
   contents:
-    - x: 140
-      y: 190
-    - x: 400
-      y: 190
+    - x: 180
+      y: 200
+    - x: 480
+      y: 200
       type: link
       path: /Applications
