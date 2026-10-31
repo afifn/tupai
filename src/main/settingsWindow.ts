@@ -1,7 +1,8 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, screen, shell } from 'electron'
 import { join } from 'path'
 import { z } from 'zod'
 import { IPC } from '@shared/ipc-contract'
+import { centerWindowBounds } from '@shared/windowBounds'
 import { supportsTitleBarOverlay } from './windowChrome'
 import appIcon from '../../build/icon.png?asset'
 
@@ -13,11 +14,20 @@ const settingsSectionSchema = z.enum([
   'oracle',
   'ai',
   'keymap',
+  'log',
   'about'
 ])
 
 let settingsWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
+
+// Compact enough that the preference content stays readable without the large
+// empty canvas the old dialog-sized window had.
+const SETTINGS_WIDTH = 900
+const SETTINGS_HEIGHT = 640
+const SETTINGS_MIN_WIDTH = 720
+const SETTINGS_MIN_HEIGHT = 520
+const SETTINGS_MARGIN = 24
 
 /**
  * Records the main window, or clears it once it is gone.
@@ -66,11 +76,23 @@ export function openSettingsWindow(section: unknown = 'general'): void {
 
   const parent = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined
   const usesTitleBarOverlay = supportsTitleBarOverlay()
+  const parentBounds = parent?.getBounds()
+  const workArea = parentBounds
+    ? screen.getDisplayMatching(parentBounds).workArea
+    : screen.getPrimaryDisplay().workArea
+  const width = Math.min(
+    SETTINGS_WIDTH,
+    Math.max(SETTINGS_MIN_WIDTH, workArea.width - SETTINGS_MARGIN)
+  )
+  const height = Math.min(
+    SETTINGS_HEIGHT,
+    Math.max(SETTINGS_MIN_HEIGHT, workArea.height - SETTINGS_MARGIN)
+  )
   const win = new BrowserWindow({
-    width: 1040,
-    height: 760,
-    minWidth: 720,
-    minHeight: 560,
+    width,
+    height,
+    minWidth: SETTINGS_MIN_WIDTH,
+    minHeight: SETTINGS_MIN_HEIGHT,
     show: false,
     title: 'Tupai',
     ...(process.platform === 'darwin'
@@ -96,6 +118,15 @@ export function openSettingsWindow(section: unknown = 'general'): void {
   })
 
   settingsWindow = win
+  // Open over the workspace rather than at the default top-left corner: the
+  // settings window is a child of the main one, so it should read as a layer on
+  // top of it, not as a second app flung to the corner of the screen.
+  if (parentBounds) {
+    const { x, y } = centerWindowBounds(parentBounds, { width, height }, workArea)
+    win.setPosition(x, y)
+  } else {
+    win.center()
+  }
   win.once('ready-to-show', () => win.show())
   win.on('closed', () => {
     if (settingsWindow === win) settingsWindow = null

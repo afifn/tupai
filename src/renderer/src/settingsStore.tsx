@@ -16,6 +16,8 @@ import {
   type AppSettings
 } from '@shared/settings'
 import { applyTheme } from './themeStore'
+import { themeBase } from './theme'
+import { applyEditorColors } from './monacoSetup'
 import { LocaleProvider } from './i18n'
 import type { Locale } from '@shared/i18n'
 
@@ -60,6 +62,10 @@ function mergePatch(base: AppSettings, patch: DeepPartial<AppSettings>): AppSett
         return out
       }
       next.customTheme = {
+        base:
+          theme.base === 'light' || theme.base === 'dark'
+            ? theme.base
+            : next.customTheme.base,
         light: {
           tokens: { ...next.customTheme.light.tokens, ...tokens(theme.light?.tokens) }
         },
@@ -85,6 +91,13 @@ function mergePatch(base: AppSettings, patch: DeepPartial<AppSettings>): AppSett
  */
 function applySideEffects(settings: AppSettings): void {
   applyTheme(settings.general.themeId, settings.customTheme)
+  // The editor follows the active appearance: a custom theme carries its own
+  // light or dark base, and every other theme maps to one.
+  const editorBase =
+    settings.general.themeId === 'custom'
+      ? (settings.customTheme.base ?? 'light')
+      : themeBase(settings.general.themeId)
+  applyEditorColors(editorBase, settings.editor.syntaxColors)
   applyDocumentLang(settings.general.locale)
   // Electron exposes zoom on the web frame; the factor is clamped by the schema.
   const zoom = settings.display.zoomFactor
@@ -110,6 +123,12 @@ export function SettingsProvider({ children }: { children: ReactNode }): JSX.Ele
   // The locale provider below is keyed on the value so a language change
   // re-renders the whole tree once, instead of every component subscribing.
   const loaded = useRef(false)
+  // Saves overlap when controls change quickly (a colour, a slider). Reading the
+  // newest settings and tagging each request keeps a slow reply from replacing a
+  // newer state or from letting an older patch drop a field added meanwhile.
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
+  const saveSeq = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -135,31 +154,37 @@ export function SettingsProvider({ children }: { children: ReactNode }): JSX.Ele
     applySideEffects(settings)
   }, [settings])
 
-  const update = useCallback(
-    async (patch: DeepPartial<AppSettings>): Promise<void> => {
-      // Computed from the current value, not inside a state updater: a React
-      // updater may run later or twice, so reading `next` out of it would send
-      // the previous settings to disk (and lose the change).
-      const next = mergePatch(settings, patch)
-      setSettings(next)
-      try {
-        const saved = await unwrap(window.dbApi.saveSettings(next))
-        setSettings(saved)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      }
-    },
-    [settings]
-  )
+  const update = useCallback(async (patch: DeepPartial<AppSettings>): Promise<void> => {
+    // Merged onto the newest state, not the one this callback closed over: two
+    // controls touched in a row would otherwise each start from the state
+    // before the first change and the second save would undo the first.
+    const next = mergePatch(settingsRef.current, patch)
+    const seq = ++saveSeq.current
+    settingsRef.current = next
+    setSettings(next)
+    try {
+      const saved = await unwrap(window.dbApi.saveSettings(next))
+      // A newer save is already on its way; its reply is the one that wins.
+      if (seq !== saveSeq.current) return
+      settingsRef.current = saved
+      setSettings(saved)
+      setError(null)
+    } catch (err) {
+      if (seq !== saveSeq.current) return
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
 
   const replace = useCallback((next: AppSettings) => {
+    settingsRef.current = next
     setSettings(next)
   }, [])
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
-      setSettings(await unwrap(window.dbApi.getSettings()))
+      const stored = await unwrap(window.dbApi.getSettings())
+      settingsRef.current = stored
+      setSettings(stored)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

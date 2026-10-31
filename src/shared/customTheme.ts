@@ -1,4 +1,5 @@
 import { contrastRatio, parseColor, type Rgb } from './contrast'
+import type { MessageKey } from './i18n'
 import { CONTRAST_PAIRS, KNOWN_CONTRAST_GAPS, type ThemeToken } from './themeTokens'
 
 // The custom palette: the user picks a handful of colours, everything else is
@@ -11,6 +12,19 @@ import { CONTRAST_PAIRS, KNOWN_CONTRAST_GAPS, type ThemeToken } from './themeTok
 
 export type PaletteBase = 'light' | 'dark'
 
+/**
+ * One editable colour.
+ *
+ * `labelKey` is the plain-language name the editor shows instead of the CSS
+ * variable: a user picking colours should read "Panel background", not
+ * `--surface-muted`. The CSS variable stays visible next to the value as the
+ * technical name, for anyone copying it into their own stylesheet.
+ */
+export interface ChromeToken {
+  name: string
+  labelKey: MessageKey
+}
+
 export interface ChromeTokenGroup {
   id: 'surface' | 'text' | 'accent' | 'status' | 'notice' | 'overlay' | 'scrollbar'
   labelKey:
@@ -21,7 +35,16 @@ export interface ChromeTokenGroup {
     | 'theme.groupNotice'
     | 'theme.groupOverlay'
     | 'theme.groupScrollbar'
-  tokens: string[]
+  /** One sentence naming the parts of the app the group repaints. */
+  hintKey:
+    | 'theme.groupSurfaceHint'
+    | 'theme.groupTextHint'
+    | 'theme.groupAccentHint'
+    | 'theme.groupStatusHint'
+    | 'theme.groupNoticeHint'
+    | 'theme.groupOverlayHint'
+    | 'theme.groupScrollbarHint'
+  tokens: ChromeToken[]
 }
 
 // 28 chrome tokens, grouped. The four "core" ones are what the picker shows
@@ -30,65 +53,104 @@ export const CHROME_GROUPS: ChromeTokenGroup[] = [
   {
     id: 'surface',
     labelKey: 'theme.groupSurface',
+    hintKey: 'theme.groupSurfaceHint',
     tokens: [
-      '--bg',
-      '--surface',
-      '--surface-muted',
-      '--surface-hover',
-      '--border',
-      '--border-strong'
+      { name: '--bg', labelKey: 'theme.token.bg' },
+      { name: '--surface', labelKey: 'theme.token.surface' },
+      { name: '--surface-muted', labelKey: 'theme.token.surfaceMuted' },
+      { name: '--surface-hover', labelKey: 'theme.token.surfaceHover' },
+      { name: '--border', labelKey: 'theme.token.border' },
+      { name: '--border-strong', labelKey: 'theme.token.borderStrong' }
     ]
   },
   {
     id: 'text',
     labelKey: 'theme.groupText',
-    tokens: ['--text', '--text-muted']
+    hintKey: 'theme.groupTextHint',
+    tokens: [
+      { name: '--text', labelKey: 'theme.token.text' },
+      { name: '--text-muted', labelKey: 'theme.token.textMuted' }
+    ]
   },
   {
     id: 'accent',
     labelKey: 'theme.groupAccent',
+    hintKey: 'theme.groupAccentHint',
     tokens: [
-      '--accent',
-      '--accent-hover',
-      '--accent-text',
-      '--accent-soft',
-      '--selected-bg',
-      '--pk-bg'
+      { name: '--accent', labelKey: 'theme.token.accent' },
+      { name: '--accent-hover', labelKey: 'theme.token.accentHover' },
+      { name: '--accent-text', labelKey: 'theme.token.accentText' },
+      { name: '--accent-soft', labelKey: 'theme.token.accentSoft' },
+      { name: '--selected-bg', labelKey: 'theme.token.selectedBg' },
+      { name: '--pk-bg', labelKey: 'theme.token.pkBg' }
     ]
   },
   {
     id: 'status',
     labelKey: 'theme.groupStatus',
-    tokens: ['--ok', '--error', '--info', '--error-text']
+    hintKey: 'theme.groupStatusHint',
+    tokens: [
+      { name: '--ok', labelKey: 'theme.token.ok' },
+      { name: '--error', labelKey: 'theme.token.error' },
+      { name: '--info', labelKey: 'theme.token.info' },
+      { name: '--error-text', labelKey: 'theme.token.errorText' }
+    ]
   },
   {
     id: 'notice',
     labelKey: 'theme.groupNotice',
+    hintKey: 'theme.groupNoticeHint',
     tokens: [
-      '--notice-error-bg',
-      '--notice-error-border',
-      '--notice-ok-bg',
-      '--notice-ok-border',
-      '--notice-info-bg',
-      '--notice-info-border'
+      { name: '--notice-error-bg', labelKey: 'theme.token.noticeErrorBg' },
+      { name: '--notice-error-border', labelKey: 'theme.token.noticeErrorBorder' },
+      { name: '--notice-ok-bg', labelKey: 'theme.token.noticeOkBg' },
+      { name: '--notice-ok-border', labelKey: 'theme.token.noticeOkBorder' },
+      { name: '--notice-info-bg', labelKey: 'theme.token.noticeInfoBg' },
+      { name: '--notice-info-border', labelKey: 'theme.token.noticeInfoBorder' }
     ]
   },
   {
     id: 'overlay',
     labelKey: 'theme.groupOverlay',
-    tokens: ['--overlay']
+    hintKey: 'theme.groupOverlayHint',
+    tokens: [{ name: '--overlay', labelKey: 'theme.token.overlay' }]
   },
   {
     id: 'scrollbar',
     labelKey: 'theme.groupScrollbar',
-    tokens: ['--scrollbar-thumb', '--scrollbar-thumb-hover', '--scrollbar-track']
+    hintKey: 'theme.groupScrollbarHint',
+    tokens: [
+      { name: '--scrollbar-thumb', labelKey: 'theme.token.scrollbarThumb' },
+      { name: '--scrollbar-thumb-hover', labelKey: 'theme.token.scrollbarThumbHover' },
+      { name: '--scrollbar-track', labelKey: 'theme.token.scrollbarTrack' }
+    ]
   }
 ]
 
-export const CHROME_TOKENS: string[] = CHROME_GROUPS.flatMap((group) => group.tokens)
+export const CHROME_TOKENS: string[] = CHROME_GROUPS.flatMap((group) =>
+  group.tokens.map((token) => token.name)
+)
+
+/** Token name to plain-language label, for every chrome token. */
+const TOKEN_LABELS = new Map<string, MessageKey>(
+  CHROME_GROUPS.flatMap((group) =>
+    group.tokens.map((token) => [token.name, token.labelKey] as const)
+  )
+)
+
+export function tokenLabelKey(name: string): MessageKey {
+  return TOKEN_LABELS.get(name) ?? 'theme.custom.unknownColour'
+}
 
 /** Tokens the picker shows first: the four that decide the whole look. */
 export const CORE_TOKENS = ['--bg', '--surface', '--text', '--accent'] as const
+
+/**
+ * The three colours the simple view edits. The panel colour follows the window
+ * background, so a user who only wants a different look never has to reason
+ * about two backgrounds that must sit next to each other.
+ */
+export const PRIMARY_TOKENS = ['--bg', '--text', '--accent'] as const
 
 // Shipped values for the four core tokens, used to seed a new custom palette so
 // it starts from something readable instead of an empty form.
@@ -173,6 +235,28 @@ export function mix(from: string, to: string, amount: number): string {
   return toHex({ r: blend(a.r, b.r), g: blend(a.g, b.g), b: blend(a.b, b.b) })
 }
 
+/**
+ * Panel colour for a window background.
+ *
+ * The step is a fixed amount of lightness, not a percentage: a percentage that
+ * is right for a near-white window turns a dark window into a grey slab, and a
+ * user may pick a dark background in the light appearance (or the reverse).
+ */
+export function surfaceFrom(bg: string): string {
+  const rgb = parseColor(bg)
+  if (!rgb) return bg
+  const lift = (channel: number): number => Math.min(255, channel + 18)
+  const lifted = { r: lift(rgb.r), g: lift(rgb.g), b: lift(rgb.b) }
+  const moved = Math.max(lifted.r - rgb.r, lifted.g - rgb.g, lifted.b - rgb.b)
+  // A window that is already almost white cannot get lighter, so its panels go
+  // a little darker to keep the two surfaces distinguishable.
+  if (moved < 6) {
+    const lower = (channel: number): number => Math.max(0, channel - 8)
+    return toHex({ r: lower(rgb.r), g: lower(rgb.g), b: lower(rgb.b) })
+  }
+  return toHex(lifted)
+}
+
 /** Whichever of white or the theme text colour reads better on the given fill. */
 function readableOn(fill: string, preferred: string): string {
   const target = parseColor(fill)
@@ -185,20 +269,36 @@ function readableOn(fill: string, preferred: string): string {
 }
 
 /**
- * Derive the 28 chrome tokens from four core colours.
+ * Derive the 28 chrome tokens from the core colours.
  *
  * The result is a starting point, not a guarantee: `validatePalette` still has
  * to pass, because a user can pick a text colour that is too close to the
  * background and no amount of derivation fixes that.
+ *
+ * `--surface` is optional. When the caller only gave a window background, the
+ * panel colour follows it, which is what the simple view relies on.
  */
 export function derivePalette(
   base: PaletteBase,
   core: Partial<Record<(typeof CORE_TOKENS)[number], string>> = {}
 ): Record<string, string> {
-  const bg = core['--bg'] ?? SEED[base]['--bg']
-  const surface = core['--surface'] ?? SEED[base]['--surface']
-  const text = core['--text'] ?? SEED[base]['--text']
-  const accent = core['--accent'] ?? SEED[base]['--accent']
+  // A half-typed hex value must not become the derived background, so anything
+  // the parser rejects falls back to the shipped seed for that slot.
+  const pick = (name: (typeof CORE_TOKENS)[number]): string => {
+    const value = core[name]
+    return value && parseColor(value) ? value : SEED[base][name]
+  }
+  const bg = pick('--bg')
+  const explicitSurface = core['--surface']
+  const bgChoice = core['--bg']
+  const surface =
+    explicitSurface && parseColor(explicitSurface)
+      ? explicitSurface
+      : bgChoice && parseColor(bgChoice)
+        ? surfaceFrom(bg)
+        : SEED[base]['--surface']
+  const text = pick('--text')
+  const accent = pick('--accent')
   const status = STATUS[base]
 
   const tokens: Record<string, string> = {
@@ -266,6 +366,19 @@ function pairRatio(
   return contrastRatio(a, b)
 }
 
+/**
+ * Colour fields whose text cannot be read as a colour at all, such as a
+ * half-typed hex value. Contrast checking skips these pairs, so they need their
+ * own report: without it the editor would say "all pairs pass" while a field is
+ * plainly invalid.
+ */
+export function malformedTokens(tokens: Record<string, string>): string[] {
+  return CHROME_TOKENS.filter((name) => {
+    const value = tokens[name]
+    return typeof value === 'string' && value.trim() !== '' && !parseColor(value)
+  })
+}
+
 /** Check a palette against the same WCAG pairs the shipped themes must pass. */
 export function validatePalette(tokens: Record<string, string>): PaletteValidation {
   const failures: ContrastFailure[] = []
@@ -310,15 +423,23 @@ export function validatePalette(tokens: Record<string, string>): PaletteValidati
 /**
  * Turn a stored palette into the CSS custom properties to apply.
  *
- * Missing tokens are filled from the derivation so a palette saved by an older
- * version, or one where the user only touched the core four, still renders a
- * complete theme instead of inheriting half of the built-in one.
+ * Everything the palette does not store is derived from the colours it does
+ * store, not from the shipped seed. A palette saved with only the three main
+ * colours must still produce muted text and a button label that match those
+ * colours: deriving them from the seed produced a mixed palette (green button
+ * with white text meant for the brown one), which then failed its own contrast
+ * check and left the app on the default theme.
  */
 export function resolvePalette(
   base: PaletteBase,
   stored: Record<string, string>
 ): Record<string, string> {
-  const derived = derivePalette(base)
+  const core: Partial<Record<(typeof CORE_TOKENS)[number], string>> = {}
+  for (const token of CORE_TOKENS) {
+    const value = stored[token]
+    if (value && parseColor(value)) core[token] = value
+  }
+  const derived = derivePalette(base, core)
   const out: Record<string, string> = {}
   for (const token of CHROME_TOKENS) {
     const value = stored[token]

@@ -10,10 +10,19 @@ import type {
   TableInfo,
   TableInfoDetail
 } from '@shared/types'
-import { engineColumnTypes } from '@shared/ddl'
+import {
+  defaultColumnType,
+  formatColumnType,
+  groupedColumnTypes,
+  parseColumnType,
+  supportsColumnTypes,
+  type ColumnTypeParameterKey,
+  type ColumnTypeSpec
+} from '@shared/columnTypeCatalog'
 import { unwrap } from './api'
 import { confirmDestructive } from './confirm'
 import { PromptDialog } from './PromptDialog'
+import { ValueListDialog } from './ValueListDialog'
 import { useLocale } from './i18n'
 
 // A designer row carries a stable id so React keys survive reorder/rename and
@@ -27,6 +36,11 @@ interface DesignerColumn {
   autoIncrement: boolean
   defaultValue: string
   comment: string
+  /**
+   * True when the column's type is not in the engine catalog, so the row edits
+   * it as free text instead of forcing it into a preset it never had.
+   */
+  customType: boolean
   original?: ColumnInfo
   isNew: boolean
   markedForDrop: boolean
@@ -65,13 +79,17 @@ type DesignerTab = 'columns' | 'indexes' | 'foreign' | 'info'
 
 const FK_ACTIONS = ['', 'NO ACTION', 'RESTRICT', 'CASCADE', 'SET NULL', 'SET DEFAULT']
 
+// Sentinel used by the type dropdown for a type that is not in the catalog.
+// It never reaches the DDL: choosing it only flips the cell to free text.
+const CUSTOM_TYPE = '__custom__'
+
 let seq = 0
 function nextId(): string {
   seq += 1
   return `c${seq}`
 }
 
-function toDesigner(col: ColumnInfo): DesignerColumn {
+function toDesigner(col: ColumnInfo, engine: string): DesignerColumn {
   return {
     id: nextId(),
     name: col.name,
@@ -81,6 +99,7 @@ function toDesigner(col: ColumnInfo): DesignerColumn {
     autoIncrement: col.autoIncrement === true,
     defaultValue: col.defaultValue ?? '',
     comment: col.comment ?? '',
+    customType: parseColumnType(engine as never, col.dataType) === null,
     original: col,
     isNew: false,
     markedForDrop: false
@@ -91,12 +110,13 @@ function blankColumn(engine: string): DesignerColumn {
   return {
     id: nextId(),
     name: '',
-    dataType: engineColumnTypes(engine as never)[0],
+    dataType: defaultColumnType(engine as never),
     nullable: true,
     primaryKey: false,
     autoIncrement: false,
     defaultValue: '',
     comment: '',
+    customType: false,
     isNew: true,
     markedForDrop: false
   }
@@ -135,7 +155,16 @@ export function TableDesigner(props: Props): JSX.Element {
   const { tr, errorText } = useLocale()
   const { connectionId, engine, onDone } = props
   const isEdit = props.mode === 'edit'
-  const types = engineColumnTypes(engine as never)
+  const typeGroups = groupedColumnTypes(engine as never)
+  const hasColumnTypes = supportsColumnTypes(engine as never)
+  // SQLite keeps comments out of the table definition, so the column is hidden
+  // rather than shown as a field that can never be filled.
+  const supportsComments = engine !== 'sqlite'
+  // Only the MySQL family has ENUM/SET, so the value column appears there and
+  // nowhere else instead of sitting empty for every other engine.
+  const hasValueTypes = typeGroups.some((entry) =>
+    entry.specs.some((spec) => spec.parameters?.some((p) => p.key === 'values'))
+  )
 
   const [tab, setTab] = useState<DesignerTab>('columns')
   const [databases, setDatabases] = useState<string[]>([])
@@ -184,6 +213,12 @@ export function TableDesigner(props: Props): JSX.Element {
   const [objectDdl, setObjectDdl] = useState<string | null>(null)
   const [infoLoading, setInfoLoading] = useState(false)
   const [tableComment, setTableComment] = useState('')
+  // Which column's ENUM/SET list is open in the value editor.
+  const [valueEditor, setValueEditor] = useState<{
+    columnId: string
+    typeName: string
+    values: string
+  } | null>(null)
 
   const usesSchema = engine === 'postgres' || engine === 'oracle'
   const editableStructure = engine !== 'mongodb'
@@ -223,7 +258,7 @@ export function TableDesigner(props: Props): JSX.Element {
         )
       )
     ])
-    setColumns(cols.map(toDesigner))
+    setColumns(cols.map((col) => toDesigner(col, engine)))
     setOriginalPk(pk)
   }, [connectionId, props.mode, editDatabase, editSchema, editTable])
 
@@ -769,6 +804,214 @@ export function TableDesigner(props: Props): JSX.Element {
   const titleInput = props.mode === 'create'
   const showTabs = props.mode === 'edit'
 
+  /**
+   * Type cell: a grouped dropdown holding the SQL type names, plus a free-text
+   * mode for types the catalog does not know (user-defined types, enum values
+   * written by hand). Size parameters live in their own column.
+   */
+  function typeCell(c: DesignerColumn): JSX.Element {
+    const parsed = c.customType ? null : parseColumnType(engine as never, c.dataType)
+    const spec: ColumnTypeSpec | null = parsed?.spec ?? null
+
+    function choose(value: string): void {
+      if (value === CUSTOM_TYPE) {
+        updateColumn(c.id, { customType: true })
+        return
+      }
+      const next = typeGroups
+        .flatMap((entry) => entry.specs)
+        .find((entry) => entry.type === value)
+      if (!next) return
+      updateColumn(c.id, {
+        customType: false,
+        dataType: formatColumnType(next, {})
+      })
+    }
+
+    return (
+      <div className="designer__type">
+        <select
+          className="input input--cell"
+          value={c.customType ? CUSTOM_TYPE : (spec?.type ?? CUSTOM_TYPE)}
+          onChange={(e) => choose(e.target.value)}
+          aria-label={tr('designer.typeLabel')}
+        >
+          {c.customType && <option value={CUSTOM_TYPE}>{tr('columnType.other')}</option>}
+          {typeGroups.map((entry) => (
+            <optgroup key={entry.group} label={tr(entry.labelKey)}>
+              {entry.specs.map((option) => (
+                <option key={option.type} value={option.type}>
+                  {option.type}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+          {!c.customType && <option value={CUSTOM_TYPE}>{tr('columnType.other')}</option>}
+        </select>
+        {/* A type the catalog does not know is typed in full here, because the
+            length and decimals columns only make sense for known types. */}
+        {c.customType && (
+          <input
+            className="input input--cell designer__type-raw"
+            value={c.dataType}
+            onChange={(e) => updateColumn(c.id, { dataType: e.target.value })}
+            placeholder={tr('columnType.otherHint')}
+            aria-label={tr('designer.typeLabel')}
+            spellCheck={false}
+          />
+        )}
+      </div>
+    )
+  }
+
+  /**
+   * The parameters of the column's type, or null when the type has none or is a
+   * custom type the catalog does not know.
+   */
+  function typeParameters(c: DesignerColumn): {
+    spec: ColumnTypeSpec
+    values: Partial<Record<ColumnTypeParameterKey, string>>
+  } | null {
+    if (c.customType) return null
+    const parsed = parseColumnType(engine as never, c.dataType)
+    if (!parsed?.spec.parameters?.length) return null
+    return parsed
+  }
+
+  /** One numeric parameter, rendered in the table column that owns it. */
+  function numberCell(c: DesignerColumn, key: ColumnTypeParameterKey): JSX.Element {
+    const info = typeParameters(c)
+    const parameter = info?.spec.parameters?.find((entry) => entry.key === key)
+    const label = `${tr('designer.typeLabel')}: ${tr(
+      parameter?.labelKey ??
+        (key === 'scale' ? 'designer.colDecimals' : 'designer.colLength')
+    )}`
+
+    // The field is always present, disabled when the current type does not use
+    // this parameter: an empty cell reads as "not loaded", a greyed field reads
+    // as "this type has no length".
+    if (!info || !parameter) {
+      return (
+        <input
+          className="input input--cell"
+          type="number"
+          value=""
+          placeholder={tr('designer.notApplicable')}
+          disabled
+          aria-label={label}
+        />
+      )
+    }
+
+    const { spec, values } = info
+    return (
+      <input
+        className="input input--cell"
+        type="number"
+        min={parameter.min}
+        max={parameter.max}
+        value={values[key] ?? ''}
+        placeholder={parameter.defaultValue}
+        onChange={(e) =>
+          updateColumn(c.id, {
+            dataType: formatColumnType(spec, { ...values, [key]: e.target.value })
+          })
+        }
+        aria-label={label}
+      />
+    )
+  }
+
+  /**
+   * ENUM/SET value list. A comma-separated cell could not hold a value that
+   * contains a comma, so the list opens in its own editor and the cell shows a
+   * short preview of what is stored.
+   */
+  function valuesCell(c: DesignerColumn): JSX.Element {
+    const info = typeParameters(c)
+    const parameter = info?.spec.parameters?.find((entry) => entry.key === 'values')
+
+    // Same rule as the number cells: the field stays visible and disabled when
+    // the type has no value list, so the column never looks half-loaded.
+    if (!info || !parameter) {
+      return (
+        <div className="designer__values">
+          <input
+            className="input input--cell"
+            value=""
+            placeholder={tr('designer.notApplicable')}
+            disabled
+            aria-label={tr('designer.colValues')}
+          />
+        </div>
+      )
+    }
+
+    const { spec, values } = info
+    const current = values.values ?? ''
+    const items = current
+      .split('\n')
+      .map((item) => item.trim())
+      .filter((item) => item !== '')
+    return (
+      <div className="designer__values">
+        <input
+          className="input input--cell designer__values-field-input"
+          value={items.map((item) => `'${item}'`).join(', ')}
+          placeholder={tr('designer.valuesEmpty')}
+          title={items.map((item) => `'${item}'`).join(', ')}
+          readOnly
+          onClick={() =>
+            setValueEditor({ columnId: c.id, typeName: spec.type, values: current })
+          }
+          onKeyDown={(e) => {
+            // Read-only, so typing does nothing; Enter opens the editor.
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              setValueEditor({ columnId: c.id, typeName: spec.type, values: current })
+            }
+          }}
+          aria-label={tr('designer.valuesOpen', { type: spec.type })}
+        />
+        <button
+          type="button"
+          className="btn btn--ghost btn--tiny"
+          onClick={() =>
+            setValueEditor({
+              columnId: c.id,
+              typeName: spec.type,
+              values: current
+            })
+          }
+          aria-label={tr('designer.valuesOpen', { type: spec.type })}
+        >
+          …
+        </button>
+      </div>
+    )
+  }
+
+  // MongoDB has collections, not SQL tables. The menu already disables this
+  // action, and this guard makes a stale tab or deep link explain why instead
+  // of offering MySQL column types on a document store.
+  if (!hasColumnTypes) {
+    return (
+      <div className="designer">
+        <header className="designer__bar">
+          <h2 className="designer__title">{heading}</h2>
+          <div className="designer__actions">
+            {props.mode === 'create' && (
+              <button className="btn btn--ghost btn--small" onClick={props.onCancel}>
+                {tr('common.cancel')}
+              </button>
+            )}
+          </div>
+        </header>
+        <p className="muted designer__pad">{tr('designer.mongoNoTable')}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="designer">
       <header className="designer__bar">
@@ -903,6 +1146,14 @@ export function TableDesigner(props: Props): JSX.Element {
               <tr>
                 <th className="designer__col-name">{tr('designer.colName')}</th>
                 <th className="designer__col-type">{tr('designer.colType')}</th>
+                {/* Length holds VARCHAR/CHAR size and the digits of DECIMAL;
+                    Decimals holds its scale. Separate columns keep every row on
+                    one line instead of stacking fields inside one cell. */}
+                <th className="designer__col-number">{tr('designer.colLength')}</th>
+                <th className="designer__col-number">{tr('designer.colDecimals')}</th>
+                {hasValueTypes && (
+                  <th className="designer__col-values">{tr('designer.colValues')}</th>
+                )}
                 <th className="designer__col-flag" title={tr('designer.nullable')}>
                   {tr('designer.colNull')}
                 </th>
@@ -913,7 +1164,11 @@ export function TableDesigner(props: Props): JSX.Element {
                   {tr('designer.colAi')}
                 </th>
                 <th className="designer__col-default">{tr('designer.colDefault')}</th>
-                <th className="designer__col-comment">{tr('designer.colComment')}</th>
+                {/* SQLite has no column comments, so the column is not shown at
+                    all instead of occupying width with a disabled field. */}
+                {supportsComments && (
+                  <th className="designer__col-comment">{tr('designer.colComment')}</th>
+                )}
                 <th
                   className="designer__col-actions"
                   aria-label={tr('designer.colActions')}
@@ -925,7 +1180,10 @@ export function TableDesigner(props: Props): JSX.Element {
                 if (c.markedForDrop) {
                   return (
                     <tr key={c.id} className="designer__row designer__row--dropped">
-                      <td colSpan={8} className="designer__dropped">
+                      <td
+                        colSpan={9 + (hasValueTypes ? 1 : 0) + (supportsComments ? 1 : 0)}
+                        className="designer__dropped"
+                      >
                         <span>
                           {tr('designer.columnDropped', {
                             name: c.original?.name ?? c.name
@@ -954,25 +1212,14 @@ export function TableDesigner(props: Props): JSX.Element {
                         aria-label={tr('designer.nameLabel')}
                       />
                     </td>
-                    <td>
-                      <select
-                        className="input input--cell"
-                        value={c.dataType}
-                        onChange={(e) => updateColumn(c.id, { dataType: e.target.value })}
-                        aria-label={tr('designer.typeLabel')}
-                      >
-                        {/* Keep a loaded custom type (e.g. enum, user-defined)
-                            selectable even when it is not one of the presets. */}
-                        {!types.includes(c.dataType) && c.dataType !== '' && (
-                          <option value={c.dataType}>{c.dataType}</option>
-                        )}
-                        {types.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
+                    <td>{typeCell(c)}</td>
+                    <td className="designer__cell-number">
+                      {numberCell(c, 'length') ?? numberCell(c, 'precision')}
                     </td>
+                    <td className="designer__cell-number">{numberCell(c, 'scale')}</td>
+                    {hasValueTypes && (
+                      <td className="designer__cell-values">{valuesCell(c)}</td>
+                    )}
                     <td className="designer__cell-flag">
                       <input
                         type="checkbox"
@@ -1029,20 +1276,19 @@ export function TableDesigner(props: Props): JSX.Element {
                         aria-label={tr('designer.defaultLabel')}
                       />
                     </td>
-                    <td>
-                      <input
-                        className="input input--cell"
-                        value={c.comment}
-                        onChange={(e) => updateColumn(c.id, { comment: e.target.value })}
-                        placeholder={
-                          engine === 'sqlite'
-                            ? tr('designer.commentUnsupported')
-                            : tr('designer.commentPlaceholder')
-                        }
-                        disabled={engine === 'sqlite'}
-                        aria-label={tr('designer.commentLabel')}
-                      />
-                    </td>
+                    {supportsComments && (
+                      <td>
+                        <input
+                          className="input input--cell"
+                          value={c.comment}
+                          onChange={(e) =>
+                            updateColumn(c.id, { comment: e.target.value })
+                          }
+                          placeholder={tr('designer.commentPlaceholder')}
+                          aria-label={tr('designer.commentLabel')}
+                        />
+                      </td>
+                    )}
                     <td className="designer__cell-actions">
                       <button
                         className="icon-btn icon-btn--xs"
@@ -1461,6 +1707,24 @@ export function TableDesigner(props: Props): JSX.Element {
           confirmLabel={tr('designer.dropTable')}
           onConfirm={(name) => void confirmDropTable(name)}
           onClose={() => setDropPrompt(false)}
+        />
+      )}
+
+      {valueEditor && (
+        <ValueListDialog
+          typeName={valueEditor.typeName}
+          values={valueEditor.values}
+          onClose={() => setValueEditor(null)}
+          onConfirm={(values) => {
+            const target = columns.find((c) => c.id === valueEditor.columnId)
+            setValueEditor(null)
+            if (!target) return
+            const parsed = parseColumnType(engine as never, target.dataType)
+            if (!parsed) return
+            updateColumn(target.id, {
+              dataType: formatColumnType(parsed.spec, { ...parsed.values, values })
+            })
+          }}
         />
       )}
     </div>

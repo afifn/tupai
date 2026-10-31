@@ -5,6 +5,7 @@ import {
   compareVersions,
   describeUpdateError,
   isDeveloperSigned,
+  isMissingReleaseFeedError,
   isNewerVersion,
   manualDownloadUrl
 } from '@shared/update'
@@ -99,10 +100,15 @@ describe('isNewerVersion', () => {
 })
 
 describe('describeUpdateError', () => {
-  it('reports a repository with no release yet', () => {
+  it('recognizes a missing GitHub release feed as no available update', () => {
     const raw =
       'HttpError: 404 \n"method: GET url: https://github.com/afifn/tupai/releases.atom\n\nPlease double check..."'
-    expect(describeUpdateError(raw)).toBe('Belum ada rilis yang dipublikasikan.')
+    expect(isMissingReleaseFeedError(raw)).toBe(true)
+    expect(
+      isMissingReleaseFeedError(
+        '404 https://github.com/afifn/tupai/releases/download/v1/file.zip'
+      )
+    ).toBe(false)
   })
 
   it('reports a network failure', () => {

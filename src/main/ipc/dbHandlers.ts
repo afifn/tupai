@@ -151,7 +151,7 @@ import { dataSync, previewDataSync } from '../sync/dataSync'
 import { deleteSyncProfile, listSyncProfiles, saveSyncProfile } from '../sync/profiles'
 import { forgetHostKey, storedFingerprint } from '../connection/knownHosts'
 import { supportsTitleBarOverlay } from '../windowChrome'
-import { log } from '../logger'
+import { log, configureLogger, listLogFiles, logDirectoryPath } from '../logger'
 import { broadcastSettingsChanged } from '../settingsWindow'
 
 let client: DbWorkerClient | null = null
@@ -933,6 +933,7 @@ export function registerDbHandlers(): void {
       // model). Import is the exception: there the file is the user's intent.
       const stored = await readSettings()
       const saved = await writeSettings({ ...next, ai: stored.ai })
+      configureLogger(saved.logs)
       broadcastSettingsChanged(event.sender)
       // A rebound shortcut or a language change has to reach the native menu
       // too; it is built in main from the catalogue.
@@ -949,6 +950,7 @@ export function registerDbHandlers(): void {
   ipcMain.handle(IPC.resetSettings, (event) =>
     run(async () => {
       const saved = await resetSettings()
+      configureLogger(saved.logs)
       broadcastSettingsChanged(event.sender)
       await refreshApplicationMenu()
       return saved
@@ -998,6 +1000,7 @@ export function registerDbHandlers(): void {
       const text = await readFile(filePath, 'utf-8')
       const merged = mergeSettings(JSON.parse(text))
       const saved = await writeSettings(merged)
+      configureLogger(saved.logs)
       broadcastSettingsChanged(event.sender)
       await refreshApplicationMenu()
       return saved
@@ -1043,11 +1046,18 @@ export function registerDbHandlers(): void {
     run(() => getClient().call<{ loadedDir: string | null }>('oracleClientStatus', {}))
   )
 
+  ipcMain.handle(IPC.listLogFiles, () => run(async () => listLogFiles()))
+
   ipcMain.handle(IPC.openPath, (_e, raw) =>
     run(async () => {
       const { target } = openPathSchema.parse(raw)
       const info = appInfo()
-      const path = target === 'userData' ? info.userData : info.logFile
+      const path =
+        target === 'userData'
+          ? info.userData
+          : target === 'logsDir'
+            ? logDirectoryPath()
+            : info.logFile
       await shell.openPath(path)
       return true
     })

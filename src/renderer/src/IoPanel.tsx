@@ -365,7 +365,7 @@ export function IoPanel({ selection }: Props): JSX.Element {
             onClick={() => void handleImportSql()}
             disabled={!sqlPath || runningSql}
           >
-            {runningSql ? 'Menjalankan...' : tr('io.runImport')}
+            {runningSql ? tr('common.running') : tr('io.runImport')}
           </button>
         </div>
       )}

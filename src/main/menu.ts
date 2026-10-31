@@ -3,8 +3,10 @@ import {
   BrowserWindow,
   globalShortcut,
   Menu,
+  shell,
   type MenuItemConstructorOptions
 } from 'electron'
+import { CHANGELOG_URL, DOCUMENTATION_URL, ISSUE_URL } from '@shared/appLinks'
 import { IPC } from '@shared/ipc-contract'
 import { acceleratorFor, bindingFor, type ActionId } from '@shared/keymap'
 import type { MenuAction, MenuState } from '@shared/types'
@@ -67,6 +69,10 @@ const MENU_ACTIONS: MenuAction[] = [
   'users.open',
   'assistant.toggle',
   'sidebar.filter',
+  'help.docs',
+  'help.changelog',
+  'help.issue',
+  'help.shortcuts',
   'app.reloadTree'
 ]
 
@@ -110,6 +116,22 @@ function sendMenuAction(action: MenuAction): void {
   if (action === 'update.check') {
     openSettingsWindow('about')
     void checkForUpdates()
+    return
+  }
+  if (action === 'help.docs') {
+    void shell.openExternal(DOCUMENTATION_URL)
+    return
+  }
+  if (action === 'help.changelog') {
+    void shell.openExternal(CHANGELOG_URL)
+    return
+  }
+  if (action === 'help.issue') {
+    void shell.openExternal(ISSUE_URL)
+    return
+  }
+  if (action === 'help.shortcuts') {
+    openSettingsWindow('keymap')
     return
   }
   const focused = BrowserWindow.getFocusedWindow()
@@ -285,6 +307,22 @@ export function installApplicationMenu(
         { role: 'zoom' },
         { type: 'separator' },
         { role: 'front' }
+      ]
+    },
+    {
+      // Same items on every platform except About: macOS keeps that one in the
+      // application menu, so repeating it here would show two About entries.
+      label: label('appMenu.help'),
+      submenu: [
+        item(label('appMenu.documentation'), 'help.docs'),
+        item(label('appMenu.changelog'), 'help.changelog'),
+        { type: 'separator' },
+        item(label('appMenu.reportIssue'), 'help.issue'),
+        { type: 'separator' },
+        item(label('appMenu.keyboardShortcuts'), 'help.shortcuts', 'CmdOrCtrl+/'),
+        ...(isMac
+          ? []
+          : [{ type: 'separator' as const }, item(label('appMenu.about'), 'about.open')])
       ]
     }
   ]

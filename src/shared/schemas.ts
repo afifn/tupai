@@ -523,9 +523,10 @@ export const importSettingsSchema = z.object({
 })
 
 export const openPathSchema = z.object({
-  // Only the log file and the data folder are ever opened, and both are built
-  // in main. The renderer sends a token, not a path.
-  target: z.enum(['userData', 'logFile'])
+  // Only the Logs folder, the active log file, and the data folder are ever
+  // opened, and all three are built in main. The renderer sends a token, not a
+  // path.
+  target: z.enum(['userData', 'logFile', 'logsDir'])
 })
 
 export const searchObjectsSchema = z.object({

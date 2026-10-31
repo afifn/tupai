@@ -96,7 +96,7 @@ export function BackupPanel({
     const proceed = await confirmDestructive(tr('backup.restoreConfirm'), {
       title: tr('backup.restoreTitle'),
       detail: tr('backup.restoreDetail'),
-      confirmLabel: 'Jalankan'
+      confirmLabel: tr('common.run')
     })
     if (!proceed) return
     setBusy('restore')

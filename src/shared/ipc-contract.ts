@@ -93,6 +93,7 @@ export const IPC = {
   resetSettings: 'settings:reset',
   exportSettings: 'settings:export',
   importSettings: 'settings:import',
+  listLogFiles: 'logs:list',
   openSettingsWindow: 'settings:window:open',
   closeSettingsWindow: 'settings:window:close',
   settingsChanged: 'settings:changed',

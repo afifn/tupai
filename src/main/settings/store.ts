@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import { writeJsonAtomic } from '../storage/atomicWrite'
 import type { AppInfo } from '@shared/types'
+import { activeLogPath } from '../logger'
 import {
   DEFAULT_SETTINGS,
   appSettingsSchema,
@@ -75,6 +76,6 @@ export function appInfo(): AppInfo {
     platform: process.platform,
     arch: process.arch,
     userData: app.getPath('userData'),
-    logFile: join(app.getPath('userData'), 'db-manager.log')
+    logFile: activeLogPath()
   }
 }

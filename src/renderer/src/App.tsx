@@ -382,10 +382,6 @@ export function App(): JSX.Element {
   // (see the table tab below), so the shell owns it instead of the grid.
   const [openFilterTabs, setOpenFilterTabs] = useState<Set<string>>(new Set())
   const { settings } = useSettings()
-  // Monaco only needs light vs dark; the accent presets are UI-only.
-  const theme: 'light' | 'dark' = settings.general.themeId.startsWith('dark')
-    ? 'dark'
-    : 'light'
   // macOS runs with `titleBarStyle: 'hiddenInset'`, so the toolbar is the title
   // bar: it needs room for the traffic lights, and none in fullscreen where
   // macOS hides them. Windows 11 and Linux use `titleBarOverlay`, so the OS draws
@@ -2192,7 +2188,12 @@ export function App(): JSX.Element {
       'appMenu.sync',
       'appMenu.backup',
       'appMenu.sessions',
-      'appMenu.users'
+      'appMenu.users',
+      'appMenu.help',
+      'appMenu.documentation',
+      'appMenu.changelog',
+      'appMenu.reportIssue',
+      'appMenu.keyboardShortcuts'
     ] as const
     const labels: Record<string, string> = {}
     for (const key of keys) labels[key] = tr(key)
@@ -2498,7 +2499,6 @@ export function App(): JSX.Element {
           }}
           connectionId={tab.connectionId}
           engine={engine}
-          theme={theme}
           savedId={tab.savedId}
           savedName={tab.savedName}
           initialSql={tab.initialSql}
@@ -2719,7 +2719,6 @@ export function App(): JSX.Element {
             mode="edit"
             connectionId={tab.connectionId}
             engine={engine}
-            theme={theme}
             database={tab.database}
             schema={tab.schema}
             view={tab.viewName}
@@ -2735,7 +2734,6 @@ export function App(): JSX.Element {
           mode="create"
           connectionId={tab.connectionId}
           engine={engine}
-          theme={theme}
           database={tab.database}
           schema={tab.schema}
           onCancel={() => closeTab(tab.id)}

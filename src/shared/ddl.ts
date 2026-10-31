@@ -5,12 +5,11 @@ import type {
   DdlOperation,
   TableAlteration
 } from './types'
+import { columnTypeCatalog, formatColumnType } from './columnTypeCatalog'
+import { isMysqlFamily } from './engineFamily'
 
-// MariaDB shares MySQL's SQL dialect: backtick identifiers, `db`.`table`
-// qualification and the same DDL/privilege grammar.
-export function isMysqlFamily(engine: DbEngine): boolean {
-  return engine === 'mysql' || engine === 'mariadb'
-}
+// Re-exported so existing callers keep importing it from the DDL module.
+export { isMysqlFamily }
 
 export function quoteIdent(engine: DbEngine, ident: string): string {
   if (isMysqlFamily(engine)) return '`' + ident.replace(/`/g, '``') + '`'
@@ -116,7 +115,9 @@ function alterTableStatements(
     if (alt.type === 'setPrimaryKey' || alt.type === 'dropPrimaryKey') continue
 
     if (alt.type === 'addColumn') {
-      statements.push(`ALTER TABLE ${table} ADD COLUMN ${columnDefinition(engine, alt.column)};`)
+      statements.push(
+        `ALTER TABLE ${table} ADD COLUMN ${columnDefinition(engine, alt.column)};`
+      )
       continue
     }
     if (alt.type === 'dropColumn') {
@@ -124,7 +125,9 @@ function alterTableStatements(
       continue
     }
     if (alt.type === 'renameColumn') {
-      statements.push(`ALTER TABLE ${table} RENAME COLUMN ${q(alt.from)} TO ${q(alt.to)};`)
+      statements.push(
+        `ALTER TABLE ${table} RENAME COLUMN ${q(alt.from)} TO ${q(alt.to)};`
+      )
       continue
     }
     if (alt.type === 'setColumnComment') {
@@ -139,7 +142,7 @@ function alterTableStatements(
     }
     if (alt.type === 'modifyColumn') {
       const gainedAuto =
-        mysqlFamily && (alt.column.autoIncrement === true) && !alt.previous?.autoIncrement
+        mysqlFamily && alt.column.autoIncrement === true && !alt.previous?.autoIncrement
       const stmts = modifyColumnStatements(engine, table, alt.column, alt.previous)
       if (gainedAuto) afterPk.push(...stmts)
       else statements.push(...stmts)
@@ -201,7 +204,9 @@ function tableCommentStatements(
   if (engine === 'sqlite') {
     throw new Error('SQLite tidak mendukung komentar tabel.')
   }
-  return [`COMMENT ON TABLE ${table} IS ${comment === null ? 'NULL' : sqlString(comment)};`]
+  return [
+    `COMMENT ON TABLE ${table} IS ${comment === null ? 'NULL' : sqlString(comment)};`
+  ]
 }
 
 // Postgres serial pseudo-types are CREATE TABLE shorthands, not real column
@@ -227,9 +232,7 @@ function modifyColumnStatements(
   // PRIMARY KEY clause is left out here: the PK is added or dropped by the
   // dedicated primary-key statements.
   if (isMysqlFamily(engine)) {
-    return [
-      `ALTER TABLE ${table} MODIFY COLUMN ${columnDefinition(engine, col, false)};`
-    ]
+    return [`ALTER TABLE ${table} MODIFY COLUMN ${columnDefinition(engine, col, false)};`]
   }
   if (engine === 'oracle') {
     const def = columnDefinition(engine, col, false)
@@ -254,7 +257,8 @@ function modifyColumnStatements(
   const wantsAuto = col.autoIncrement === true || serialBase !== undefined
   const prevAuto = prev?.autoIncrement ?? false
 
-  const typeChanged = !prev || normalizeType(prev.dataType) !== normalizeType(effectiveType)
+  const typeChanged =
+    !prev || normalizeType(prev.dataType) !== normalizeType(effectiveType)
   const autoChanged = prevAuto !== wantsAuto
 
   const stmts: string[] = []
@@ -287,7 +291,9 @@ function modifyColumnStatements(
           `(SELECT COUNT(*) > 0 FROM ${table}));`
       )
     } else {
-      stmts.push(`ALTER TABLE ${table} ALTER COLUMN ${q(col.name)} DROP IDENTITY IF EXISTS;`)
+      stmts.push(
+        `ALTER TABLE ${table} ALTER COLUMN ${q(col.name)} DROP IDENTITY IF EXISTS;`
+      )
     }
   }
 
@@ -301,7 +307,8 @@ function modifyColumnStatements(
   }
 
   const prevDefault = prev?.defaultValue ?? null
-  const nextDefault = col.defaultValue && col.defaultValue !== '' ? col.defaultValue : null
+  const nextDefault =
+    col.defaultValue && col.defaultValue !== '' ? col.defaultValue : null
   if ((prevDefault ?? null) !== nextDefault && !isSequenceDefault(prevDefault)) {
     if (nextDefault === null) {
       stmts.push(`ALTER TABLE ${table} ALTER COLUMN ${q(col.name)} DROP DEFAULT;`)
@@ -496,63 +503,12 @@ export function buildDdl(engine: DbEngine, op: DdlOperation): string[] {
       const kw = op.routineKind === 'procedure' ? 'PROCEDURE' : 'FUNCTION'
       // Postgres needs the argument list to disambiguate overloaded functions.
       const sig =
-        engine === 'postgres' && op.routineKind === 'function'
-          ? op.signature ?? ''
-          : ''
+        engine === 'postgres' && op.routineKind === 'function' ? (op.signature ?? '') : ''
       return [`DROP ${kw} ${name}${sig};`]
     }
   }
 }
 
 export function engineColumnTypes(engine: DbEngine): string[] {
-  if (engine === 'postgres') {
-    return [
-      'integer',
-      'bigint',
-      'serial',
-      'bigserial',
-      'text',
-      'varchar(255)',
-      'boolean',
-      'numeric(10,2)',
-      'date',
-      'timestamp',
-      'timestamptz',
-      'jsonb',
-      'uuid'
-    ]
-  }
-  if (engine === 'oracle') {
-    return [
-      'NUMBER',
-      'NUMBER(10)',
-      'NUMBER(10,2)',
-      'INTEGER',
-      'VARCHAR2(255)',
-      'VARCHAR2(4000)',
-      'NVARCHAR2(255)',
-      'CLOB',
-      'DATE',
-      'TIMESTAMP',
-      'TIMESTAMP WITH TIME ZONE',
-      'CHAR(1)',
-      'RAW(16)'
-    ]
-  }
-  if (engine === 'sqlite') {
-    return ['INTEGER', 'TEXT', 'REAL', 'BLOB', 'NUMERIC']
-  }
-  return [
-    'INT',
-    'BIGINT',
-    'VARCHAR(255)',
-    'TEXT',
-    'BOOLEAN',
-    'DECIMAL(10,2)',
-    'DATE',
-    'DATETIME',
-    'TIMESTAMP',
-    'JSON',
-    'BLOB'
-  ]
+  return columnTypeCatalog(engine).map((spec) => formatColumnType(spec, {}))
 }

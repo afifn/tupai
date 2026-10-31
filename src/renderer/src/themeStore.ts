@@ -38,16 +38,19 @@ export function storeTheme(id: ThemeId): void {
 // switch back to a shipped theme can remove exactly what it added instead of
 // guessing which custom properties belong to the theme.
 let appliedCustomTokens: string[] = []
+// The last state written to the document. Settings are saved on every control
+// change, and re-removing and re-adding the palette on an unrelated change made
+// the whole window repaint for a frame, which reads as a blink.
+let appliedSignature = ''
 
 export function applyTheme(id: ThemeId, custom?: CustomTheme): void {
   const root = document.documentElement
-  for (const token of appliedCustomTokens) root.style.removeProperty(token)
-  appliedCustomTokens = []
-
   const theme = themeById(id)
-  root.dataset.theme = theme.base
-  if (theme.preset) root.dataset.themePreset = theme.preset
-  else delete root.dataset.themePreset
+  // The custom theme has no CSS block, so its base comes from the variant the
+  // user is editing. Without this the dark palette could be saved and edited
+  // while the app kept rendering the light one.
+  const base = id === 'custom' ? (custom?.base ?? 'light') : theme.base
+  const preset = theme.preset ?? null
 
   // `custom` has no CSS block: its palette is resolved from the settings file
   // and written as inline custom properties on top of the base palette.
@@ -57,14 +60,29 @@ export function applyTheme(id: ThemeId, custom?: CustomTheme): void {
   // unreadable value here would repaint the dialog itself white-on-white before
   // the user could see the warning. The editor previews on its own subtree
   // instead; the app follows once the palette is valid.
+  const tokens: Record<string, string> = {}
   if (id === 'custom' && custom) {
-    const tokens = resolvePalette(theme.base, custom[theme.base].tokens)
-    const valid = validatePalette(tokens).ok
-    const applied = valid ? tokens : resolvePalette(theme.base, {})
-    for (const [token, value] of Object.entries(applied)) {
-      root.style.setProperty(token, value)
-      appliedCustomTokens.push(token)
-    }
+    const resolved = resolvePalette(base, custom[base].tokens)
+    Object.assign(
+      tokens,
+      validatePalette(resolved).ok ? resolved : resolvePalette(base, {})
+    )
+  }
+
+  const signature = JSON.stringify([base, preset, tokens])
+  if (signature === appliedSignature) return
+  appliedSignature = signature
+
+  for (const token of appliedCustomTokens) root.style.removeProperty(token)
+  appliedCustomTokens = []
+
+  root.dataset.theme = base
+  if (preset) root.dataset.themePreset = preset
+  else delete root.dataset.themePreset
+
+  for (const [token, value] of Object.entries(tokens)) {
+    root.style.setProperty(token, value)
+    appliedCustomTokens.push(token)
   }
 }
 

@@ -81,16 +81,20 @@ export function isNewerVersion(current: string, candidate: string): boolean {
   return compareVersions(candidate, current) > 0
 }
 
+/** True when GitHub has no release feed for this repository yet. */
+export function isMissingReleaseFeedError(message: string): boolean {
+  return /\b404\b/.test(message) && /releases\.atom/.test(message)
+}
+
 /**
  * Turns an updater error into something a user can act on. electron-updater
  * surfaces raw HTTP objects with every response header, which is unreadable in a
- * settings pane; the cases below are the ones that actually happen: no release
- * published yet, no network, and a rejected feed.
+ * settings pane; the cases below are the ones that actually happen: no network
+ * and a rejected feed. A missing GitHub release feed is classified separately
+ * as no available update so the renderer can use its localized latest-version
+ * message.
  */
 export function describeUpdateError(message: string): string {
-  if (/\b404\b/.test(message) && /releases\.atom|releases\/download/.test(message)) {
-    return 'Belum ada rilis yang dipublikasikan.'
-  }
   if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(message)) {
     return 'Tidak bisa menghubungi server pembaruan. Periksa koneksi internet.'
   }

@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, nativeImage, shell } from 'electron'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, renameSync, rmdirSync } from 'fs'
 import { registerDbHandlers, disposeDbHandlers } from './ipc/dbHandlers'
 import { supportsTitleBarOverlay } from './windowChrome'
 import { refreshApplicationMenu } from './menu'
 import { initUpdater, scheduleStartupCheck } from './update/updater'
-import { log } from './logger'
+import { log, configureLogger } from './logger'
+import { readSettings } from './settings/store'
 import { IPC } from '@shared/ipc-contract'
 import { titleBarColorsSchema } from '@shared/schemas'
 import { toIpcResult } from './workers/dbWorkerClient'
@@ -36,27 +37,50 @@ export function titleBarOverlayActive(): boolean {
 import appIcon from '../../build/icon.png?asset'
 
 // The product used to be called "DB Manager" and its data lived in a
-// `db-manager` folder. Electron derives that folder from the product name, so
-// renaming to "Tupai" would silently start a new profile with no connections.
+// `db-manager` folder. Electron derives the profile folder from the product
+// name, so the old app kept reading that folder while a rename to "Tupai" would
+// silently start a new profile with no connections.
 //
-// Copying the folder is not safe: passwords and the AI key are encrypted with
-// a DPAPI key stored in Chromium's `Local State`, and a copied ciphertext only
-// decrypts against the exact key that produced it. Moving the folder without
-// that key makes every saved password unreadable.
+// The whole folder is moved in one rename, including Chromium's `Local State`.
+// Passwords and the AI key are encrypted against the key stored there, so
+// moving only some files, or copying without the key, would make every saved
+// secret unreadable.
 //
-// Pointing userData at the existing folder instead keeps every key valid. New
-// installs, which have no legacy folder, get the new `Tupai` location.
-const legacyUserData = join(app.getPath('appData'), 'db-manager')
 // An explicit --user-data-dir is a deliberate choice (portable profile, smoke
-// test); redirecting it to the legacy folder would read and write the user's
-// real connections instead. Electron applies the switch before this point, so
-// a userData path that is not the default one means the switch was passed.
+// test); this block only runs when the profile is still the default one.
+const legacyUserData = join(app.getPath('appData'), 'db-manager')
 const defaultUserData = join(app.getPath('appData'), app.name)
-if (
-  app.getPath('userData') === defaultUserData &&
-  existsSync(join(legacyUserData, 'connections.json'))
-) {
-  app.setPath('userData', legacyUserData)
+if (app.getPath('userData') === defaultUserData) {
+  if (!existsSync(legacyUserData)) {
+    // Nothing to migrate.
+  } else if (!existsSync(defaultUserData)) {
+    try {
+      renameSync(legacyUserData, defaultUserData)
+    } catch {
+      // A locked folder (another copy of the app still running) must not make
+      // the profile unreachable; fall back to the old path for this launch.
+      app.setPath('userData', legacyUserData)
+    }
+  } else {
+    // Electron may have created an empty target before this point; removing it
+    // lets the rename still carry the whole legacy profile across.
+    let empty = false
+    try {
+      empty = readdirSync(defaultUserData).length === 0
+    } catch {
+      empty = false
+    }
+    if (empty) {
+      try {
+        rmdirSync(defaultUserData)
+        renameSync(legacyUserData, defaultUserData)
+      } catch {
+        // Keep the new (empty) profile rather than risk a partial move.
+      }
+    }
+    // When both folders hold data, keep the new one and leave the legacy folder
+    // untouched instead of merging two profiles and their encryption keys.
+  }
 }
 
 // The database worker cannot import electron, but it needs the same userData
@@ -209,9 +233,11 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Runs before any store reads userData, so a renamed product keeps its
   // connections and saved queries.
+  const settings = await readSettings()
+  configureLogger(settings.logs)
   log('info', 'app ready')
   // Built from the saved keymap so the menu shows the shortcuts the app really
   // listens for, including any the user rebound.

@@ -1013,6 +1013,19 @@ export interface AppInfo {
   logFile: string
 }
 
+export interface LogFileInfo {
+  name: string
+  size: number
+  modifiedAt: string
+}
+
+/** The Logs folder as the settings page shows it. */
+export interface LogFilesInfo {
+  dir: string
+  active: string
+  files: LogFileInfo[]
+}
+
 // Update lifecycle as the renderer sees it. `manual` is true when this build
 // cannot replace itself (unsigned macOS), so the panel offers a download link
 // instead of an install button.
@@ -1064,6 +1077,10 @@ export type MenuAction =
   | 'edit.selectAll'
   | 'update.check'
   | 'about.open'
+  | 'help.docs'
+  | 'help.changelog'
+  | 'help.issue'
+  | 'help.shortcuts'
   | 'app.reloadTree'
 
 // Which menu items make sense right now. The renderer owns this knowledge (it

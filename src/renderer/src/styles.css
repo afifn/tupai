@@ -1604,9 +1604,74 @@ button {
 }
 
 .settings-page .settings {
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+}
+
+/* macOS uses a toolbar strip instead of a navigation rail: the traffic lights
+   and app title sit in the header, sections read left to right underneath. */
+.settings-page--mac {
+  grid-template-rows: 44px auto minmax(0, 1fr);
+}
+
+.settings-page--mac .settings-window-titlebar {
+  justify-content: flex-start;
+  padding: 0 16px 0 88px;
+}
+
+.settings-page--mac .settings {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.settings-page--mac .settings__nav {
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-page--mac .settings__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-page--mac .settings__nav-item {
+  flex: 1 0 78px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 58px;
+  padding: 7px 8px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.settings-page--mac .settings__nav-icon {
+  color: var(--text-muted);
+}
+
+.settings-page--mac .settings__nav-item.is-active .settings__nav-icon {
+  color: var(--accent);
+}
+
+.settings-page--mac .settings__pane {
+  width: min(100%, 700px);
+  padding: 28px 32px 36px;
+}
+
+.settings-page--mac .settings__state {
+  padding: 28px 32px;
+}
+
+.settings-page--mac .settings__footer {
+  padding: 12px 32px 16px;
 }
 
 .settings {
@@ -1619,29 +1684,19 @@ button {
 .settings__nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 24px 14px 16px;
+  gap: 3px;
+  padding: 20px 12px 14px;
   border-right: 1px solid var(--border);
   background: var(--surface-muted);
   overflow-y: auto;
 }
 
-.settings__title {
-  margin: 0 0 18px;
-  padding: 0 10px;
-  font-size: 17px;
-  letter-spacing: -0.02em;
-}
-
-.settings__subtitle {
-  margin: -12px 10px 14px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
 .settings__nav-item {
-  min-height: 36px;
-  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 10px;
   border: none;
   border-radius: 4px;
   background: transparent;
@@ -1650,6 +1705,16 @@ button {
   font-size: 13px;
   text-align: left;
   cursor: pointer;
+}
+
+.settings__nav-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.settings__nav-item.is-active .settings__nav-icon {
+  color: var(--accent);
 }
 
 .settings__nav-item:hover {
@@ -1668,18 +1733,6 @@ button {
   font-weight: 600;
 }
 
-.settings__nav-foot {
-  margin-top: auto;
-  padding: 10px 8px 0;
-  border-top: 1px solid var(--border);
-}
-
-.settings__nav-foot .btn {
-  min-height: 36px;
-  white-space: normal;
-  text-align: left;
-}
-
 .settings__body {
   display: flex;
   flex-direction: column;
@@ -1688,47 +1741,27 @@ button {
   background: var(--bg);
 }
 
-.settings__head {
+.settings__footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 92px;
-  padding: 20px clamp(24px, 5vw, 64px);
-  border-bottom: 1px solid var(--border);
-}
-
-.settings__head h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.settings__head h1 {
-  margin: 0;
-  font-size: 23px;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
-
-.settings__eyebrow {
-  margin: 0 0 5px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
+  justify-content: flex-end;
+  padding: 12px clamp(20px, 4vw, 48px) 16px;
+  border-top: 1px solid var(--border);
 }
 
 .settings__state {
   margin: 0;
-  padding: 28px clamp(24px, 5vw, 64px);
+  padding: 24px clamp(20px, 4vw, 48px);
   color: var(--text-muted);
 }
 
 .settings__pane {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 20px;
-  width: min(100%, 860px);
-  padding: 28px clamp(24px, 5vw, 64px) 56px;
+  gap: 18px;
+  width: min(100%, 700px);
+  margin: 0 auto;
+  padding: 28px clamp(20px, 4vw, 48px) 36px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -1871,29 +1904,28 @@ button {
 }
 
 @media (max-width: 760px) {
-  .settings-page .settings {
+  .settings-page:not(.settings-page--mac) .settings {
     grid-template-columns: 176px minmax(0, 1fr);
   }
 
-  .settings__nav {
-    padding: 18px 8px 12px;
+  .settings-page:not(.settings-page--mac) .settings__nav {
+    padding: 16px 8px 12px;
   }
 
-  .settings__head,
   .settings__pane,
   .settings__state {
-    padding-left: 22px;
-    padding-right: 22px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 }
 
 @media (max-width: 560px) {
-  .settings-page .settings {
+  .settings-page:not(.settings-page--mac) .settings {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .settings__nav {
+  .settings-page:not(.settings-page--mac) .settings__nav {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-content: start;
@@ -1903,31 +1935,11 @@ button {
     border-bottom: 1px solid var(--border);
   }
 
-  .settings__title {
-    grid-column: 1 / -1;
-    margin-bottom: 4px;
-  }
-
-  .settings__subtitle {
-    grid-column: 1 / -1;
-    margin: 0 10px 6px;
-  }
-
   .settings__nav-item {
     min-height: 44px;
     padding: 6px;
     text-align: center;
     overflow-wrap: anywhere;
-  }
-
-  .settings__nav-foot {
-    grid-column: 1 / -1;
-    margin-top: 4px;
-    padding: 6px 0 0;
-  }
-
-  .settings__head {
-    min-height: 72px;
   }
 
   .settings__themes,
@@ -1936,6 +1948,9 @@ button {
   }
 }
 
+/* The sample sits beside the colours while there is room for both, and drops
+   under them when the window gets narrow. The settings window can shrink to
+   720px, where side by side would squeeze the colour labels. */
 /* Two-tone chip: the swatch shows the theme's own background and accent without
    needing a screenshot per theme. */
 .settings__swatch {
@@ -1977,24 +1992,32 @@ button {
   font-size: 11.5px;
 }
 
-.settings__color input[type='color'] {
+.settings__color .color-field__trigger {
   grid-area: picker;
-  width: 26px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
 }
 
 .settings__color-name {
   grid-area: name;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
+  color: var(--text-muted);
+}
+
+.settings__color-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The CSS variable is the technical name for the same colour. It stays next to
+   the plain-language label so a value can be copied without hiding what it
+   means. */
+.settings__token {
+  flex-shrink: 0;
   font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -2005,39 +2028,190 @@ button {
   font-size: 11.5px;
 }
 
-/* The contrast report is the gate that stops an unreadable palette, so it is a
-   bordered block rather than a muted line. */
-.settings__contrast {
+.settings__hex.is-invalid {
+  border-color: var(--error);
+}
+
+/* Simple view: three colours on the left, the sample on the right, so a change
+   and its result are visible at the same time. */
+.settings__custom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
+  gap: 14px;
+  align-items: start;
+}
+
+/* The settings window can shrink to 720px, where side by side would squeeze the
+   colour labels, so the sample drops under the colours instead. */
+@media (max-width: 780px) {
+  .settings__custom-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.settings__custom-colours,
+.settings__custom-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings__primary-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.settings__custom-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.settings__preview {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.settings__preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.settings__preview-chip {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 11px;
+}
+
+.settings__preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface);
+}
+
+.settings__preview-text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.settings__preview-muted {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.settings__preview-row {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--selected-bg);
+}
+
+.settings__preview-button {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.settings__preview-notice {
+  padding: 6px 8px;
+  border: 1px solid var(--notice-error-border);
+  border-radius: 4px;
+  background: var(--notice-error-bg);
+  /* Same pairing the real .notice--error uses, so the sample cannot show a
+     combination the app never renders. */
+  color: var(--error);
+}
+
+/* Readability report. One line the user can act on, with the measured ratios
+   behind a disclosure: the numbers help when fixing a colour, but they are not
+   the first thing an ordinary user should have to read. */
+.settings__status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface-muted);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
-.settings__contrast.is-ok {
+.settings__status.is-ready {
   border-color: var(--ok);
 }
 
-.settings__contrast.is-bad {
+.settings__status.is-fix,
+.settings__status.is-error {
   border-color: var(--error);
 }
 
-.settings__contrast p {
+.settings__status-title {
   margin: 0;
+  font-weight: 600;
+  color: var(--text);
 }
 
-.settings__contrast ul {
+.settings__status-hint {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.settings__status-list {
   margin: 4px 0 0;
   padding-left: 16px;
+  font-size: 11.5px;
 }
 
-.settings__contrast li {
+.settings__status-list li {
   color: var(--error);
 }
 
-.settings__contrast li.settings__warning {
+.settings__status-list li.settings__warning {
   color: var(--text-muted);
+}
+
+/* A disclosure that opens a section in place. It is a button, not a checkbox:
+   the state it carries is "is this section open", not a setting to save. */
+.settings__disclosure,
+.settings__link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.settings__disclosure {
+  font-weight: 600;
+}
+
+.settings__disclosure:focus-visible,
+.settings__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .settings__prompt {
@@ -4378,6 +4552,10 @@ body.is-row-resizing {
 
 .designer__grid {
   width: 100%;
+  /* Fixed layout so the column widths below are honoured. With auto layout the
+     type column collapsed to the width of its dropdown, and the parameter
+     fields were pushed onto a second line, doubling the height of those rows. */
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -4400,29 +4578,42 @@ body.is-row-resizing {
 }
 
 .designer__col-name {
-  width: 26%;
+  width: 14%;
 }
 .designer__col-type {
-  width: 20%;
+  width: 16%;
 }
+/* Length and Decimals are their own columns, the way a desktop designer lays
+   them out: one small field each keeps every row on a single line. */
+.designer__col-number {
+  width: 10%;
+}
+/* Only present for the MySQL family, where ENUM/SET exist. */
+.designer__col-values {
+  width: 22%;
+}
+/* No width: with `table-layout: fixed` the remaining percentage columns share
+   whatever is left over. */
 .designer__col-flag {
   width: 56px;
   text-align: center;
 }
 .designer__col-default {
-  width: 20%;
+  width: 12%;
 }
 .designer__col-comment {
-  width: 20%;
+  width: 11%;
 }
 .designer__col-actions {
-  width: 132px;
+  width: 108px;
 }
 
 .designer__row td {
   padding: 3px 6px;
   border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+  /* Top aligned: a type with parameters is two lines tall, and centring the
+     other cells pushed the name and the type below their own row header. */
+  vertical-align: top;
 }
 
 .designer__row:hover td {
@@ -4433,14 +4624,123 @@ body.is-row-resizing {
   text-align: center;
 }
 
+/* Keeps the PK/AI chips and the row buttons on the first line now that the
+   cells are top aligned. Scoped to the designer row so the base padding on
+   td still applies elsewhere. */
+.designer__row .designer__cell-flag {
+  padding-top: 6px;
+}
+
 .designer__cell-actions {
   white-space: nowrap;
   text-align: right;
 }
 
+.designer__row .designer__cell-actions {
+  padding-top: 4px;
+}
+
 .input--cell {
   padding: 4px 6px;
   font-size: 13px;
+}
+
+/* Inputs have to follow their fixed column instead of their intrinsic size. */
+.designer__row .input--cell {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Type cell: the dropdown, plus the raw field when the column uses a type the
+   catalog does not know. */
+.designer__type {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.designer__type > select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Length / Decimals cells: a plain narrow number field. The spin buttons are
+   dropped because they covered the value in a field this small. */
+.designer__cell-number .input--cell {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 5px;
+  font-size: 12.5px;
+}
+
+.designer__cell-number input[type='number']::-webkit-inner-spin-button,
+.designer__cell-number input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* Value cell: the list preview is an input so it lines up with the other
+   fields, and opens the editor on click or Enter. The list itself is edited in
+   a dialog because a value may contain a comma. */
+.designer__values {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.designer__values-field-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  /* A long list is cut with an ellipsis instead of ending mid-quote; the full
+     text is in the tooltip and in the editor. */
+  text-overflow: ellipsis;
+  /* Reads as a picker rather than a text field the user can type into. */
+  background: var(--surface-muted);
+}
+
+.designer__values .btn {
+  flex-shrink: 0;
+}
+
+/* The ENUM/SET editor: one value per line, with the SQL it produces below. */
+.designer__values-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.designer__values-input {
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
+  font-size: 12.5px;
+  resize: vertical;
+}
+
+/* SQL preview inside the ENUM/SET editor. */
+.designer__values-preview {
+  margin: 8px 0 0;
+}
+
+.designer__values-preview code {
+  display: block;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
+/* The raw type gets the full type column, so a long definition is readable. */
+.designer__type-raw {
+  width: 100%;
+  min-width: 0;
+  font-family: 'Consolas', 'SFMono-Regular', monospace;
 }
 
 .input--tight {
@@ -7790,5 +8090,227 @@ body.is-diagram-dragging .diagram__card {
 @media (max-width: 980px) {
   .diagram__zoom-hint {
     display: none;
+  }
+}
+
+/* Editor settings: label column on the left, controls on the right, with the
+   preview underneath. The preview is the point of the page, so it gets the full
+   width instead of being squeezed beside the controls. */
+.settings__editor-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: start;
+}
+
+.settings__editor-row-label {
+  padding-top: 5px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.settings__editor-row-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.settings__editor-checks {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.settings__editor-font {
+  min-width: 220px;
+}
+
+/* One swatch per syntax role, with the name under it. A colour input alone does
+   not say what it changes. */
+.settings__syntax {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings__syntax-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* In-app colour picker. The platform panel lives outside the page and ended up
+   behind the Settings window, so the picker, its square, and its presets are
+   ordinary elements here. Black and white are keywords because styles.css must
+   not carry colour literals. */
+.color-field__trigger {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-field__trigger--md {
+  width: 54px;
+  height: 26px;
+  border-radius: 999px;
+}
+
+.color-field__trigger--sm {
+  width: 26px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.color-field__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.color-field__popover {
+  position: fixed;
+  z-index: 55;
+  width: 236px;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.color-field__sv {
+  position: relative;
+  height: 122px;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.color-field__sv-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.color-field__hue {
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  margin: 10px 0 0;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(0 100% 50%),
+    hsl(60 100% 50%),
+    hsl(120 100% 50%),
+    hsl(180 100% 50%),
+    hsl(240 100% 50%),
+    hsl(300 100% 50%),
+    hsl(360 100% 50%)
+  );
+  cursor: pointer;
+}
+
+.color-field__hue::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--hue-color);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.color-field__hex {
+  width: 100%;
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+}
+
+.color-field__presets {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.color-field__preset {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.color-field__preset:hover {
+  outline: 1px solid var(--text-muted);
+  outline-offset: 1px;
+}
+
+.color-field__preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Preview: the sample is the editor itself, so every colour and metric here
+   comes from the settings above it. */
+.settings__editor-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 190px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  line-height: 1.6;
+}
+
+.settings__editor-preview-lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 2.6em;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  color: inherit;
+  opacity: 0.55;
+  text-align: right;
+  user-select: none;
+}
+
+.settings__editor-preview-code {
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+}
+
+.settings__editor-preview-code code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+@media (max-width: 700px) {
+  .settings__editor-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .settings__editor-row-label {
+    padding-top: 0;
+    text-align: left;
   }
 }

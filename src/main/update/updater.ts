@@ -7,6 +7,7 @@ import type { UpdateState } from '@shared/types'
 import {
   canAutoInstall,
   describeUpdateError,
+  isMissingReleaseFeedError,
   isDeveloperSigned,
   manualDownloadUrl
 } from '@shared/update'
@@ -81,9 +82,13 @@ async function computeManual(): Promise<boolean> {
   return !canAutoInstall(process.platform, app.isPackaged, await isSigned())
 }
 
-function describeError(err: unknown): string {
+function handleUpdateError(err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
-  return describeUpdateError(message)
+  if (isMissingReleaseFeedError(message)) {
+    setState({ phase: 'not-available', checkedAt: new Date().toISOString() })
+    return
+  }
+  setState({ phase: 'error', message: describeUpdateError(message) })
 }
 
 export async function initUpdater(): Promise<void> {
@@ -149,7 +154,7 @@ export async function initUpdater(): Promise<void> {
     setState({ phase: 'downloaded', version: info.version, percent: 100 })
   })
   autoUpdater.on('error', (err: Error) => {
-    setState({ phase: 'error', message: describeError(err) })
+    handleUpdateError(err)
   })
 
   setState({ phase: 'idle' })
@@ -169,7 +174,7 @@ export async function checkForUpdates(): Promise<UpdateState> {
   } catch (err) {
     // An offline machine is the normal case here, so the message is kept short
     // and the phase stays recoverable by checking again.
-    setState({ phase: 'error', message: describeError(err) })
+    handleUpdateError(err)
   }
   return state
 }
@@ -183,7 +188,7 @@ export async function downloadUpdate(): Promise<UpdateState> {
   try {
     await autoUpdater.downloadUpdate()
   } catch (err) {
-    setState({ phase: 'error', message: describeError(err) })
+    handleUpdateError(err)
   }
   return state
 }

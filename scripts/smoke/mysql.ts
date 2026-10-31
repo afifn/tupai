@@ -8,6 +8,7 @@ import { exportTable, importCsv } from '../../src/main/io/handlers'
 import { backupDatabase } from '../../src/main/io/backup'
 import { dumpDatabase } from '../../src/main/io/databaseDump'
 import { buildDdl } from '../../src/shared/ddl'
+import { catalogColumnName, catalogColumns } from './typeCatalog'
 import type { ConnectionConfig } from '../../src/shared/types'
 
 const results: { name: string; ok: boolean; detail?: string }[] = []
@@ -485,6 +486,49 @@ async function main(): Promise<void> {
     JSON.stringify(afterDdl.map((tx) => tx.transactionId))
   )
   await txQuery(`DROP TABLE ${DB}.tx_ddl`)
+
+  // --- every type the designer offers can build a real table ---
+  const catalogCols = catalogColumns('mysql')
+  const catalogSql = buildDdl('mysql', {
+    kind: 'createTable',
+    database: DB,
+    table: 'type_catalog',
+    columns: catalogCols
+  })
+  await call('runQuery', {
+    connectionId: conn.id,
+    database: DB,
+    sql: catalogSql.join('\n'),
+    maxRows: 1
+  })
+  const catalogCreated = await call<{ name: string; dataType: string }[]>('listColumns', {
+    connectionId: conn.id,
+    database: DB,
+    table: 'type_catalog'
+  })
+  check(
+    'every catalog type creates a column',
+    catalogCreated.length === catalogCols.length,
+    `${catalogCreated.length}/${catalogCols.length}`
+  )
+  const catalogTypeOf = (type: string): string =>
+    catalogCreated.find((c) => c.name === catalogColumnName('mysql', type))?.dataType ??
+    ''
+  check(
+    'VARCHAR keeps its length',
+    catalogTypeOf('VARCHAR').toLowerCase() === 'varchar(255)',
+    catalogTypeOf('VARCHAR')
+  )
+  check(
+    'DECIMAL carries precision and scale',
+    catalogTypeOf('DECIMAL').toLowerCase() === 'decimal(10,2)',
+    catalogTypeOf('DECIMAL')
+  )
+  check(
+    'ENUM stores its value list',
+    catalogTypeOf('ENUM').toLowerCase() === "enum('a','b')",
+    catalogTypeOf('ENUM')
+  )
 
   await call('runQuery', {
     connectionId: conn.id,

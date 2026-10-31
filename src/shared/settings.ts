@@ -3,6 +3,8 @@ import type { Locale } from './i18n'
 import { LOCALES } from './i18n'
 import { KEYMAP_ACTIONS, DEFAULT_KEYMAP, type ActionId, type Keymap } from './keymap'
 import type { ThemeId } from './themeTokens'
+import type { EditorSyntaxColors } from './editorColors'
+import type { LogLevelName } from './logs'
 
 // One settings object for the whole app. It lives in the main process so it can
 // be written atomically next to the other stores, exported as one file, and
@@ -33,11 +35,24 @@ export interface EditorSettings {
   lineNumbers: boolean
   // Cmd+Enter runs only the selection when true, the whole tab otherwise.
   runSelection: boolean
+  // Editor syntax colours. Empty keeps the shipped colours for the app theme.
+  syntaxColors: EditorSyntaxColors
 }
 
 export interface GridSettings {
   fontSize: number
   pageSize: number
+}
+
+/**
+ * How much the app writes to its daily log files, and how long those files are
+ * kept. The level is a floor: `warn` also keeps errors, `error` keeps only
+ * failures. Sizes are in megabytes so the value stays readable in the UI.
+ */
+export interface LogSettings {
+  level: LogLevelName
+  maxFileSizeMb: number
+  maxFiles: number
 }
 
 export interface AiSettingsShape {
@@ -61,6 +76,12 @@ export interface CustomPalette {
 }
 
 export interface CustomTheme {
+  /**
+   * Which variant the app renders while the custom theme is active. Without it
+   * the dark palette could be edited and never shown, because the theme itself
+   * has no CSS block to pick a base from.
+   */
+  base: 'light' | 'dark'
   light: CustomPalette
   dark: CustomPalette
 }
@@ -74,6 +95,7 @@ export interface AppSettings {
   keymap: Keymap
   customTheme: CustomTheme
   oracle: OracleSettings
+  logs: LogSettings
 }
 
 /**
@@ -110,7 +132,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     wordWrap: false,
     minimap: false,
     lineNumbers: true,
-    runSelection: true
+    runSelection: true,
+    syntaxColors: {}
   },
   grid: {
     fontSize: 12,
@@ -126,8 +149,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     previewRows: true
   },
   keymap: { ...DEFAULT_KEYMAP },
-  customTheme: { light: { tokens: {} }, dark: { tokens: {} } },
-  oracle: { clientLibDir: '' }
+  customTheme: { base: 'light', light: { tokens: {} }, dark: { tokens: {} } },
+  oracle: { clientLibDir: '' },
+  logs: {
+    level: 'info',
+    maxFileSizeMb: 5,
+    maxFiles: 14
+  }
 }
 
 const paletteSchema = z.object({
@@ -165,7 +193,37 @@ export const appSettingsSchema = z.object({
     wordWrap: z.boolean(),
     minimap: z.boolean(),
     lineNumbers: z.boolean(),
-    runSelection: z.boolean()
+    runSelection: z.boolean(),
+    // Each key is optional: a stored palette may set one colour and keep the
+    // shipped value for the rest.
+    syntaxColors: z
+      .object({
+        common: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional(),
+        keyword: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional(),
+        comment: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional(),
+        string: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional(),
+        number: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional(),
+        background: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{6})$/)
+          .optional()
+      })
+      .default({})
   }),
   grid: z.object({
     fontSize: z.number().int().min(11).max(16),
@@ -182,6 +240,9 @@ export const appSettingsSchema = z.object({
   }),
   keymap: z.object(keymapShape),
   customTheme: z.object({
+    // A settings file written before the custom theme had a variant has no
+    // `base`; defaulting keeps that file valid instead of rejecting it.
+    base: z.enum(['light', 'dark']).default('light'),
     light: paletteSchema,
     dark: paletteSchema
   }),
@@ -189,7 +250,18 @@ export const appSettingsSchema = z.object({
     // Empty means thin mode. The path is only a folder; the driver resolves the
     // library file itself and reports what it could not find.
     clientLibDir: z.string().max(500)
-  })
+  }),
+  logs: z
+    .object({
+      // A floor, not a filter: `warn` keeps warnings and errors.
+      level: z.enum(['info', 'warn', 'error']),
+      maxFileSizeMb: z.number().int().min(1).max(50),
+      // Enough history for a fortnight by default without filling the disk.
+      maxFiles: z.number().int().min(1).max(100)
+    })
+    // A settings file written before the Log section existed must keep every
+    // other preference instead of being rejected as a whole.
+    .default(DEFAULT_SETTINGS.logs)
 })
 
 /**
@@ -211,10 +283,12 @@ export function mergeSettings(raw: unknown): AppSettings {
     ai: { ...DEFAULT_SETTINGS.ai, ...value.ai },
     keymap: { ...DEFAULT_SETTINGS.keymap, ...value.keymap },
     customTheme: {
+      base: value.customTheme.base,
       light: { tokens: value.customTheme.light.tokens },
       dark: { tokens: value.customTheme.dark.tokens }
     },
-    oracle: { ...DEFAULT_SETTINGS.oracle, ...value.oracle }
+    oracle: { ...DEFAULT_SETTINGS.oracle, ...value.oracle },
+    logs: { ...DEFAULT_SETTINGS.logs, ...value.logs }
   }
 }
 
@@ -237,15 +311,20 @@ export function structuredCloneSettings(settings: AppSettings): AppSettings {
   return {
     general: { ...settings.general },
     display: { ...settings.display },
-    editor: { ...settings.editor },
+    editor: {
+      ...settings.editor,
+      syntaxColors: { ...settings.editor.syntaxColors }
+    },
     grid: { ...settings.grid },
     ai: { ...settings.ai, models: [...settings.ai.models] },
     keymap: { ...settings.keymap },
     customTheme: {
+      base: settings.customTheme.base,
       light: { tokens: { ...settings.customTheme.light.tokens } },
       dark: { tokens: { ...settings.customTheme.dark.tokens } }
     },
-    oracle: { ...settings.oracle }
+    oracle: { ...settings.oracle },
+    logs: { ...settings.logs }
   }
 }
 

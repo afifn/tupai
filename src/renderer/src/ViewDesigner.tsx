@@ -4,7 +4,7 @@ import { unwrap } from './api'
 import { useLocale } from './i18n'
 import { useSettings } from './settingsStore'
 import { confirmDestructive } from './confirm'
-import { monaco } from './monacoSetup'
+import { monaco, EDITOR_THEME_NAME } from './monacoSetup'
 
 export interface ViewDesignerResult {
   created?: { database: string; schema?: string; view: string }
@@ -15,7 +15,6 @@ interface CreateProps {
   mode: 'create'
   connectionId: string
   engine: string
-  theme: string
   database: string
   schema?: string
   onCancel: () => void
@@ -26,7 +25,6 @@ interface EditProps {
   mode: 'edit'
   connectionId: string
   engine: string
-  theme: string
   database: string
   schema?: string
   view: string
@@ -46,7 +44,7 @@ const STARTER: Record<string, string> = {
 export function ViewDesigner(props: Props): JSX.Element {
   const { tr, errorText } = useLocale()
   const { settings } = useSettings()
-  const { connectionId, engine, theme } = props
+  const { connectionId, engine } = props
   const [name, setName] = useState(props.mode === 'edit' ? props.view : '')
   const [sql, setSql] = useState('')
   const [loading, setLoading] = useState(props.mode === 'edit')
@@ -247,7 +245,7 @@ export function ViewDesigner(props: Props): JSX.Element {
           <Editor
             height="100%"
             language="sql"
-            theme={theme === 'dark' ? 'vs-dark' : 'vs'}
+            theme={EDITOR_THEME_NAME}
             value={sql}
             onChange={(v) => setSql(v ?? '')}
             options={{
@@ -259,7 +257,6 @@ export function ViewDesigner(props: Props): JSX.Element {
               scrollBeyondLastLine: false,
               automaticLayout: true
             }}
-            beforeMount={(m) => m.editor.setTheme(theme === 'dark' ? 'vs-dark' : 'vs')}
             onMount={(editor) => {
               editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
                 void handleSave()

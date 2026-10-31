@@ -45,6 +45,7 @@ import { confirmAction } from './confirm'
 import { commitsImplicitly } from '@shared/transactionGuard'
 import { splitStatements } from '@shared/sqlBoundary'
 import { useSettings } from './settingsStore'
+import { EDITOR_THEME_NAME } from './monacoSetup'
 import { shortcutLabel } from './platform'
 import {
   getTables,
@@ -56,7 +57,6 @@ import {
 interface Props {
   connectionId: string
   engine: string
-  theme: string
   savedId?: string
   savedName?: string
   initialSql?: string
@@ -202,7 +202,6 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
   {
     connectionId,
     engine,
-    theme,
     savedId,
     savedName,
     initialSql,
@@ -1236,7 +1235,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
               path={active.id}
               defaultLanguage="sql"
               language="sql"
-              theme={theme === 'dark' ? 'vs-dark' : 'vs'}
+              theme={EDITOR_THEME_NAME}
               value={active.sql}
               onChange={(value) => updateTab(active.id, { sql: value ?? '' })}
               options={{

@@ -31,6 +31,34 @@ describe('mergeSettings', () => {
     expect(merged.general.themeId).toBe('dark')
   })
 
+  it('adds log defaults without discarding an older settings file', () => {
+    const old = structuredCloneSettings(DEFAULT_SETTINGS) as Record<string, unknown>
+    old.editor = { ...DEFAULT_SETTINGS.editor, fontSize: 16 }
+    delete old.logs
+    const merged = mergeSettings(old)
+    expect(merged.logs).toEqual(DEFAULT_SETTINGS.logs)
+    expect(merged.editor.fontSize).toBe(16)
+  })
+
+  it('reads a custom palette saved before it had a variant', () => {
+    // Without the fallback the whole file would be rejected and every other
+    // preference with it.
+    const old = structuredCloneSettings(DEFAULT_SETTINGS) as Record<string, unknown>
+    old.customTheme = { light: { tokens: {} }, dark: { tokens: {} } }
+    const merged = mergeSettings(old)
+    expect(merged.customTheme.base).toBe('light')
+    expect(merged.customTheme.dark.tokens).toEqual({})
+  })
+
+  it('rejects log limits outside the supported range', () => {
+    const settings = structuredCloneSettings(DEFAULT_SETTINGS)
+    settings.logs.maxFiles = 0
+    expect(appSettingsSchema.safeParse(settings).success).toBe(false)
+    settings.logs.maxFiles = 14
+    settings.logs.maxFileSizeMb = 51
+    expect(appSettingsSchema.safeParse(settings).success).toBe(false)
+  })
+
   it('falls back to every default when the file is corrupt', () => {
     // One bad value must not throw away the rest of the file, but a file that is
     // not an object at all has nothing worth keeping.

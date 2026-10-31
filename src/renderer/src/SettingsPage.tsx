@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { AiSettings, AiSettingsInput, AppInfo, UpdateState } from '@shared/types'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import type {
+  AiSettings,
+  AiSettingsInput,
+  AppInfo,
+  LogFilesInfo,
+  UpdateState
+} from '@shared/types'
 import type { AppSettings } from '@shared/settings'
 import { MONO_FONTS } from '@shared/settings'
 import {
@@ -10,34 +16,71 @@ import {
 } from '@shared/keymap'
 import {
   CHROME_GROUPS,
-  CORE_TOKENS,
+  PRIMARY_TOKENS,
   derivePalette,
-  validatePalette
+  malformedTokens,
+  resolvePalette,
+  tokenLabelKey,
+  validatePalette,
+  type PaletteBase
 } from '@shared/customTheme'
+import { parseColor } from '@shared/contrast'
+import {
+  EDITOR_SYNTAX_KEYS,
+  isCustomSyntax,
+  resolveSyntaxColors,
+  type EditorSyntaxKey
+} from '@shared/editorColors'
 import { LOCALE_LABELS, LOCALES, type Locale } from '@shared/i18n'
 import type { MessageKey } from '@shared/i18n'
-import { THEMES, type ThemeId } from './theme'
+import { THEMES, themeBase, themeById, type ThemeId } from './theme'
 import { useSettings } from './settingsStore'
 import { useLocale } from './i18n'
+import { ColorField } from './ColorField'
 import { useFocusTrap } from './useFocusTrap'
 import { unwrap } from './api'
 import { sameClientDir } from '@shared/oracleClientPath'
+import {
+  IconActivity,
+  IconChat,
+  IconDatabase,
+  IconInfo,
+  IconKey,
+  IconPencil,
+  IconSettings,
+  IconSun,
+  IconTable
+} from './Icons'
 import brandMark from './assets/brand/tupai.png'
+import type { CSSProperties, ComponentType } from 'react'
 
 export type SettingsSectionId =
-  'general' | 'appearance' | 'editor' | 'grid' | 'oracle' | 'ai' | 'keymap' | 'about'
+  | 'general'
+  | 'appearance'
+  | 'editor'
+  | 'grid'
+  | 'oracle'
+  | 'ai'
+  | 'keymap'
+  | 'log'
+  | 'about'
 
-const SECTIONS: { id: SettingsSectionId; labelKey: MessageKey }[] = [
-  { id: 'general', labelKey: 'settings.section.general' },
-  { id: 'appearance', labelKey: 'settings.section.appearance' },
-  { id: 'editor', labelKey: 'settings.section.editor' },
-  { id: 'grid', labelKey: 'settings.section.grid' },
+const SECTIONS: {
+  id: SettingsSectionId
+  labelKey: MessageKey
+  Icon: ComponentType<{ size?: number }>
+}[] = [
+  { id: 'general', labelKey: 'settings.section.general', Icon: IconSettings },
+  { id: 'appearance', labelKey: 'settings.section.appearance', Icon: IconSun },
+  { id: 'editor', labelKey: 'settings.section.editor', Icon: IconPencil },
+  { id: 'grid', labelKey: 'settings.section.grid', Icon: IconTable },
   // Oracle is the only engine that may need a client library, so it gets its
   // own section instead of a footnote in General.
-  { id: 'oracle', labelKey: 'settings.section.oracle' },
-  { id: 'ai', labelKey: 'settings.section.ai' },
-  { id: 'keymap', labelKey: 'settings.section.keymap' },
-  { id: 'about', labelKey: 'settings.section.about' }
+  { id: 'oracle', labelKey: 'settings.section.oracle', Icon: IconDatabase },
+  { id: 'ai', labelKey: 'settings.section.ai', Icon: IconChat },
+  { id: 'keymap', labelKey: 'settings.section.keymap', Icon: IconKey },
+  { id: 'log', labelKey: 'settings.section.log', Icon: IconActivity },
+  { id: 'about', labelKey: 'settings.section.about', Icon: IconInfo }
 ]
 
 interface Props {
@@ -133,6 +176,9 @@ export function SettingsPage({ initialSection = 'general' }: Props): JSX.Element
   )
 
   const index = SECTIONS.findIndex((entry) => entry.id === section)
+  // macOS System Settings puts its panes in a toolbar strip; Windows and Linux
+  // keep the left rail their users already know from other settings apps.
+  const isMac = window.dbApi.platform === 'darwin'
 
   function move(delta: number): void {
     const next = SECTIONS[(index + delta + SECTIONS.length) % SECTIONS.length]
@@ -144,61 +190,60 @@ export function SettingsPage({ initialSection = 'general' }: Props): JSX.Element
   }
 
   function onKey(event: React.KeyboardEvent<HTMLElement>): void {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
     if (!(event.target instanceof HTMLButtonElement)) return
+    const forward = isMac ? 'ArrowRight' : 'ArrowDown'
+    const backward = isMac ? 'ArrowLeft' : 'ArrowUp'
+    if (event.key !== forward && event.key !== backward) return
     event.preventDefault()
-    move(event.key === 'ArrowDown' ? 1 : -1)
+    move(event.key === forward ? 1 : -1)
   }
 
   return (
-    <main className="settings-page" onKeyDown={onKey}>
+    <main
+      className={`settings-page${isMac ? ' settings-page--mac' : ''}`}
+      onKeyDown={onKey}
+    >
       <header
         className="settings-window-titlebar"
         ref={titlebarRef}
         style={{ paddingRight: titlebarInset }}
       >
-        <span>Tupai</span>
+        <span>{isMac ? tr('settings.title') : 'Tupai'}</span>
       </header>
       <div className="settings">
         <nav
           className="settings__nav"
           aria-label={tr('settings.sectionNav')}
+          aria-orientation={isMac ? 'horizontal' : 'vertical'}
+          role="tablist"
           ref={navRef}
         >
-          <h2 className="settings__title">Tupai</h2>
-          <p className="settings__subtitle">{tr('settings.title')}</p>
           {SECTIONS.map((entry) => (
             <button
               key={entry.id}
               type="button"
+              role="tab"
+              id={`settings-tab-${entry.id}`}
+              aria-controls="settings-panel"
               data-section={entry.id}
+              aria-selected={entry.id === section}
               className={`settings__nav-item${entry.id === section ? ' is-active' : ''}`}
-              aria-current={entry.id === section ? 'page' : undefined}
               onClick={() => setSection(entry.id)}
             >
-              {tr(entry.labelKey)}
+              <span className="settings__nav-icon" aria-hidden="true">
+                <entry.Icon size={isMac ? 19 : 15} />
+              </span>
+              <span className="settings__nav-label">{tr(entry.labelKey)}</span>
             </button>
           ))}
-          <div className="settings__nav-foot">
-            <button
-              className="btn btn--ghost btn--tiny"
-              onClick={() => setResetConfirm(true)}
-              title={tr('settings.resetDetail')}
-              ref={resetButtonRef}
-            >
-              {tr('settings.resetAll')}
-            </button>
-          </div>
         </nav>
 
-        <section className="settings__body" aria-labelledby="settings-current-section">
-          <header className="settings__head">
-            <div>
-              <p className="settings__eyebrow">{tr('settings.title')}</p>
-              <h1 id="settings-current-section">{tr(SECTIONS[index].labelKey)}</h1>
-            </div>
-          </header>
-
+        <section
+          className="settings__body"
+          id="settings-panel"
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${section}`}
+        >
           {error && (
             <p className="notice notice--error" role="alert">
               {tr('settings.saveFailed', { message: error })}
@@ -223,9 +268,22 @@ export function SettingsPage({ initialSection = 'general' }: Props): JSX.Element
             <AiSection key={reloadKey} settings={settings} update={update} />
           ) : section === 'keymap' ? (
             <KeymapSection settings={settings} update={update} />
+          ) : section === 'log' ? (
+            <LogSection settings={settings} update={update} />
           ) : (
             <AboutSection />
           )}
+
+          <footer className="settings__footer">
+            <button
+              className="btn btn--small btn--ghost"
+              onClick={() => setResetConfirm(true)}
+              title={tr('settings.resetDetail')}
+              ref={resetButtonRef}
+            >
+              {tr('settings.resetAll')}
+            </button>
+          </footer>
         </section>
       </div>
       {resetConfirm && (
@@ -370,7 +428,17 @@ function GeneralSection({
 
 function AppearanceSection({ settings, update }: SectionProps): JSX.Element {
   const { tr } = useLocale()
-  const [showPalette, setShowPalette] = useState(settings.general.themeId === 'custom')
+  // The custom chip previews the stored palette, not the colours of whichever
+  // theme is active. Without this a green custom palette showed an orange chip
+  // while a shipped theme was selected, which read as "my colours were lost".
+  const customSwatch = useMemo(() => {
+    const base = settings.customTheme.base ?? 'light'
+    const tokens = resolvePalette(base, settings.customTheme[base].tokens)
+    return {
+      '--swatch-bg': tokens['--surface'],
+      '--swatch-accent': tokens['--accent']
+    } as CSSProperties
+  }, [settings.customTheme])
 
   return (
     <div className="settings__pane">
@@ -386,16 +454,16 @@ function AppearanceSection({ settings, update }: SectionProps): JSX.Element {
               className={`settings__theme${
                 settings.general.themeId === theme.id ? ' is-active' : ''
               }`}
-              onClick={() => {
+              onClick={() =>
                 void update({
                   general: { ...settings.general, themeId: theme.id as ThemeId }
                 })
-                if (theme.id === 'custom') setShowPalette(true)
-              }}
+              }
             >
               <span
                 className="settings__swatch"
                 data-preview-theme={theme.id}
+                style={theme.id === 'custom' ? customSwatch : undefined}
                 aria-hidden
               />
               <span>{tr(theme.labelKey)}</span>
@@ -404,7 +472,9 @@ function AppearanceSection({ settings, update }: SectionProps): JSX.Element {
         </div>
       </fieldset>
 
-      {showPalette && <PaletteEditor settings={settings} update={update} />}
+      {/* Always visible: the section can prepare a palette before the theme is
+          switched on, and it says so instead of hiding behind the theme list. */}
+      <PaletteEditor settings={settings} update={update} />
 
       <fieldset className="settings__group">
         <legend>{tr('settings.appearance.zoom')}</legend>
@@ -438,94 +508,268 @@ function AppearanceSection({ settings, update }: SectionProps): JSX.Element {
 
 function PaletteEditor({ settings, update }: SectionProps): JSX.Element {
   const { tr } = useLocale()
-  const [base, setBase] = useState<'light' | 'dark'>('light')
-  const [core, setCore] = useState<Record<string, string>>({})
+  // The variant being edited is also the one the app renders, so switching to
+  // Dark shows the dark palette immediately instead of only in the preview.
+  const [base, setBase] = useState<PaletteBase>(
+    () => settings.customTheme.base ?? themeById(settings.general.themeId).base
+  )
   const [advanced, setAdvanced] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  // Text of a hex field being typed, keyed by palette and token. Kept apart from
+  // the saved palette so a half-finished value is neither written to disk nor
+  // replaced by the previous colour under the caret.
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
 
   const stored = settings.customTheme[base].tokens
-  // Start from the stored palette, or the derivation of the shipped seed, so
-  // the editor never opens on an empty form.
-  const current = useMemo(
-    () => (Object.keys(stored).length > 0 ? stored : derivePalette(base)),
-    [stored, base]
-  )
+  // Every field shows a real colour: tokens the derivation decided are filled in
+  // here instead of leaving the advanced list full of empty boxes.
+  const current = useMemo(() => resolvePalette(base, stored), [stored, base])
+  const draftKey = (token: string): string => `${base}:${token}`
+  // Saved values plus whatever is being typed: a half-finished code is not on
+  // disk yet, but it still has to be reported or the form would say every colour
+  // is fine while one field plainly is not.
+  const malformed = useMemo(() => {
+    const bad = malformedTokens(stored)
+    for (const [key, value] of Object.entries(drafts)) {
+      if (!key.startsWith(`${base}:`)) continue
+      const token = key.slice(base.length + 1)
+      if (!parseColor(value) && !bad.includes(token)) bad.push(token)
+    }
+    return bad
+  }, [stored, drafts, base])
   const validation = useMemo(() => validatePalette(current), [current])
+  const invalidCode = malformed.length > 0
+  const ready = validation.ok && !invalidCode
+  const active = settings.general.themeId === 'custom'
+  const state = invalidCode ? 'error' : ready ? 'ready' : 'fix'
 
-  function setToken(token: string, value: string): void {
-    setNotice(null)
-    void update({
-      customTheme: { [base]: { tokens: { ...stored, ...current, [token]: value } } }
+  const label = (token: string): string => tr(tokenLabelKey(token))
+
+  function clearDraft(token: string): void {
+    setDrafts((prev) => {
+      if (!(draftKey(token) in prev)) return prev
+      const next = { ...prev }
+      delete next[draftKey(token)]
+      return next
     })
   }
 
-  function derive(): void {
-    const next = derivePalette(base, core as never)
-    setNotice(null)
-    void update({ customTheme: { [base]: { tokens: next } } })
+  function fieldValue(token: string): string {
+    return drafts[draftKey(token)] ?? current[token] ?? ''
   }
+
+  /**
+   * Change one of the three main colours. Everything else is recalculated here,
+   * which is what lets the simple view work without a separate "apply" step.
+   */
+  function applyPrimary(token: string, value: string): void {
+    const core: Record<string, string> = {
+      '--bg': token === '--bg' ? value : current['--bg'],
+      '--text': token === '--text' ? value : current['--text'],
+      '--accent': token === '--accent' ? value : current['--accent']
+    }
+    // A panel colour set by hand in the advanced view survives until the window
+    // background itself changes.
+    if (token !== '--bg' && current['--surface']) core['--surface'] = current['--surface']
+    void update({
+      customTheme: { [base]: { tokens: derivePalette(base, core as never) } }
+    })
+  }
+
+  /** Persist one colour. An unreadable string stays in the field until fixed. */
+  function applyToken(token: string, value: string): void {
+    clearDraft(token)
+    if (!parseColor(value)) return
+    if ((PRIMARY_TOKENS as readonly string[]).includes(token)) {
+      applyPrimary(token, value)
+      return
+    }
+    void update({ customTheme: { [base]: { tokens: { ...current, [token]: value } } } })
+  }
+
+  function colourField(token: string): JSX.Element {
+    const invalid = malformed.includes(token)
+    return (
+      <div key={token} className="settings__color">
+        <span className="settings__color-name">
+          <span className="settings__color-label">{label(token)}</span>
+          <code className="settings__token">{token}</code>
+        </span>
+        <ColorField
+          value={current[token] ?? '#000000'}
+          onChange={(value) => applyToken(token, value)}
+          label={tr('theme.custom.pickerAria', { name: label(token) })}
+          size="sm"
+        />
+        <input
+          className={`input input--tight settings__hex${invalid ? ' is-invalid' : ''}`}
+          value={fieldValue(token)}
+          onChange={(e) => {
+            const value = e.target.value
+            setDrafts((prev) => ({ ...prev, [draftKey(token)]: value }))
+            if (parseColor(value)) applyToken(token, value)
+          }}
+          aria-invalid={invalid || undefined}
+          aria-label={tr('theme.custom.hexAria', { name: label(token) })}
+          spellCheck={false}
+        />
+      </div>
+    )
+  }
+
+  const previewStyle = useMemo(() => {
+    const style: Record<string, string> = {}
+    for (const [token, value] of Object.entries(current)) style[token] = value
+    return style as CSSProperties
+  }, [current])
+
+  const hasDetails = validation.failures.length > 0 || validation.warnings.length > 0
 
   return (
     <fieldset className="settings__group">
       <legend>{tr('theme.custom.title')}</legend>
       <p className="settings__hint">{tr('theme.custom.hint')}</p>
 
-      <div className="settings__row">
-        <span className="settings__label">{tr('theme.custom.mode')}</span>
-        <div className="settings__choices">
-          {(['light', 'dark'] as const).map((value) => (
-            <label key={value} className="settings__choice">
-              <input
-                type="radio"
-                name="palette-base"
-                checked={base === value}
-                onChange={() => setBase(value)}
-              />
-              <span>
-                {value === 'light' ? tr('theme.custom.light') : tr('theme.custom.dark')}
+      <div className="settings__custom-status">
+        <div className="settings__row">
+          <span className="settings__label">{tr('theme.custom.mode')}</span>
+          <div className="settings__choices">
+            {(['light', 'dark'] as const).map((value) => (
+              <label key={value} className="settings__choice">
+                <input
+                  type="radio"
+                  name="palette-base"
+                  checked={base === value}
+                  onChange={() => {
+                    setBase(value)
+                    void update({ customTheme: { base: value } })
+                  }}
+                />
+                <span>
+                  {value === 'light' ? tr('theme.custom.light') : tr('theme.custom.dark')}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+        {active ? (
+          <p className="settings__hint">{tr('theme.custom.inUse')}</p>
+        ) : (
+          <>
+            <button
+              className="btn btn--small"
+              disabled={state !== 'ready'}
+              onClick={() =>
+                void update({
+                  general: { ...settings.general, themeId: 'custom' as ThemeId }
+                })
+              }
+            >
+              {tr('theme.custom.useTheme')}
+            </button>
+            {state !== 'ready' && (
+              <p className="settings__hint">{tr('theme.custom.useThemeBlocked')}</p>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="settings__custom-grid">
+        <div className="settings__custom-colours">
+          <span className="settings__label">{tr('theme.custom.core')}</span>
+          <p className="settings__hint">{tr('theme.custom.coreHint')}</p>
+          <div className="settings__primary-grid">
+            {PRIMARY_TOKENS.map((token) => colourField(token))}
+          </div>
+        </div>
+
+        <div className="settings__custom-preview">
+          <span className="settings__label">{tr('theme.custom.preview')}</span>
+          <div className="settings__preview" style={previewStyle} aria-hidden="true">
+            <div className="settings__preview-bar">
+              <span>{tr('theme.custom.previewTitle')}</span>
+              <span className="settings__preview-chip">
+                {tr('theme.custom.previewChip')}
               </span>
-            </label>
-          ))}
+            </div>
+            <div className="settings__preview-body">
+              <p className="settings__preview-text">{tr('theme.custom.previewText')}</p>
+              <p className="settings__preview-muted">{tr('theme.custom.previewMuted')}</p>
+              <div className="settings__preview-row">
+                {tr('theme.custom.previewSelected')}
+              </div>
+              <span className="settings__preview-button">
+                {tr('theme.custom.previewAction')}
+              </span>
+              <div className="settings__preview-notice">
+                {tr('theme.custom.previewNotice')}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="settings__core">
-        <span className="settings__label">{tr('theme.custom.core')}</span>
-        <div className="settings__core-grid">
-          {CORE_TOKENS.map((token) => (
-            <label key={token} className="settings__color">
-              <input
-                type="color"
-                value={current[token] ?? '#000000'}
-                onChange={(e) => {
-                  setCore((prev) => ({ ...prev, [token]: e.target.value }))
-                  setToken(token, e.target.value)
-                }}
-                aria-label={token}
-              />
-              <span className="settings__color-name">{token.replace('--', '')}</span>
-              <input
-                className="input input--tight settings__hex"
-                value={current[token] ?? ''}
-                onChange={(e) => setToken(token, e.target.value)}
-                spellCheck={false}
-              />
-            </label>
-          ))}
-        </div>
-        <button className="btn btn--ghost btn--tiny" onClick={derive}>
-          {tr('theme.custom.derive')}
-        </button>
+      <div className={`settings__status is-${state}`} role="status">
+        <p className="settings__status-title">
+          {state === 'error'
+            ? tr('theme.custom.badCode')
+            : state === 'ready'
+              ? tr('theme.custom.ready')
+              : tr('theme.custom.needsFix')}
+        </p>
+        <p className="settings__status-hint">
+          {state === 'error'
+            ? tr('theme.custom.badCodeHint', { names: malformed.map(label).join(', ') })
+            : state === 'ready'
+              ? tr('theme.custom.readyHint')
+              : tr('theme.custom.needsFixHint')}
+        </p>
+        {state !== 'ready' && (
+          <p className="settings__status-hint">{tr('theme.custom.pending')}</p>
+        )}
+        {hasDetails && (
+          <>
+            <button
+              className="settings__link"
+              aria-expanded={detailsOpen}
+              onClick={() => setDetailsOpen((open) => !open)}
+            >
+              {detailsOpen ? tr('theme.custom.hideDetails') : tr('theme.custom.details')}
+            </button>
+            {detailsOpen && (
+              <ul className="settings__status-list">
+                {validation.failures.map((failure) => (
+                  <li key={`${failure.fg}:${failure.bg}`}>
+                    {tr('theme.custom.failure', {
+                      fg: label(failure.fg),
+                      bg: label(failure.bg),
+                      ratio: failure.ratio,
+                      min: failure.min
+                    })}
+                  </li>
+                ))}
+                {validation.warnings.map((warning) => (
+                  <li key={`w:${warning.fg}:${warning.bg}`} className="settings__warning">
+                    {tr('theme.custom.warning', {
+                      fg: label(warning.fg),
+                      bg: label(warning.bg),
+                      ratio: warning.ratio
+                    })}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
       </div>
 
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={advanced}
-          onChange={(e) => setAdvanced(e.target.checked)}
-        />
-        <span>{tr('theme.custom.advanced')}</span>
-      </label>
+      <button
+        className="settings__disclosure"
+        aria-expanded={advanced}
+        onClick={() => setAdvanced((open) => !open)}
+      >
+        {advanced ? tr('theme.custom.advancedHide') : tr('theme.custom.advanced')}
+      </button>
 
       {advanced && (
         <>
@@ -533,65 +777,14 @@ function PaletteEditor({ settings, update }: SectionProps): JSX.Element {
           {CHROME_GROUPS.map((group) => (
             <div key={group.id} className="settings__token-group">
               <span className="settings__label">{tr(group.labelKey)}</span>
+              <p className="settings__hint">{tr(group.hintKey)}</p>
               <div className="settings__core-grid">
-                {group.tokens.map((token) => (
-                  <label key={token} className="settings__color">
-                    <input
-                      type="color"
-                      value={current[token] ?? '#000000'}
-                      onChange={(e) => setToken(token, e.target.value)}
-                      aria-label={token}
-                    />
-                    <span className="settings__color-name">
-                      {token.replace('--', '')}
-                    </span>
-                    <input
-                      className="input input--tight settings__hex"
-                      value={current[token] ?? ''}
-                      onChange={(e) => setToken(token, e.target.value)}
-                      spellCheck={false}
-                    />
-                  </label>
-                ))}
+                {group.tokens.map((token) => colourField(token.name))}
               </div>
             </div>
           ))}
         </>
       )}
-
-      <div
-        className={`settings__contrast${validation.ok ? ' is-ok' : ' is-bad'}`}
-        role="status"
-      >
-        <p>
-          {validation.ok
-            ? tr('theme.custom.valid')
-            : tr('theme.custom.invalid', { count: validation.failures.length })}
-        </p>
-        <ul>
-          {validation.failures.map((failure) => (
-            <li key={`${failure.fg}:${failure.bg}`}>
-              {tr('theme.custom.failure', {
-                fg: failure.fg,
-                bg: failure.bg,
-                ratio: failure.ratio,
-                min: failure.min
-              })}
-            </li>
-          ))}
-          {validation.warnings.map((warning) => (
-            <li key={`w:${warning.fg}:${warning.bg}`} className="settings__warning">
-              {tr('theme.custom.warning', {
-                fg: warning.fg,
-                bg: warning.bg,
-                ratio: warning.ratio
-              })}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {notice && <p className="muted settings__hint">{notice}</p>}
     </fieldset>
   )
 }
@@ -599,103 +792,247 @@ function PaletteEditor({ settings, update }: SectionProps): JSX.Element {
 function EditorSection({ settings, update }: SectionProps): JSX.Element {
   const { tr } = useLocale()
   const editor = settings.editor
+  const base: 'light' | 'dark' =
+    settings.general.themeId === 'custom'
+      ? (settings.customTheme.base ?? 'light')
+      : themeBase(settings.general.themeId)
+  const colors = resolveSyntaxColors(base, editor.syntaxColors)
+  const customized = isCustomSyntax(base, editor.syntaxColors)
+
+  // The default font is the first entry of the shipped list. Deriving the
+  // checkbox from the value keeps one source of truth instead of a second flag
+  // that could disagree with the select.
+  const usingDefaultFont = editor.fontFamily === MONO_FONTS[0]
+
+  function setColor(key: EditorSyntaxKey, value: string): void {
+    void update({
+      editor: { ...editor, syntaxColors: { ...editor.syntaxColors, [key]: value } }
+    })
+  }
+
+  function resetColors(): void {
+    void update({ editor: { ...editor, syntaxColors: {} } })
+  }
+
   return (
     <div className="settings__pane">
-      <label className="settings__field">
-        <span>{tr('settings.editor.fontFamily')}</span>
-        <select
-          className="input"
-          value={editor.fontFamily}
-          onChange={(e) =>
-            void update({ editor: { ...editor, fontFamily: e.target.value } })
-          }
+      <fieldset className="settings__group">
+        <legend>{tr('settings.editor.display')}</legend>
+        <div className="settings__editor-row">
+          <span className="settings__editor-row-label">
+            {tr('settings.editor.fontSize')}
+          </span>
+          <div className="settings__editor-row-body">
+            <input
+              type="range"
+              min={11}
+              max={20}
+              step={1}
+              value={editor.fontSize}
+              onChange={(e) =>
+                void update({ editor: { ...editor, fontSize: Number(e.target.value) } })
+              }
+              aria-label={tr('settings.editor.fontSize')}
+            />
+            <span className="settings__value">{editor.fontSize}px</span>
+          </div>
+        </div>
+
+        <div className="settings__editor-row">
+          <span className="settings__editor-row-label">
+            {tr('settings.editor.tabSize')}
+          </span>
+          <div className="settings__editor-row-body">
+            <select
+              className="input input--tight"
+              value={editor.tabSize}
+              onChange={(e) =>
+                void update({
+                  editor: { ...editor, tabSize: Number(e.target.value) as 2 | 4 | 8 }
+                })
+              }
+              aria-label={tr('settings.editor.tabSize')}
+            >
+              {[2, 4, 8].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="settings__editor-row">
+          <span className="settings__editor-row-label">{tr('settings.editor.show')}</span>
+          <div className="settings__editor-row-body settings__editor-checks">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={editor.lineNumbers}
+                onChange={(e) =>
+                  void update({ editor: { ...editor, lineNumbers: e.target.checked } })
+                }
+              />
+              <span>{tr('settings.editor.lineNumbers')}</span>
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={editor.minimap}
+                onChange={(e) =>
+                  void update({ editor: { ...editor, minimap: e.target.checked } })
+                }
+              />
+              <span>{tr('settings.editor.minimap')}</span>
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={editor.wordWrap}
+                onChange={(e) =>
+                  void update({ editor: { ...editor, wordWrap: e.target.checked } })
+                }
+              />
+              <span>{tr('settings.editor.wordWrap')}</span>
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={editor.runSelection}
+                onChange={(e) =>
+                  void update({ editor: { ...editor, runSelection: e.target.checked } })
+                }
+              />
+              <span>{tr('settings.editor.runSelection')}</span>
+            </label>
+          </div>
+        </div>
+        <p className="settings__hint">{tr('settings.editor.runSelectionHint')}</p>
+      </fieldset>
+
+      <fieldset className="settings__group">
+        <legend>{tr('settings.editor.fontColors')}</legend>
+        <div className="settings__editor-row">
+          <span className="settings__editor-row-label">{tr('settings.editor.font')}</span>
+          <div className="settings__editor-row-body">
+            <select
+              className="input input--tight settings__editor-font"
+              value={editor.fontFamily}
+              onChange={(e) =>
+                void update({ editor: { ...editor, fontFamily: e.target.value } })
+              }
+              disabled={usingDefaultFont}
+              aria-label={tr('settings.editor.font')}
+            >
+              {MONO_FONTS.map((font) => (
+                <option key={font} value={font}>
+                  {font.split(',')[0].replace(/'/g, '')}
+                </option>
+              ))}
+            </select>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={usingDefaultFont}
+                onChange={(e) =>
+                  void update({
+                    editor: {
+                      ...editor,
+                      fontFamily: e.target.checked ? MONO_FONTS[0] : editor.fontFamily
+                    }
+                  })
+                }
+              />
+              <span>{tr('settings.editor.useDefaultFont')}</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="settings__editor-row">
+          <span className="settings__editor-row-label">
+            {tr('settings.editor.syntaxColors')}
+          </span>
+          <div className="settings__editor-row-body">
+            <div className="settings__syntax">
+              {EDITOR_SYNTAX_KEYS.map((key) => (
+                <div key={key} className="settings__syntax-item">
+                  <ColorField
+                    value={colors[key]}
+                    onChange={(next) => setColor(key, next)}
+                    label={tr(EDITOR_SYNTAX_LABELS[key])}
+                  />
+                  <span>{tr(EDITOR_SYNTAX_LABELS[key])}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {customized && (
+          <button className="btn btn--ghost btn--tiny" onClick={resetColors}>
+            {tr('settings.editor.resetColors')}
+          </button>
+        )}
+      </fieldset>
+
+      <fieldset className="settings__group">
+        <legend>{tr('settings.editor.preview')}</legend>
+        <p className="settings__hint">{tr('settings.editor.previewHint')}</p>
+        <div
+          className="settings__editor-preview"
+          style={{
+            fontFamily: editor.fontFamily,
+            fontSize: `${editor.fontSize}px`,
+            background: colors.background,
+            color: colors.common
+          }}
         >
-          {MONO_FONTS.map((font) => (
-            <option key={font} value={font}>
-              {font.split(',')[0].replace(/'/g, '')}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="settings__field">
-        <span>
-          {tr('settings.editor.fontSize')} ({editor.fontSize}px)
-        </span>
-        <input
-          type="range"
-          min={11}
-          max={20}
-          step={1}
-          value={editor.fontSize}
-          onChange={(e) =>
-            void update({ editor: { ...editor, fontSize: Number(e.target.value) } })
-          }
-        />
-      </label>
-
-      <label className="settings__field">
-        <span>{tr('settings.editor.tabSize')}</span>
-        <select
-          className="input"
-          value={editor.tabSize}
-          onChange={(e) =>
-            void update({
-              editor: { ...editor, tabSize: Number(e.target.value) as 2 | 4 | 8 }
-            })
-          }
-        >
-          {[2, 4, 8].map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={editor.wordWrap}
-          onChange={(e) =>
-            void update({ editor: { ...editor, wordWrap: e.target.checked } })
-          }
-        />
-        <span>{tr('settings.editor.wordWrap')}</span>
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={editor.minimap}
-          onChange={(e) =>
-            void update({ editor: { ...editor, minimap: e.target.checked } })
-          }
-        />
-        <span>{tr('settings.editor.minimap')}</span>
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={editor.lineNumbers}
-          onChange={(e) =>
-            void update({ editor: { ...editor, lineNumbers: e.target.checked } })
-          }
-        />
-        <span>{tr('settings.editor.lineNumbers')}</span>
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={editor.runSelection}
-          onChange={(e) =>
-            void update({ editor: { ...editor, runSelection: e.target.checked } })
-          }
-        />
-        <span>{tr('settings.editor.runSelection')}</span>
-      </label>
-      <p className="settings__hint">{tr('settings.editor.runSelectionHint')}</p>
+          {editor.lineNumbers && (
+            <div className="settings__editor-preview-lines" aria-hidden="true">
+              {[1, 2, 3, 4, 5].map((line) => (
+                <span key={line}>{line}</span>
+              ))}
+            </div>
+          )}
+          <pre
+            className="settings__editor-preview-code"
+            style={{ whiteSpace: editor.wordWrap ? 'pre-wrap' : 'pre' }}
+            aria-label={tr('settings.editor.preview')}
+          >
+            <code>
+              <span style={{ color: colors.comment }}>
+                {tr('settings.editor.sampleComment')}
+              </span>
+              {'\n'}
+              <span style={{ color: colors.keyword }}>SELECT</span>{' '}
+              <span style={{ color: colors.common }}>name</span>,{' '}
+              <span style={{ color: colors.common }}>status</span>
+              {'\n'}
+              <span style={{ color: colors.keyword }}>FROM</span>{' '}
+              <span style={{ color: colors.common }}>orders</span>
+              {'\n'}
+              <span style={{ color: colors.keyword }}>WHERE</span>{' '}
+              <span style={{ color: colors.common }}>total</span> &gt;{' '}
+              <span style={{ color: colors.number }}>100</span>
+              {'\n'}
+              {' '.repeat(editor.tabSize * 2)}
+              <span style={{ color: colors.keyword }}>AND</span>{' '}
+              <span style={{ color: colors.common }}>status</span> ={' '}
+              <span style={{ color: colors.string }}>&apos;paid&apos;</span>;
+            </code>
+          </pre>
+        </div>
+      </fieldset>
     </div>
   )
+}
+
+const EDITOR_SYNTAX_LABELS: Record<EditorSyntaxKey, MessageKey> = {
+  common: 'settings.editor.colorCommon',
+  keyword: 'settings.editor.colorKeyword',
+  comment: 'settings.editor.colorComment',
+  string: 'settings.editor.colorString',
+  number: 'settings.editor.colorNumber',
+  background: 'settings.editor.colorBackground'
 }
 
 function GridSection({ settings, update }: SectionProps): JSX.Element {
@@ -1214,6 +1551,170 @@ function KeymapSection({ settings, update }: SectionProps): JSX.Element {
   )
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function LogSection({ settings, update }: SectionProps): JSX.Element {
+  const { tr, dateTime } = useLocale()
+  const logs = settings.logs
+  const [info, setInfo] = useState<LogFilesInfo | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async (): Promise<void> => {
+    setLoading(true)
+    try {
+      setInfo(await unwrap(window.dbApi.listLogFiles()))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // The list can change while this section is open: a rotation may add a file
+  // right after the level or cap is saved.
+  useEffect(() => {
+    void load()
+  }, [load, logs.level, logs.maxFileSizeMb, logs.maxFiles])
+
+  return (
+    <div className="settings__pane">
+      <fieldset className="settings__group">
+        <legend>{tr('settings.log.level')}</legend>
+        <p className="settings__hint">{tr('settings.log.levelHint')}</p>
+        <select
+          className="input input--tight"
+          value={logs.level}
+          onChange={(e) =>
+            void update({
+              logs: { ...logs, level: e.target.value as 'info' | 'warn' | 'error' }
+            })
+          }
+        >
+          <option value="info">{tr('settings.log.levelInfo')}</option>
+          <option value="warn">{tr('settings.log.levelWarn')}</option>
+          <option value="error">{tr('settings.log.levelError')}</option>
+        </select>
+      </fieldset>
+
+      <fieldset className="settings__group">
+        <legend>{tr('settings.log.retention')}</legend>
+        <p className="settings__hint">{tr('settings.log.retentionHint')}</p>
+        <div className="settings__row">
+          <label className="settings__field">
+            <span>{tr('settings.log.maxFileSize')}</span>
+            <input
+              className="input input--tight"
+              type="number"
+              min={1}
+              max={50}
+              value={logs.maxFileSizeMb}
+              onChange={(e) => {
+                const value = Number(e.target.value)
+                if (!Number.isFinite(value)) return
+                void update({
+                  logs: {
+                    ...logs,
+                    maxFileSizeMb: Math.min(50, Math.max(1, Math.round(value)))
+                  }
+                })
+              }}
+            />
+          </label>
+          <label className="settings__field">
+            <span>{tr('settings.log.maxFiles')}</span>
+            <input
+              className="input input--tight"
+              type="number"
+              min={1}
+              max={100}
+              value={logs.maxFiles}
+              onChange={(e) => {
+                const value = Number(e.target.value)
+                if (!Number.isFinite(value)) return
+                void update({
+                  logs: {
+                    ...logs,
+                    maxFiles: Math.min(100, Math.max(1, Math.round(value)))
+                  }
+                })
+              }}
+            />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset className="settings__group">
+        <legend>{tr('settings.log.history')}</legend>
+        <p className="settings__hint">{tr('settings.log.historyHint')}</p>
+        <div className="settings__actions">
+          <button
+            className="btn btn--small btn--ghost"
+            onClick={() => void window.dbApi.openAppPath('logsDir')}
+          >
+            {tr('settings.log.openFolder')}
+          </button>
+          <button
+            className="btn btn--small btn--ghost"
+            disabled={!info}
+            onClick={() => void window.dbApi.openAppPath('logFile')}
+          >
+            {tr('settings.log.openActive')}
+          </button>
+          <button className="btn btn--small btn--ghost" onClick={() => void load()}>
+            {tr('settings.log.refresh')}
+          </button>
+        </div>
+
+        {error && (
+          <p className="notice notice--error" role="alert">
+            {tr('settings.log.loadFailed', { message: error })}
+          </p>
+        )}
+        {loading && !info ? (
+          <p className="settings__state" role="status">
+            {tr('common.loading')}
+          </p>
+        ) : !info || info.files.length === 0 ? (
+          <p className="settings__state">{tr('settings.log.empty')}</p>
+        ) : (
+          <table className="data-table settings__keymap">
+            <thead>
+              <tr>
+                <th>{tr('settings.log.name')}</th>
+                <th>{tr('settings.log.size')}</th>
+                <th>{tr('settings.log.modified')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {info.files.map((file) => (
+                <tr key={file.name}>
+                  <td>
+                    <code>{file.name}</code>
+                    {file.name === info.active.split(/[\\/]/).pop() && (
+                      <span className="settings__value">{tr('settings.log.active')}</span>
+                    )}
+                  </td>
+                  <td>{formatBytes(file.size)}</td>
+                  <td>{dateTime(file.modifiedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="settings__hint">
+          {tr('settings.log.directory', { path: info?.dir ?? '' })}
+        </p>
+      </fieldset>
+    </div>
+  )
+}
+
 function AboutSection(): JSX.Element {
   const { tr, dateTime } = useLocale()
   const [info, setInfo] = useState<AppInfo | null>(null)
@@ -1339,16 +1840,6 @@ function AboutSection(): JSX.Element {
           <button
             className="btn btn--tiny btn--ghost"
             onClick={() => void window.dbApi.openAppPath('userData')}
-          >
-            {tr('settings.about.open')}
-          </button>
-        </dd>
-        <dt>{tr('settings.about.logFile')}</dt>
-        <dd>
-          <code className="settings__path">{info.logFile}</code>
-          <button
-            className="btn btn--tiny btn--ghost"
-            onClick={() => void window.dbApi.openAppPath('logFile')}
           >
             {tr('settings.about.open')}
           </button>

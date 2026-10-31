@@ -272,7 +272,7 @@ export function AiActionsPanel({
             running || !sql.trim() || Boolean(active?.needsError && !errorText.trim())
           }
         >
-          {running ? 'Memproses...' : 'Jalankan'}
+          {running ? tr('common.processing') : tr('common.run')}
         </button>
       </div>
 

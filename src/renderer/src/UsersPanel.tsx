@@ -479,7 +479,7 @@ export function UsersPanel({ connectionId, engine }: Props): JSX.Element {
             onClick={() => void execute()}
             disabled={busy}
           >
-            {busy ? 'Menjalankan...' : 'Jalankan'}
+            {busy ? tr('common.running') : tr('common.run')}
           </button>
         </div>
       )}

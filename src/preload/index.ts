@@ -71,7 +71,7 @@ import type {
 } from '@shared/types'
 import type { NcxImportItem } from '@shared/navicatNcx'
 import type { AppSettings } from '@shared/settings'
-import type { AppInfo } from '@shared/types'
+import type { AppInfo, LogFilesInfo } from '@shared/types'
 
 const dbApi = {
   // The renderer needs the host platform to label shortcuts correctly (Cmd on
@@ -574,6 +574,9 @@ const dbApi = {
   appInfo(): Promise<IpcResult<AppInfo>> {
     return ipcRenderer.invoke(IPC.appInfo)
   },
+  listLogFiles(): Promise<IpcResult<LogFilesInfo>> {
+    return ipcRenderer.invoke(IPC.listLogFiles)
+  },
   // Update state comes from main; the renderer only renders it.
   checkForUpdates(): Promise<IpcResult<UpdateState>> {
     return ipcRenderer.invoke(IPC.updateCheck)
@@ -607,7 +610,7 @@ const dbApi = {
     ipcRenderer.on(IPC.updateStateEvent, wrapped)
     return () => ipcRenderer.removeListener(IPC.updateStateEvent, wrapped)
   },
-  openAppPath(target: 'userData' | 'logFile'): Promise<IpcResult<boolean>> {
+  openAppPath(target: 'userData' | 'logFile' | 'logsDir'): Promise<IpcResult<boolean>> {
     return ipcRenderer.invoke(IPC.openPath, { target })
   },
   trustSshHost(connectionId: string): Promise<IpcResult<boolean>> {
