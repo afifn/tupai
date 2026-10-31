@@ -16,23 +16,18 @@ const WIDTH = 660
 const HEIGHT = 400
 
 function page(scale) {
+  const width = WIDTH * scale
+  const height = HEIGHT * scale
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; background: #ffffff; overflow: hidden; }
-  #scaled {
-    width: ${WIDTH}px;
-    height: ${HEIGHT}px;
-    transform: scale(${scale});
-    transform-origin: 0 0;
-  }
 </style>
 </head>
 <body>
-<div id="scaled">
-<svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+<svg width="${width}" height="${height}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#fbfcfd"/>
@@ -40,16 +35,12 @@ function page(scale) {
     </linearGradient>
   </defs>
   <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)"/>
-  <text x="330" y="118" text-anchor="middle"
-        font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
-        font-size="14" fill="#5d6675">Geser ke folder Applications</text>
-  <g fill="none" stroke="#b3521f" stroke-opacity="0.6" stroke-width="9"
+  <g fill="none" stroke="#b3521f" stroke-opacity="0.6" stroke-width="8"
      stroke-linecap="round" stroke-linejoin="round">
-    <path d="M288 200 H372"/>
-    <path d="M352 181 L375 200 L352 219"/>
+    <path d="M275 200 H385"/>
+    <path d="M365 181 L388 200 L365 219"/>
   </g>
 </svg>
-</div>
 </body>
 </html>`
 }
