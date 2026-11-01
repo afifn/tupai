@@ -123,3 +123,17 @@ dmg:
       y: 240
       type: link
       path: /Applications
+    # dmgbuild only writes an icon position for names listed here. These two
+    # entries copy the files dmgbuild creates anyway and place their icons below
+    # the 400px window, so turning on "Show hidden files" in Finder does not
+    # drop .background.tiff and .VolumeIcon.icns into the layout.
+    - x: 60
+      y: 430
+      type: file
+      path: build/dmg-background.tiff
+      name: .background.tiff
+    - x: 600
+      y: 430
+      type: file
+      path: build/icon.icns
+      name: .VolumeIcon.icns
