@@ -480,6 +480,12 @@ export const es: Record<MessageKey, string> = {
   'toast.exportDoneBody': '{done} de {total} tablas, {rows} filas.',
   'toast.nameQueryFirst': 'Ponle nombre a esta consulta primero',
   'toast.nameQueryFirstBody': 'Guárdala con el botón Guardar y luego cierra la pestaña.',
+  'toast.profileMigrated': 'Perfil anterior trasladado',
+  'toast.profileMigratedBody':
+    'Se copiaron {count} elementos desde "{folder}" al perfil de Tupai, incluidas las conexiones y los ajustes. No se eliminó la carpeta anterior.',
+  'toast.profileMigratedPartialBody':
+    'Se copiaron los datos de "{folder}", pero las contraseñas no pudieron trasladarse porque el perfil de Tupai ya tiene contraseñas propias. Vuelve a escribir una vez las contraseñas de las conexiones antiguas.',
+  'toast.profileMigratedNothing': 'No había datos anteriores que trasladar.',
   'explorer.loadingObjects': 'Cargando objetos...',
   'explorer.noObjects': 'Sin objetos.',
   'explorer.noObjectMatch': 'Ningún objeto coincide con la búsqueda.',

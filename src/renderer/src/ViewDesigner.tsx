@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react'
 import { unwrap } from './api'
 import { useLocale } from './i18n'
 import { useSettings } from './settingsStore'
+import { resolveMonoFont } from '@shared/settings'
 import { confirmDestructive } from './confirm'
 import { monaco, EDITOR_THEME_NAME } from './monacoSetup'
 
@@ -251,7 +252,7 @@ export function ViewDesigner(props: Props): JSX.Element {
             options={{
               minimap: { enabled: settings.editor.minimap },
               fontSize: settings.editor.fontSize,
-              fontFamily: settings.editor.fontFamily,
+              fontFamily: resolveMonoFont(settings.editor.fontFamily),
               tabSize: settings.editor.tabSize,
               wordWrap: settings.editor.wordWrap ? 'on' : 'off',
               scrollBeyondLastLine: false,

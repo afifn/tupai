@@ -452,6 +452,12 @@ export const zh: Record<MessageKey, string> = {
   'toast.exportDoneBody': '{done}/{total} 张表，{rows} 行。',
   'toast.nameQueryFirst': '请先命名此查询',
   'toast.nameQueryFirstBody': '用保存按钮保存后再关闭标签页。',
+  'toast.profileMigrated': '已迁移旧配置',
+  'toast.profileMigratedBody':
+    '已将 "{folder}" 中的 {count} 项复制到 Tupai 配置，包括连接和设置。原文件夹未被删除。',
+  'toast.profileMigratedPartialBody':
+    '已复制 "{folder}" 中的数据，但 Tupai 配置已有自己的密码，因此密码无法一并迁移。请为旧连接重新输入一次密码。',
+  'toast.profileMigratedNothing': '没有需要迁移的旧数据。',
   'explorer.loadingObjects': '正在加载对象...',
   'explorer.noObjects': '没有对象。',
   'explorer.noObjectMatch': '没有匹配搜索的对象。',

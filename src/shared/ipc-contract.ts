@@ -98,6 +98,7 @@ export const IPC = {
   closeSettingsWindow: 'settings:window:close',
   settingsChanged: 'settings:changed',
   appInfo: 'app:info',
+  profileMigration: 'app:profileMigration',
   openPath: 'app:openPath',
   updateCheck: 'app:updateCheck',
   updateDownload: 'app:updateDownload',

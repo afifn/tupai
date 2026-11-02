@@ -7,7 +7,13 @@ import type {
   UpdateState
 } from '@shared/types'
 import type { AppSettings } from '@shared/settings'
-import { MONO_FONTS } from '@shared/settings'
+import {
+  DEFAULT_MONO_FONT,
+  isDefaultMonoFont,
+  MONO_FONTS,
+  resolveMonoFont,
+  SYSTEM_MONO_FONT
+} from '@shared/settings'
 import {
   DEFAULT_KEYMAP,
   KEYMAP_ACTIONS,
@@ -799,10 +805,19 @@ function EditorSection({ settings, update }: SectionProps): JSX.Element {
   const colors = resolveSyntaxColors(base, editor.syntaxColors)
   const customized = isCustomSyntax(base, editor.syntaxColors)
 
-  // The default font is the first entry of the shipped list. Deriving the
-  // checkbox from the value keeps one source of truth instead of a second flag
-  // that could disagree with the select.
-  const usingDefaultFont = editor.fontFamily === MONO_FONTS[0]
+  // The default font is derived from the value so there is one source of truth,
+  // but the comparison ignores quoting and spacing: a value read back from disk
+  // must still count as default.
+  const usingDefaultFont = isDefaultMonoFont(editor.fontFamily)
+
+  // A font the user already had saved is offered in the list too, otherwise the
+  // select would show the wrong entry and picking anything else would silently
+  // overwrite it. The marker for "no choice yet" is not a font, so it never
+  // becomes an option.
+  const currentFont = resolveMonoFont(editor.fontFamily)
+  const fontChoices = MONO_FONTS.includes(currentFont)
+    ? MONO_FONTS
+    : [currentFont, ...MONO_FONTS]
 
   function setColor(key: EditorSyntaxKey, value: string): void {
     void update({
@@ -917,14 +932,17 @@ function EditorSection({ settings, update }: SectionProps): JSX.Element {
           <div className="settings__editor-row-body">
             <select
               className="input input--tight settings__editor-font"
-              value={editor.fontFamily}
+              // "No font chosen yet" has nothing to show in the list, so it
+              // displays the shipped default until the user picks one.
+              value={usingDefaultFont ? DEFAULT_MONO_FONT : currentFont}
               onChange={(e) =>
                 void update({ editor: { ...editor, fontFamily: e.target.value } })
               }
-              disabled={usingDefaultFont}
+              // Picking a font is what turns the default off, so the list has to
+              // stay usable while the box is ticked; the checkbox only mirrors it.
               aria-label={tr('settings.editor.font')}
             >
-              {MONO_FONTS.map((font) => (
+              {fontChoices.map((font) => (
                 <option key={font} value={font}>
                   {font.split(',')[0].replace(/'/g, '')}
                 </option>
@@ -938,7 +956,10 @@ function EditorSection({ settings, update }: SectionProps): JSX.Element {
                   void update({
                     editor: {
                       ...editor,
-                      fontFamily: e.target.checked ? MONO_FONTS[0] : editor.fontFamily
+                      // Ticking restores the shipped font. Unticking has to write
+                      // a different value, otherwise the derived checkbox could
+                      // never change and looked broken.
+                      fontFamily: e.target.checked ? DEFAULT_MONO_FONT : SYSTEM_MONO_FONT
                     }
                   })
                 }
@@ -980,7 +1001,11 @@ function EditorSection({ settings, update }: SectionProps): JSX.Element {
         <div
           className="settings__editor-preview"
           style={{
-            fontFamily: editor.fontFamily,
+            // The preview has to follow the editor, so it uses the resolved stack:
+            // the "no font chosen" marker is not a family name and would fall
+            // back to a proportional font, which is exactly what the editor does
+            // not do.
+            fontFamily: currentFont,
             fontSize: `${editor.fontSize}px`,
             background: colors.background,
             color: colors.common

@@ -489,6 +489,12 @@ export const en: Record<MessageKey, string> = {
   'toast.exportDoneBody': '{done} of {total} tables, {rows} rows.',
   'toast.nameQueryFirst': 'Name this query first',
   'toast.nameQueryFirstBody': 'Save it with the Save button, then close the tab.',
+  'toast.profileMigrated': 'Previous profile moved over',
+  'toast.profileMigratedBody':
+    '{count} items from "{folder}" were copied into the Tupai profile, including connections and settings. The old folder was not deleted.',
+  'toast.profileMigratedPartialBody':
+    'Data from "{folder}" was copied, but passwords could not come along because the Tupai profile already has passwords of its own. Retype the old connection passwords once.',
+  'toast.profileMigratedNothing': 'There was no old data to move.',
 
   'explorer.loadingObjects': 'Loading objects...',
   'explorer.noObjects': 'No objects.',

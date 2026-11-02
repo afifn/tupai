@@ -116,6 +116,7 @@ import {
   writeNcxFile
 } from '../connection/ncx'
 import { appInfo, readSettings, resetSettings, writeSettings } from '../settings/store'
+import { takeMigrationReport } from '../profileMigration'
 import { applyMenuState, refreshApplicationMenu, setMenuLabels } from '../menu'
 import {
   checkForUpdates,
@@ -1008,6 +1009,10 @@ export function registerDbHandlers(): void {
   )
 
   ipcMain.handle(IPC.appInfo, () => run(async () => appInfo()))
+
+  // Read once by the window on startup. Reading clears it, so the notice about a
+  // migration the user already saw does not come back on the next launch.
+  ipcMain.handle(IPC.profileMigration, () => run(async () => takeMigrationReport()))
 
   // Update checks are main-only: the renderer gets a state object, never a feed
   // URL, and cannot ask for an install the platform forbids.

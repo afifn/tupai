@@ -45,6 +45,7 @@ import { confirmAction } from './confirm'
 import { commitsImplicitly } from '@shared/transactionGuard'
 import { splitStatements } from '@shared/sqlBoundary'
 import { useSettings } from './settingsStore'
+import { resolveMonoFont } from '@shared/settings'
 import { EDITOR_THEME_NAME } from './monacoSetup'
 import { shortcutLabel } from './platform'
 import {
@@ -1240,7 +1241,7 @@ export const QueryEditor = forwardRef<QueryEditorHandle, Props>(function QueryEd
               onChange={(value) => updateTab(active.id, { sql: value ?? '' })}
               options={{
                 fontSize: editorPrefs.fontSize,
-                fontFamily: editorPrefs.fontFamily,
+                fontFamily: resolveMonoFont(editorPrefs.fontFamily),
                 tabSize: editorPrefs.tabSize,
                 wordWrap: editorPrefs.wordWrap ? 'on' : 'off',
                 minimap: { enabled: editorPrefs.minimap },

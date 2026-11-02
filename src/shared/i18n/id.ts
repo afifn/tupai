@@ -505,6 +505,12 @@ export const id = {
   'toast.exportDoneBody': '{done} dari {total} tabel, {rows} baris.',
   'toast.nameQueryFirst': 'Beri nama query dulu',
   'toast.nameQueryFirstBody': 'Simpan query ini lewat tombol Simpan, lalu tutup tabnya.',
+  'toast.profileMigrated': 'Profil lama dipindahkan',
+  'toast.profileMigratedBody':
+    '{count} item dari "{folder}" disalin ke profil Tupai, termasuk koneksi dan setelan. Folder lama tidak dihapus.',
+  'toast.profileMigratedPartialBody':
+    'Data dari "{folder}" disalin, tetapi password tidak bisa dibawa karena profil Tupai sudah punya password sendiri. Isi ulang password koneksi lama sekali saja.',
+  'toast.profileMigratedNothing': 'Tidak ada data lama yang perlu dipindahkan.',
 
   // Object explorer
   'explorer.loadingObjects': 'Memuat objek...',

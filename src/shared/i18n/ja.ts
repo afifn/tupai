@@ -471,6 +471,12 @@ export const ja: Record<MessageKey, string> = {
   'toast.exportDoneBody': '{total} テーブル中 {done}、{rows} 行。',
   'toast.nameQueryFirst': '先にクエリに名前を付けてください',
   'toast.nameQueryFirstBody': '保存ボタンで保存してからタブを閉じてください。',
+  'toast.profileMigrated': '以前のプロファイルを引き継ぎました',
+  'toast.profileMigratedBody':
+    '"{folder}" から {count} 件を Tupai のプロファイルにコピーしました。接続と設定を含みます。以前のフォルダーは削除していません。',
+  'toast.profileMigratedPartialBody':
+    '"{folder}" のデータをコピーしましたが、Tupai のプロファイルに独自のパスワードがあるため、パスワードは引き継げませんでした。以前の接続のパスワードを一度だけ入力し直してください。',
+  'toast.profileMigratedNothing': '引き継ぐ以前のデータはありませんでした。',
   'explorer.loadingObjects': 'オブジェクトを読み込み中...',
   'explorer.noObjects': 'オブジェクトがありません。',
   'explorer.noObjectMatch': '検索に一致するオブジェクトがありません。',

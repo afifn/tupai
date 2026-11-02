@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, nativeImage, shell } from 'electron'
 import { join } from 'path'
-import { existsSync, readdirSync, renameSync, rmdirSync } from 'fs'
+
 import { registerDbHandlers, disposeDbHandlers } from './ipc/dbHandlers'
 import { supportsTitleBarOverlay } from './windowChrome'
 import { refreshApplicationMenu } from './menu'
 import { initUpdater, scheduleStartupCheck } from './update/updater'
 import { log, configureLogger } from './logger'
+import { copyProfileFiles, prepareProfileMigration } from './profileMigration'
 import { readSettings } from './settings/store'
 import { IPC } from '@shared/ipc-contract'
 import { titleBarColorsSchema } from '@shared/schemas'
@@ -37,49 +38,21 @@ export function titleBarOverlayActive(): boolean {
 import appIcon from '../../build/icon.png?asset'
 
 // The product used to be called "DB Manager" and its data lived in a
-// `db-manager` folder. Electron derives the profile folder from the product
-// name, so the old app kept reading that folder while a rename to "Tupai" would
-// silently start a new profile with no connections.
+// `db-manager` folder. Electron derives that folder from the package name, so an
+// upgrade to "Tupai" starts on a new path and would show an empty connection list
+// even though the old data is still on disk.
 //
-// The whole folder is moved in one rename, including Chromium's `Local State`.
-// Passwords and the AI key are encrypted against the key stored there, so
-// moving only some files, or copying without the key, would make every saved
-// secret unreadable.
+// Both steps run before `app.whenReady`: the encryption key has to be in place
+// before Chromium starts using it, and the copy has to happen before any store
+// reads the new profile and writes a default over it.
 //
 // An explicit --user-data-dir is a deliberate choice (portable profile, smoke
 // test); this block only runs when the profile is still the default one.
 const legacyUserData = join(app.getPath('appData'), 'db-manager')
 const defaultUserData = join(app.getPath('appData'), app.name)
 if (app.getPath('userData') === defaultUserData) {
-  if (!existsSync(legacyUserData)) {
-    // Nothing to migrate.
-  } else if (!existsSync(defaultUserData)) {
-    try {
-      renameSync(legacyUserData, defaultUserData)
-    } catch {
-      // A locked folder (another copy of the app still running) must not make
-      // the profile unreachable; fall back to the old path for this launch.
-      app.setPath('userData', legacyUserData)
-    }
-  } else {
-    // Electron may have created an empty target before this point; removing it
-    // lets the rename still carry the whole legacy profile across.
-    let empty = false
-    try {
-      empty = readdirSync(defaultUserData).length === 0
-    } catch {
-      empty = false
-    }
-    if (empty) {
-      try {
-        rmdirSync(defaultUserData)
-        renameSync(legacyUserData, defaultUserData)
-      } catch {
-        // Keep the new (empty) profile rather than risk a partial move.
-      }
-    }
-    // When both folders hold data, keep the new one and leave the legacy folder
-    // untouched instead of merging two profiles and their encryption keys.
+  if (prepareProfileMigration(legacyUserData, defaultUserData)) {
+    copyProfileFiles(legacyUserData, defaultUserData)
   }
 }
 

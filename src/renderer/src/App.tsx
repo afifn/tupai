@@ -1473,6 +1473,36 @@ export function App(): JSX.Element {
     void reload()
   }, [reload])
 
+  // Tells the user what the upgrade carried over. The main process reports it only
+  // after a migration that moved files, so a normal launch stays quiet.
+  useEffect(() => {
+    void window.dbApi
+      .profileMigration()
+      .then((res) => {
+        if (!res.ok || !res.data) return
+        const report = res.data
+        const folder =
+          report.legacyDir.split(/[\\/]/).filter(Boolean).pop() ?? report.legacyDir
+        if (report.needsAttention.length > 0) {
+          pushToast({
+            kind: 'info',
+            title: tr('toast.profileMigrated'),
+            body: tr('toast.profileMigratedPartialBody', { folder }),
+            timeoutMs: 20000
+          })
+          return
+        }
+        if (report.copied.length === 0) return
+        pushToast({
+          kind: 'ok',
+          title: tr('toast.profileMigrated'),
+          body: tr('toast.profileMigratedBody', { count: report.copied.length, folder }),
+          timeoutMs: 20000
+        })
+      })
+      .catch(() => undefined)
+  }, [pushToast, tr])
+
   function openTable(sel: SelectedTable): void {
     const id = tableKey(sel)
     setTabs((prev) => {

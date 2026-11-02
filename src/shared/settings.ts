@@ -116,6 +116,61 @@ export const MONO_FONTS = [
   "'Fira Code', Consolas, monospace"
 ]
 
+/**
+ * The font a fresh install uses. Kept separate from MONO_FONTS[0] because the
+ * list is what the picker offers, not what "default" means: relying on the first
+ * entry made the default font indistinguishable from a font the user picked.
+ */
+export const DEFAULT_MONO_FONT = MONO_FONTS[0]
+
+/**
+ * Font for "no font chosen yet".
+ *
+ * The checkbox has to be able to say no, and clearing a string setting to an
+ * empty value is rejected by the schema. `inherit` is what CSS calls "use the
+ * editor's own font", so it reads correctly if it ever surfaces, and it is not
+ * in MONO_FONTS so it can never collide with a font the user picks.
+ */
+export const SYSTEM_MONO_FONT = 'inherit'
+
+/**
+ * True when the editor is using the shipped default font.
+ *
+ * The marker for "no font chosen" is deliberately NOT default: it exists so the
+ * checkbox can be unticked, and a marker that also counted as default left the
+ * box checked and made it look broken. It renders as the shipped font, which is
+ * `resolveMonoFont`'s job.
+ *
+ * Compared by family name, ignoring quoting and spacing, so a value read back
+ * from disk or written by an older build still counts as default.
+ */
+export function isDefaultMonoFont(value: string | null | undefined): boolean {
+  if (value === SYSTEM_MONO_FONT) return false
+  return normaliseFontStack(value) === normaliseFontStack(DEFAULT_MONO_FONT)
+}
+
+/**
+ * The stack to hand to a renderer.
+ *
+ * `SYSTEM_MONO_FONT` is a marker, not a font family: Monaco and the CSS preview
+ * would show it as an unknown family and fall back to a proportional font. This
+ * turns it back into the shipped stack.
+ */
+export function resolveMonoFont(value: string | null | undefined): string {
+  const trimmed = (value ?? '').trim()
+  if (!trimmed || trimmed === SYSTEM_MONO_FONT) return DEFAULT_MONO_FONT
+  return trimmed
+}
+
+function normaliseFontStack(value: string | null | undefined): string {
+  return (value ?? '')
+    .replace(/['"]/g, '')
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean)
+    .join(',')
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   general: {
     locale: 'en',
@@ -126,7 +181,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     zoomFactor: 1
   },
   editor: {
-    fontFamily: MONO_FONTS[0],
+    fontFamily: DEFAULT_MONO_FONT,
     fontSize: 13,
     tabSize: 2,
     wordWrap: false,

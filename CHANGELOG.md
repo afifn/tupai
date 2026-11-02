@@ -19,6 +19,11 @@ series, so settings and file formats may change between minor releases.
 - Added daily log files with rotation and oldest-file retention.
 - Added editable syntax colours for the SQL editor, applied to every editor and the preview.
 - Added a Help menu with documentation, changelog, issue reporting, and keyboard shortcuts.
+- Upgrading from the old "DB Manager" build now copies the existing profile
+  folder into `Tupai`, so connections, saved queries, settings, and passwords
+  carry over instead of being recreated.
+- A one-time notice tells you when the previous profile was moved over, or when
+  passwords could not come along.
 
 ### Fixes
 
@@ -32,8 +37,12 @@ series, so settings and file formats may change between minor releases.
 - Made custom themes apply correctly to both light and dark appearances.
 - MongoDB no longer shows SQL column types or table DDL controls.
 - Replaced hardcoded Run labels with translated messages.
-- Migrated legacy `db-manager` profiles to the `Tupai` profile folder.
 - Moved log controls from About to the Log settings section.
+- "Use the default font" can be unticked again, and the font list stays usable
+  while it is ticked.
+- Choosing a font in Editor settings now persists and applies to every editor.
+- The editor preview follows the chosen font instead of falling back to a
+  proportional font.
 
 ## [0.2.5] - 2026-10-30
 

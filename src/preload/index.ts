@@ -71,6 +71,7 @@ import type {
 } from '@shared/types'
 import type { NcxImportItem } from '@shared/navicatNcx'
 import type { AppSettings } from '@shared/settings'
+import type { ProfileMigrationReport } from '@shared/profileMigration'
 import type { AppInfo, LogFilesInfo } from '@shared/types'
 
 const dbApi = {
@@ -573,6 +574,11 @@ const dbApi = {
   },
   appInfo(): Promise<IpcResult<AppInfo>> {
     return ipcRenderer.invoke(IPC.appInfo)
+  },
+  // What the profile migration did on this launch, if anything. Reading it clears
+  // it in main, so the notice appears once.
+  profileMigration(): Promise<IpcResult<ProfileMigrationReport | null>> {
+    return ipcRenderer.invoke(IPC.profileMigration)
   },
   listLogFiles(): Promise<IpcResult<LogFilesInfo>> {
     return ipcRenderer.invoke(IPC.listLogFiles)
